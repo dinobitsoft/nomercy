@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
-import 'package:nomercy/platform.dart';
 import 'package:nomercy/projectile.dart';
+import 'package:nomercy/tiled_platform.dart';
 
 import 'action_game.dart';
 import 'character_class.dart';
@@ -20,8 +20,8 @@ class Player extends SpriteAnimationComponent with HasGameRef<ActionGame> {
   bool isWallSliding = false;
   double attackCooldown = 0;
   bool facingRight = true;
-  Platform? groundPlatform;
-  Platform? climbingWall;
+  TiledPlatform? groundPlatform;
+  TiledPlatform? climbingWall;
   SpriteAnimation? idleAnimation;
   SpriteAnimation? walkAnimation;
   SpriteAnimation? attackAnimation;
@@ -159,14 +159,14 @@ class Player extends SpriteAnimationComponent with HasGameRef<ActionGame> {
     }
   }
 
-  bool _checkPlatformCollision(Platform platform) {
+  bool _checkPlatformCollision(TiledPlatform platform) {
     final dx = (position.x - platform.position.x).abs();
     final dy = (position.y - platform.position.y).abs();
     return dx < (size.x + platform.size.x) / 2 &&
         dy < (size.y + platform.size.y) / 2;
   }
 
-  bool _isNearWall(Platform wall) {
+  bool _isNearWall(TiledPlatform wall) {
     final dx = (position.x - wall.position.x).abs();
     final dy = (position.y - wall.position.y).abs();
     return dx < (size.x + wall.size.x) / 2 + 5 &&

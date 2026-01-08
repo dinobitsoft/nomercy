@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
-import 'package:nomercy/platform.dart' show Platform;
 import 'package:nomercy/player.dart';
 import 'package:nomercy/projectile.dart';
+import 'package:nomercy/tiled_platform.dart';
 
 import 'character_class.dart';
 import 'character_stats.dart';
@@ -20,7 +20,7 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
   late JoystickComponent joystick;
   final List<Enemy> enemies = [];
   final List<Projectile> projectiles = [];
-  final List<Platform> platforms = [];
+  final List<TiledPlatform> platforms = [];
   int enemiesDefeated = 0;
   bool isGameOver = false;
 
@@ -33,15 +33,17 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
   Future<void> onLoad() async {
     await super.onLoad();
 
-    // Adjust camera for landscape 16:9
-    camera.viewfinder.zoom = 0.8; // Zoom out more for wider view
+    camera.viewfinder.zoom = 0.8;
 
     // Load map from JSON
     final gameMap = await MapLoader.loadMap(mapName);
 
-    // Create platforms from map data
+    // Create platforms with textures
     for (final platformData in gameMap.platforms) {
-      final platform = Platform(
+      // Choose platform type based on your preference:
+
+      // Option 1: Simple sprite platform
+      final platform = TiledPlatform(
         position: Vector2(
           platformData.x + platformData.width / 2,
           platformData.y + platformData.height / 2,
@@ -49,7 +51,32 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
         size: Vector2(platformData.width, platformData.height),
         platformType: platformData.type,
       );
-      world.add(platform);
+
+      // Option 2: Tiled texture platform (better for large platforms)
+      /*
+    final platform = TiledPlatform(
+      position: Vector2(
+        platformData.x + platformData.width / 2,
+        platformData.y + platformData.height / 2,
+      ),
+      size: Vector2(platformData.width, platformData.height),
+      platformType: platformData.type,
+    );
+    */
+
+      // Option 3: Enhanced platform with effects
+      /*
+    final platform = EnhancedPlatform(
+      position: Vector2(
+        platformData.x + platformData.width / 2,
+        platformData.y + platformData.height / 2,
+      ),
+      size: Vector2(platformData.width, platformData.height),
+      platformType: platformData.type,
+    );
+    */
+
+      add(platform);
       platforms.add(platform);
     }
 

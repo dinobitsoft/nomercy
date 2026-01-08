@@ -1,0 +1,117 @@
+{
+  "name": "level_3",
+  "width": 1920,
+  "height": 1080,
+  "aspectRatio": "16:9",
+  "orientation": "landscape",
+  "platforms": [
+    {
+      "id": 1767882500783,
+      "type": "ground",
+      "x": 316,
+      "y": 856,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767882501615,
+      "type": "ground",
+      "x": 454,
+      "y": 848,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767882502255,
+      "type": "ground",
+      "x": 577,
+      "y": 851,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767882502910,
+      "type": "ground",
+      "x": 653,
+      "y": 851,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767882503502,
+      "type": "ground",
+      "x": 736,
+      "y": 853,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767882504142,
+      "type": "ground",
+      "x": 814,
+      "y": 851,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767882504702,
+      "type": "ground",
+      "x": 907,
+      "y": 855,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767882505310,
+      "type": "ground",
+      "x": 1012,
+      "y": 853,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767882506038,
+      "type": "ground",
+      "x": 1124,
+      "y": 847,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767882509358,
+      "type": "brick",
+      "x": 333,
+      "y": 566,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767882510294,
+      "type": "brick",
+      "x": 492,
+      "y": 643,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767882511174,
+      "type": "brick",
+      "x": 626,
+      "y": 722,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767882512934,
+      "type": "brick",
+      "x": 759,
+      "y": 788,
+      "width": 120,
+      "height": 30
+    }
+  ],
+  "playerSpawn": {
+    "x": 392,
+    "y": 528
+  }
+}

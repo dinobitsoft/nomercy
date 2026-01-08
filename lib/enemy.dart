@@ -3,8 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 
-import 'package:nomercy/platform.dart';
 import 'package:nomercy/player.dart';
+import 'package:nomercy/tiled_platform.dart';
 
 import 'action_game.dart';
 import 'character_stats.dart';
@@ -16,7 +16,7 @@ class Enemy extends SpriteAnimationComponent with HasGameRef<ActionGame> {
   Vector2 velocity = Vector2.zero();
   double health = 100;
   double attackCooldown = 0;
-  Platform? groundPlatform;
+  TiledPlatform? groundPlatform;
   bool facingRight = true;
   bool spritesLoaded = false;
 
@@ -88,7 +88,7 @@ class Enemy extends SpriteAnimationComponent with HasGameRef<ActionGame> {
     }
   }
 
-  bool _checkPlatformCollision(Platform platform) {
+  bool _checkPlatformCollision(TiledPlatform platform) {
     final dx = (position.x - platform.position.x).abs();
     final dy = (position.y - platform.position.y).abs();
     return dx < (size.x + platform.size.x) / 2 &&
