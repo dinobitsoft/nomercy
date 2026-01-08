@@ -49,7 +49,7 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
         size: Vector2(platformData.width, platformData.height),
         platformType: platformData.type,
       );
-      add(platform);
+      world.add(platform);
       platforms.add(platform);
     }
 
@@ -59,7 +59,7 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
       stats: CharacterStats.fromClass(characterClass),
       game: this,
     );
-    add(player);
+    world.add(player);
 
     // Create enemies
     for (int i = 0; i < 3; i++) {
@@ -73,7 +73,7 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
         player: player,
         game: this,
       );
-      add(enemy);
+      world.add(enemy);
       enemies.add(enemy);
     }
 
@@ -83,6 +83,12 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
       background: CircleComponent(radius: 80, paint: Paint()..color = Colors.white10),
       margin: const EdgeInsets.only(left: 60, bottom: 60),
     );
+    // Joystick stays on screen, add to viewport or game (if it renders on top)
+    // Adding to game works for HUD elements usually if they are overlay
+    // But better to add to viewport if possible. For now, keep as add(joystick) 
+    // because joystick is a HUD component provided by Flame which attaches to viewport?
+    // JoystickComponent is a Component. If added to game, it is a sibling of World.
+    // If it's a sibling, it renders. 
     add(joystick);
 
     // Add HUD
@@ -91,6 +97,7 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
     // Camera setup for landscape
     camera.follow(player);
     camera.viewfinder.visibleGameSize = Vector2(1920, 1080);
+    // Ensure camera stays within bounds if needed, but for now just follow
   }
 
   @override

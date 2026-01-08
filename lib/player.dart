@@ -197,7 +197,7 @@ class Player extends SpriteAnimationComponent with HasGameRef<ActionGame> {
         owner: this,
         color: stats.color,
       );
-      game.add(projectile);
+      game.world.add(projectile);
       game.projectiles.add(projectile);
     }
   }
