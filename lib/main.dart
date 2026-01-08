@@ -5,6 +5,17 @@
 //   flame: ^1.17.0
 //   flame_forge2d: ^0.17.0
 //   socket_io_client: ^2.0.3
+//
+// flutter:
+//   assets:
+//     - assets/images/knight.png
+//     - assets/images/thief.png
+//     - assets/images/wizard.png
+//     - assets/images/trader.png
+//     - assets/images/knight_attack.png
+//     - assets/images/thief_attack.png
+//     - assets/images/wizard_attack.png
+//     - assets/images/trader_attack.png
 
 // main.dart
 import 'package:flame/input.dart';
@@ -12,7 +23,6 @@ import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
-import 'package:flame/sprite.dart';
 import 'dart:math' as math;
 
 void main() {
@@ -185,7 +195,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                       backgroundColor: Colors.green,
                       padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 20),
                     ),
-                    child: const Text('START GAME', style: TextStyle(fontSize: 20)),
+                    child: const Text('START GAME', style: TextStyle(fontSize: 20, color: Colors.white)),
                   ),
                 ),
             ],
@@ -285,7 +295,6 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
   @override
   void onTapDown(TapDownInfo info) {
     super.onTapDown(info);
-    // Attack button area (top right)
     final tapPos = info.eventPosition.global;
     final attackButtonPos = Vector2(size.x - 60, 60);
     if (tapPos.distanceTo(attackButtonPos) < 40) {
@@ -297,10 +306,8 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
   Future<void> onLoad() async {
     await super.onLoad();
 
-    // Set camera zoom for better view
     camera.viewfinder.zoom = 1.5;
 
-    // Create ground
     final ground = Platform(
       position: Vector2(size.x / 2, size.y - 50),
       size: Vector2(size.x, 100),
@@ -308,7 +315,6 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
     add(ground);
     platforms.add(ground);
 
-    // Create platforms for climbing/jumping
     for (int i = 0; i < 5; i++) {
       final platform = Platform(
         position: Vector2(
@@ -321,7 +327,6 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
       platforms.add(platform);
     }
 
-    // Create walls
     final leftWall = Platform(
       position: Vector2(10, size.y / 2),
       size: Vector2(20, size.y),
@@ -336,7 +341,6 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
     add(rightWall);
     platforms.add(rightWall);
 
-    // Create player
     player = Player(
       position: Vector2(size.x / 2, size.y - 200),
       stats: CharacterStats.fromClass(characterClass),
@@ -344,7 +348,6 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
     );
     add(player);
 
-    // Create enemies
     for (int i = 0; i < 3; i++) {
       final enemyClass = CharacterClass.values[i % CharacterClass.values.length];
       final enemy = Enemy(
@@ -357,7 +360,6 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
       enemies.add(enemy);
     }
 
-    // Create joystick
     joystick = JoystickComponent(
       knob: CircleComponent(radius: 30, paint: Paint()..color = Colors.white30),
       background: CircleComponent(radius: 60, paint: Paint()..color = Colors.white10),
@@ -365,10 +367,8 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
     );
     add(joystick);
 
-    // Add HUD
     add(HUD(player: player, game: this));
 
-    // Follow player with camera
     camera.follow(player);
   }
 
@@ -389,7 +389,7 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
 }
 
 // Player Component
-class Player extends PositionComponent with HasGameRef<ActionGame> {
+class Player extends SpriteAnimationComponent with HasGameRef<ActionGame> {
   final CharacterStats stats;
   final ActionGame game;
   Vector2 velocity = Vector2.zero();
@@ -401,13 +401,41 @@ class Player extends PositionComponent with HasGameRef<ActionGame> {
   bool facingRight = true;
   Platform? groundPlatform;
   Platform? climbingWall;
+  SpriteAnimation? idleAnimation;
+  SpriteAnimation? walkAnimation;
+  SpriteAnimation? attackAnimation;
+  bool isAttacking = false;
+  double attackAnimationTimer = 0;
+  bool spritesLoaded = false;
 
-  Player({required super.position, required this.stats, required this.game});
+  Player({required Vector2 position, required this.stats, required this.game})
+      : super(position: position);
 
   @override
   Future<void> onLoad() async {
-    size = Vector2(30, 50);
+    size = Vector2(40, 60);
     anchor = Anchor.center;
+
+    final characterName = stats.type.name;
+
+    try {
+      final sprite = await game.loadSprite('$characterName.png');
+      idleAnimation = SpriteAnimation.spriteList([sprite], stepTime: 1.0);
+      walkAnimation = SpriteAnimation.spriteList([sprite], stepTime: 0.2);
+
+      try {
+        final attackSprite = await game.loadSprite('${characterName}_attack.png');
+        attackAnimation = SpriteAnimation.spriteList([attackSprite, sprite], stepTime: 0.1);
+      } catch (e) {
+        attackAnimation = idleAnimation;
+      }
+
+      animation = idleAnimation;
+      spritesLoaded = true;
+    } catch (e) {
+      print('Could not load sprite for $characterName: $e');
+      spritesLoaded = false;
+    }
   }
 
   @override
@@ -416,35 +444,50 @@ class Player extends PositionComponent with HasGameRef<ActionGame> {
 
     if (attackCooldown > 0) attackCooldown -= dt;
 
-    // Get joystick input - use relativeDelta for vector values
+    if (attackAnimationTimer > 0) {
+      attackAnimationTimer -= dt;
+      if (attackAnimationTimer <= 0) {
+        isAttacking = false;
+        if (spritesLoaded && idleAnimation != null) animation = idleAnimation;
+      }
+    }
+
     final joystickDelta = game.joystick.relativeDelta;
     final joystickDirection = game.joystick.direction;
     final moveSpeed = stats.dexterity / 2;
 
-    // Horizontal movement
     if (joystickDelta.x != 0) {
       velocity.x = joystickDelta.x * moveSpeed * 100;
       facingRight = joystickDelta.x > 0;
+
+      if (!isAttacking && spritesLoaded && walkAnimation != null) {
+        animation = walkAnimation;
+      }
     } else {
       velocity.x = 0;
+
+      if (!isAttacking && spritesLoaded && idleAnimation != null) {
+        animation = idleAnimation;
+      }
     }
 
-    // Crouching (joystick down)
+    if (spritesLoaded && animation != null) {
+      scale.x = facingRight ? 1 : -1;
+    }
+
     isCrouching = joystickDirection == JoystickDirection.down && groundPlatform != null;
 
-    // Check for wall sliding
     isWallSliding = false;
     climbingWall = null;
     for (final platform in game.platforms) {
       if (platform.size.y > 100 && _isNearWall(platform)) {
         isWallSliding = true;
         climbingWall = platform;
-        velocity.y = math.min(velocity.y, 50); // Slow fall
+        velocity.y = math.min(velocity.y, 50);
         break;
       }
     }
 
-    // Climbing
     if (isWallSliding && joystickDirection == JoystickDirection.up) {
       isClimbing = true;
       velocity.y = -moveSpeed * 3;
@@ -452,37 +495,30 @@ class Player extends PositionComponent with HasGameRef<ActionGame> {
       isClimbing = false;
     }
 
-    // Jumping
     if (joystickDirection == JoystickDirection.up && groundPlatform != null && !isCrouching) {
       velocity.y = -300;
       groundPlatform = null;
     }
 
-    // Gravity
     if (groundPlatform == null && !isClimbing) {
       velocity.y += 800 * dt;
       velocity.y = math.min(velocity.y, 500);
     }
 
-    // Apply velocity
     position += velocity * dt;
 
-    // Check platform collisions
     groundPlatform = null;
     for (final platform in game.platforms) {
       if (_checkPlatformCollision(platform)) {
         if (velocity.y > 0 && position.y < platform.position.y) {
-          // Landing on platform
           position.y = platform.position.y - platform.size.y / 2 - size.y / 2;
           velocity.y = 0;
           groundPlatform = platform;
         } else if (velocity.y < 0 && position.y > platform.position.y) {
-          // Hitting platform from below
           position.y = platform.position.y + platform.size.y / 2 + size.y / 2;
           velocity.y = 0;
         }
 
-        // Horizontal collision
         if ((position.x < platform.position.x && velocity.x > 0) ||
             (position.x > platform.position.x && velocity.x < 0)) {
           velocity.x = 0;
@@ -495,10 +531,8 @@ class Player extends PositionComponent with HasGameRef<ActionGame> {
       }
     }
 
-    // Adjust size when crouching
-    size.y = isCrouching ? 25 : 50;
+    size.y = isCrouching ? 30 : 60;
 
-    // Check if dead
     if (health <= 0) {
       game.gameOver();
     }
@@ -522,15 +556,19 @@ class Player extends PositionComponent with HasGameRef<ActionGame> {
     if (attackCooldown > 0) return;
     attackCooldown = 0.5;
 
+    isAttacking = true;
+    attackAnimationTimer = 0.2;
+    if (spritesLoaded && attackAnimation != null) {
+      animation = attackAnimation;
+    }
+
     if (stats.type == CharacterClass.knight) {
-      // Melee attack
       for (final enemy in game.enemies) {
         if (position.distanceTo(enemy.position) < stats.attackRange * 30) {
           enemy.takeDamage(stats.attackDamage);
         }
       }
     } else {
-      // Ranged attack
       final projectile = Projectile(
         position: position.clone(),
         direction: facingRight ? Vector2(1, 0) : Vector2(-1, 0),
@@ -549,21 +587,24 @@ class Player extends PositionComponent with HasGameRef<ActionGame> {
 
   @override
   void render(Canvas canvas) {
-    final paint = Paint()..color = stats.color;
-    canvas.drawRect(
-      Rect.fromCenter(center: Offset.zero, width: size.x, height: size.y),
-      paint,
-    );
+    super.render(canvas);
 
-    // Draw weapon indicator
-    final weaponPaint = Paint()..color = Colors.yellow;
-    final weaponOffset = facingRight ? Offset(size.x / 2 + 5, 0) : Offset(-size.x / 2 - 5, 0);
-    canvas.drawCircle(weaponOffset, 5, weaponPaint);
+    if (!spritesLoaded) {
+      final paint = Paint()..color = stats.color;
+      canvas.drawRect(
+        Rect.fromCenter(center: Offset.zero, width: size.x, height: size.y),
+        paint,
+      );
+
+      final weaponPaint = Paint()..color = Colors.yellow;
+      final weaponOffset = facingRight ? Offset(size.x / 2 + 5, 0) : Offset(-size.x / 2 - 5, 0);
+      canvas.drawCircle(weaponOffset, 5, weaponPaint);
+    }
   }
 }
 
 // Enemy Component
-class Enemy extends PositionComponent with HasGameRef<ActionGame> {
+class Enemy extends SpriteAnimationComponent with HasGameRef<ActionGame> {
   final CharacterStats stats;
   final Player player;
   final ActionGame game;
@@ -571,18 +612,31 @@ class Enemy extends PositionComponent with HasGameRef<ActionGame> {
   double health = 100;
   double attackCooldown = 0;
   Platform? groundPlatform;
+  bool facingRight = true;
+  bool spritesLoaded = false;
 
   Enemy({
-    required super.position,
+    required Vector2 position,
     required this.stats,
     required this.player,
     required this.game,
-  });
+  }) : super(position: position);
 
   @override
   Future<void> onLoad() async {
-    size = Vector2(30, 50);
+    size = Vector2(40, 60);
     anchor = Anchor.center;
+
+    final characterName = stats.type.name;
+
+    try {
+      final sprite = await game.loadSprite('$characterName.png');
+      animation = SpriteAnimation.spriteList([sprite], stepTime: 0.2);
+      spritesLoaded = true;
+    } catch (e) {
+      print('Could not load sprite for enemy $characterName: $e');
+      spritesLoaded = false;
+    }
   }
 
   @override
@@ -591,26 +645,27 @@ class Enemy extends PositionComponent with HasGameRef<ActionGame> {
 
     if (attackCooldown > 0) attackCooldown -= dt;
 
-    // Simple AI: move towards player
     final toPlayer = player.position - position;
     final distance = toPlayer.length;
 
     if (distance < 300) {
       velocity.x = toPlayer.normalized().x * (stats.dexterity / 3);
+      facingRight = toPlayer.x > 0;
     } else {
       velocity.x = 0;
     }
 
-    // Gravity
+    if (spritesLoaded && animation != null) {
+      scale.x = facingRight ? 1 : -1;
+    }
+
     if (groundPlatform == null) {
       velocity.y += 800 * dt;
       velocity.y = math.min(velocity.y, 500);
     }
 
-    // Apply velocity
     position += velocity * dt;
 
-    // Check platform collisions
     groundPlatform = null;
     for (final platform in game.platforms) {
       if (_checkPlatformCollision(platform)) {
@@ -622,7 +677,6 @@ class Enemy extends PositionComponent with HasGameRef<ActionGame> {
       }
     }
 
-    // Attack player if close
     if (distance < stats.attackRange * 30 && attackCooldown <= 0) {
       player.takeDamage(stats.attackDamage / 2);
       attackCooldown = 2.0;
@@ -645,13 +699,16 @@ class Enemy extends PositionComponent with HasGameRef<ActionGame> {
 
   @override
   void render(Canvas canvas) {
-    final paint = Paint()..color = stats.color.withOpacity(0.7);
-    canvas.drawRect(
-      Rect.fromCenter(center: Offset.zero, width: size.x, height: size.y),
-      paint,
-    );
+    super.render(canvas);
 
-    // Health bar
+    if (!spritesLoaded) {
+      final paint = Paint()..color = stats.color.withOpacity(0.7);
+      canvas.drawRect(
+        Rect.fromCenter(center: Offset.zero, width: size.x, height: size.y),
+        paint,
+      );
+    }
+
     final healthBarWidth = size.x;
     final healthPercent = health / 100;
     canvas.drawRect(
@@ -707,7 +764,6 @@ class Projectile extends PositionComponent with HasGameRef<ActionGame> {
     position += direction * 300 * dt;
     lifetime -= dt;
 
-    // Check enemy collisions
     for (final enemy in game.enemies) {
       if (position.distanceTo(enemy.position) < 30) {
         enemy.takeDamage(damage);
@@ -717,7 +773,6 @@ class Projectile extends PositionComponent with HasGameRef<ActionGame> {
       }
     }
 
-    // Check platform collisions
     for (final platform in game.platforms) {
       final dx = (position.x - platform.position.x).abs();
       final dy = (position.y - platform.position.y).abs();
@@ -753,22 +808,18 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
 
   @override
   void render(Canvas canvas) {
-    // Background
     canvas.drawRect(
       const Rect.fromLTWH(10, 10, 250, 140),
       Paint()..color = Colors.black.withOpacity(0.7),
     );
 
-    // Text style
     const textStyle = TextStyle(color: Colors.white, fontSize: 14);
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
-    // Health
     textPainter.text = TextSpan(text: 'HP: ${player.health.toInt()}', style: textStyle);
     textPainter.layout();
     textPainter.paint(canvas, const Offset(20, 20));
 
-    // Health bar
     canvas.drawRect(
       const Rect.fromLTWH(20, 45, 200, 15),
       Paint()..color = Colors.red,
@@ -778,22 +829,18 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
       Paint()..color = Colors.green,
     );
 
-    // Money
     textPainter.text = TextSpan(text: 'Money: \$${player.stats.money}', style: textStyle);
     textPainter.layout();
     textPainter.paint(canvas, const Offset(20, 70));
 
-    // Kills
     textPainter.text = TextSpan(text: 'Kills: ${game.enemiesDefeated}', style: textStyle);
     textPainter.layout();
     textPainter.paint(canvas, const Offset(20, 95));
 
-    // Controls hint
-    textPainter.text = const TextSpan(text: 'Tap screen to attack', style: TextStyle(color: Colors.yellow, fontSize: 12));
+    textPainter.text = const TextSpan(text: 'Tap red button to attack', style: TextStyle(color: Colors.yellow, fontSize: 12));
     textPainter.layout();
     textPainter.paint(canvas, const Offset(20, 120));
 
-    // Attack button (top right)
     canvas.drawCircle(
       Offset(game.size.x - 60, 60),
       40,
@@ -802,6 +849,46 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
     textPainter.text = const TextSpan(text: 'ATK', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
     textPainter.layout();
     textPainter.paint(canvas, Offset(game.size.x - 80, 52));
+
+    canvas.drawRect(
+      Rect.fromLTWH(game.size.x - 220, 130, 210, 160),
+      Paint()..color = Colors.black.withOpacity(0.7),
+    );
+
+    textPainter.text = const TextSpan(text: 'Stats (Upgrade: \$50)', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold));
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(game.size.x - 210, 140));
+
+    final statsNames = ['Power', 'Magic', 'Dexterity', 'Intelligence'];
+    final statsValues = [
+      player.stats.power.toInt(),
+      player.stats.magic.toInt(),
+      player.stats.dexterity.toInt(),
+      player.stats.intelligence.toInt(),
+    ];
+
+    for (int i = 0; i < statsNames.length; i++) {
+      final yPos = 165.0 + i * 30.0;
+
+      textPainter.text = TextSpan(
+        text: '${statsNames[i]}: ${statsValues[i]}',
+        style: const TextStyle(color: Colors.white, fontSize: 11),
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(game.size.x - 210, yPos));
+
+      canvas.drawRect(
+        Rect.fromLTWH(game.size.x - 80, yPos, 60, 20),
+        Paint()..color = player.stats.money >= 50 ? Colors.green : Colors.grey,
+      );
+
+      textPainter.text = const TextSpan(
+        text: '+5 (\$50)',
+        style: TextStyle(color: Colors.white, fontSize: 9),
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(game.size.x - 75, yPos + 3));
+    }
   }
 
   @override
