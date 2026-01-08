@@ -43,6 +43,7 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
       // Choose platform type based on your preference:
 
       // Option 1: Simple sprite platform
+/*
       final platform = TiledPlatform(
         position: Vector2(
           platformData.x + platformData.width / 2,
@@ -51,9 +52,9 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
         size: Vector2(platformData.width, platformData.height),
         platformType: platformData.type,
       );
+*/
 
       // Option 2: Tiled texture platform (better for large platforms)
-      /*
     final platform = TiledPlatform(
       position: Vector2(
         platformData.x + platformData.width / 2,
@@ -62,7 +63,7 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
       size: Vector2(platformData.width, platformData.height),
       platformType: platformData.type,
     );
-    */
+
 
       // Option 3: Enhanced platform with effects
       /*
