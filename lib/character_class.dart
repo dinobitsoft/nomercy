@@ -1,0 +1,1 @@
+enum CharacterClass { knight, thief, wizard, trader }

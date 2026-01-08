@@ -68,6 +68,9 @@ flutter:
     - assets/images/thief_attack.png
     - assets/images/wizard_attack.png
     - assets/images/trader_attack.png
+    - assets/maps/           # Add this line
+    - assets/maps/level_1.json
+    - assets/maps/level_2.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:

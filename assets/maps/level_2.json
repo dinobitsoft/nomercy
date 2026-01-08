@@ -1,0 +1,133 @@
+{
+  "name": "level_2",
+  "width": 1920,
+  "height": 1080,
+  "aspectRatio": "16:9",
+  "orientation": "landscape",
+  "platforms": [
+    {
+      "id": 1767879506025,
+      "type": "brick",
+      "x": 256,
+      "y": 666,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879510489,
+      "type": "ground",
+      "x": 372,
+      "y": 836,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879510985,
+      "type": "ground",
+      "x": 495,
+      "y": 844,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879511505,
+      "type": "ground",
+      "x": 582,
+      "y": 842,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879511969,
+      "type": "ground",
+      "x": 653,
+      "y": 847,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879512465,
+      "type": "ground",
+      "x": 740,
+      "y": 841,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879512937,
+      "type": "ground",
+      "x": 838,
+      "y": 835,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879513393,
+      "type": "ground",
+      "x": 972,
+      "y": 841,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879513865,
+      "type": "ground",
+      "x": 1094,
+      "y": 848,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879514569,
+      "type": "ground",
+      "x": 1197,
+      "y": 862,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879515129,
+      "type": "ground",
+      "x": 1300,
+      "y": 855,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879515569,
+      "type": "ground",
+      "x": 1373,
+      "y": 856,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879516025,
+      "type": "ground",
+      "x": 1491,
+      "y": 858,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879521313,
+      "type": "brick",
+      "x": 380,
+      "y": 745,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879526776,
+      "type": "brick",
+      "x": 133,
+      "y": 598,
+      "width": 120,
+      "height": 30
+    }
+  ],
+  "playerSpawn": {
+    "x": 196,
+    "y": 565
+  }
+}

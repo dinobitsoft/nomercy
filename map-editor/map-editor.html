@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Map Editor - Landscape</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+        }
+
+        .aspect-info {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .main-content {
+            display: flex;
+            height: calc(100vh - 140px);
+        }
+
+        .toolbar {
+            width: 220px;
+            background: #f8f9fa;
+            border-right: 2px solid #e0e0e0;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .tool-section {
+            margin-bottom: 20px;
+        }
+
+        .tool-section h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 14px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 5px;
+        }
+
+        .tool-button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 6px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tool-button:hover {
+            background: #f0f0f0;
+            border-color: #667eea;
+            transform: translateX(5px);
+        }
+
+        .tool-button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .tool-icon {
+            width: 25px;
+            height: 25px;
+            display: inline-block;
+            border-radius: 4px;
+        }
+
+        .brick-icon { background: #8b4513; }
+        .ground-icon { background: #228b22; }
+        .eraser-icon { background: #ff4444; }
+        .spawn-icon { background: #4169e1; }
+
+        .canvas-container {
+            flex: 1;
+            padding: 20px;
+            overflow: auto;
+            background: #e8eaf6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #mapCanvas {
+            border: 3px solid #333;
+            background: #87ceeb;
+            cursor: crosshair;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .controls {
+            background: #f8f9fa;
+            padding: 12px 20px;
+            border-top: 2px solid #e0e0e0;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .input-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 13px;
+        }
+
+        .input-group input {
+            padding: 6px 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            width: 70px;
+        }
+
+        .grid-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .grid-toggle input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .info-panel {
+            background: #e3f2fd;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-top: 12px;
+            font-size: 12px;
+        }
+
+        .info-panel h4 {
+            color: #1976d2;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+
+        .info-panel ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-panel li {
+            padding: 3px 0;
+            color: #555;
+        }
+
+        .stats {
+            display: flex;
+            gap: 15px;
+            margin-left: auto;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: rgba(255,255,255,0.8);
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .orientation-warning {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #667eea;
+            color: white;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 9999;
+        }
+
+        @media (orientation: portrait) {
+            .orientation-warning {
+                display: flex;
+            }
+            .container {
+                display: none;
+            }
+        }
+
+        .rotate-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+            animation: rotate 2s infinite;
+        }
+
+        @keyframes rotate {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(90deg); }
+        }
+    </style>
+</head>
+<body>
+<div class="orientation-warning">
+    <div class="rotate-icon">📱➡️💻</div>
+    <h1>Please Rotate Your Device</h1>
+    <p style="margin-top: 10px; font-size: 18px;">This editor works best in landscape mode</p>
+</div>
+
+<div class="container">
+    <div class="header">
+        <div>
+            <h1>🗺️ Game Map Editor - Landscape Mode</h1>
+            <div class="aspect-info">Canvas: 16:9 aspect ratio (1920×1080)</div>
+        </div>
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-label">Objects</span>
+                <span class="stat-value" id="objectCount">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="toolbar">
+            <div class="tool-section">
+                <h3>🛠️ Tools</h3>
+                <button class="tool-button active" onclick="selectTool('brick')">
+                    <span class="tool-icon brick-icon"></span>
+                    <span>Brick</span>
+                </button>
+                <button class="tool-button" onclick="selectTool('ground')">
+                    <span class="tool-icon ground-icon"></span>
+                    <span>Ground</span>
+                </button>
+                <button class="tool-button" onclick="selectTool('spawn')">
+                    <span class="tool-icon spawn-icon"></span>
+                    <span>Spawn</span>
+                </button>
+                <button class="tool-button" onclick="selectTool('eraser')">
+                    <span class="tool-icon eraser-icon"></span>
+                    <span>Eraser</span>
+                </button>
+            </div>
+
+            <div class="tool-section">
+                <h3>📏 Size</h3>
+                <div class="input-group" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+                    <div style="display: flex; gap: 6px; width: 100%;">
+                        <label>W:</label>
+                        <input type="number" id="blockWidth" value="120" min="20" max="800">
+                    </div>
+                    <div style="display: flex; gap: 6px; width: 100%;">
+                        <label>H:</label>
+                        <input type="number" id="blockHeight" value="30" min="20" max="200">
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <h4>💡 Tips</h4>
+                <ul>
+                    <li>• Click to place</li>
+                    <li>• Right-click remove</li>
+                    <li>• 16:9 landscape</li>
+                    <li>• Set spawn point</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="mapCanvas" width="1920" height="1080"></canvas>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-primary" onclick="generateMap()">
+            💾 Generate Map JSON
+        </button>
+        <button class="btn btn-secondary" onclick="loadMap()">
+            📂 Load Map
+        </button>
+        <button class="btn btn-danger" onclick="clearMap()">
+            🗑️ Clear Map
+        </button>
+
+        <div class="input-group">
+            <label>Map Name:</label>
+            <input type="text" id="mapName" value="level_1" style="width: 120px;">
+        </div>
+
+        <div class="grid-toggle">
+            <input type="checkbox" id="showGrid" onchange="toggleGrid()" checked>
+            <label for="showGrid">Grid</label>
+        </div>
+
+        <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="handleFileLoad(event)">
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('mapCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Map state with 16:9 landscape dimensions
+    const mapData = {
+        name: 'level_1',
+        width: 1920,
+        height: 1080,
+        aspectRatio: '16:9',
+        orientation: 'landscape',
+        platforms: [],
+        playerSpawn: { x: 200, y: 900 }
+    };
+
+    let currentTool = 'brick';
+    let showGrid = true;
+
+    // Tool selection
+    function selectTool(tool) {
+        currentTool = tool;
+        document.querySelectorAll('.tool-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        event.target.closest('.tool-button').classList.add('active');
+    }
+
+    // Canvas events
+    canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
+
+        if (e.button === 0) {
+            if (currentTool === 'eraser') {
+                removePlatform(x, y);
+            } else if (currentTool === 'spawn') {
+                mapData.playerSpawn = { x: Math.round(x), y: Math.round(y) };
+            } else {
+                addPlatform(x, y);
+            }
+        } else if (e.button === 2) {
+            removePlatform(x, y);
+        }
+
+        render();
+    });
+
+    canvas.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+    });
+
+    // Add platform
+    function addPlatform(x, y) {
+        const width = parseInt(document.getElementById('blockWidth').value);
+        const height = parseInt(document.getElementById('blockHeight').value);
+
+        const platform = {
+            id: Date.now(),
+            type: currentTool,
+            x: Math.round(x - width / 2),
+            y: Math.round(y - height / 2),
+            width: width,
+            height: height
+        };
+
+        mapData.platforms.push(platform);
+        updateObjectCount();
+    }
+
+    // Remove platform
+    function removePlatform(x, y) {
+        mapData.platforms = mapData.platforms.filter(platform => {
+            const inBounds = x >= platform.x && x <= platform.x + platform.width &&
+                           y >= platform.y && y <= platform.y + platform.height;
+            return !inBounds;
+        });
+        updateObjectCount();
+    }
+
+    // Render map
+    function render() {
+        ctx.fillStyle = '#87ceeb';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw grid
+        if (showGrid) {
+            ctx.strokeStyle = '#ffffff33';
+            ctx.lineWidth = 1;
+
+            const gridSize = 60;
+            for (let x = 0; x < canvas.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+
+            for (let y = 0; y < canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+        }
+
+        // Draw safe zone boundaries
+        ctx.strokeStyle = '#ff000066';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([10, 5]);
+        ctx.strokeRect(50, 50, canvas.width - 100, canvas.height - 100);
+        ctx.setLineDash([]);
+
+        // Draw platforms
+        mapData.platforms.forEach(platform => {
+            let color;
+            switch (platform.type) {
+                case 'brick':
+                    color = '#8b4513';
+                    break;
+                case 'ground':
+                    color = '#228b22';
+                    break;
+                default:
+                    color = '#666';
+            }
+
+            ctx.fillStyle = color;
+            ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+                platform.type.toUpperCase(),
+                platform.x + platform.width / 2,
+                platform.y + platform.height / 2 + 5
+            );
+        });
+
+        // Draw player spawn
+        ctx.fillStyle = '#4169e1';
+        ctx.beginPath();
+        ctx.arc(mapData.playerSpawn.x, mapData.playerSpawn.y, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('SPAWN', mapData.playerSpawn.x, mapData.playerSpawn.y + 4);
+
+        // Draw dimensions
+        ctx.fillStyle = '#000';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(`${canvas.width}×${canvas.height} (16:9)`, 10, 25);
+    }
+
+    function toggleGrid() {
+        showGrid = document.getElementById('showGrid').checked;
+        render();
+    }
+
+    function updateObjectCount() {
+        document.getElementById('objectCount').textContent = mapData.platforms.length;
+    }
+
+    function generateMap() {
+        mapData.name = document.getElementById('mapName').value;
+        const json = JSON.stringify(mapData, null, 2);
+
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${mapData.name}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        alert(`Map "${mapData.name}" generated!\n\nFormat: 16:9 Landscape\nSize: ${mapData.width}×${mapData.height}\nPlatforms: ${mapData.platforms.length}`);
+    }
+
+    function loadMap() {
+        document.getElementById('fileInput').click();
+    }
+
+    function handleFileLoad(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const loaded = JSON.parse(e.target.result);
+                mapData.name = loaded.name;
+                mapData.platforms = loaded.platforms || [];
+                mapData.playerSpawn = loaded.playerSpawn || { x: 200, y: 900 };
+
+                document.getElementById('mapName').value = mapData.name;
+                updateObjectCount();
+                render();
+
+                alert('Map loaded successfully!');
+            } catch (error) {
+                alert('Error loading map: ' + error.message);
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function clearMap() {
+        if (confirm('Clear the entire map?')) {
+            mapData.platforms = [];
+            mapData.playerSpawn = { x: 200, y: 900 };
+            updateObjectCount();
+            render();
+        }
+    }
+
+    render();
+</script>
+</body>
+</html>
