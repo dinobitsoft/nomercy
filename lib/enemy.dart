@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 
 import 'package:nomercy/player.dart';
+import 'package:nomercy/projectile.dart';
 import 'package:nomercy/tiled_platform.dart';
 
 import 'action_game.dart';
+import 'character_class.dart';
 import 'character_stats.dart';
 
 class Enemy extends SpriteAnimationComponent with HasGameRef<ActionGame> {
@@ -88,10 +90,58 @@ class Enemy extends SpriteAnimationComponent with HasGameRef<ActionGame> {
     }
 
     // Adjusted attack range for larger characters
-    if (distance < stats.attackRange * 60 && attackCooldown <= 0) {
-      player.takeDamage(stats.attackDamage / 2);
-      attackCooldown = 2.0;
+    if (attackCooldown <= 0) {
+      if (stats.type == CharacterClass.knight) {
+        // Melee attack
+        if (distance < stats.attackRange * 30) {
+          player.takeDamage(stats.attackDamage / 2);
+          attackCooldown = 2.0;
+        }
+      } else {
+        // Ranged attack - shoot projectile
+        if (distance < 400) {
+          _shootAtPlayer();
+          attackCooldown = 2.0;
+        }
+      }
     }
+  }
+
+  void _shootAtPlayer() {
+    final direction = (player.position - position).normalized();
+
+    String projectileType;
+    Color projectileColor;
+
+    switch (stats.type) {
+      case CharacterClass.thief:
+        projectileType = 'knife';
+        projectileColor = Colors.grey;
+        break;
+      case CharacterClass.wizard:
+        projectileType = 'fireball';
+        projectileColor = Colors.orange;
+        break;
+      case CharacterClass.trader:
+        projectileType = 'arrow';
+        projectileColor = Colors.brown;
+        break;
+      default:
+        projectileType = 'projectile';
+        projectileColor = stats.color;
+    }
+
+    final projectile = Projectile(
+      position: position.clone(),
+      direction: direction,
+      damage: stats.attackDamage / 2,
+      enemyOwner: this,
+      color: projectileColor,
+      type: projectileType,
+    );
+
+    game.world.add(projectile);
+    game.projectiles.add(projectile);
   }
 
   bool _checkPlatformCollision(TiledPlatform platform) {

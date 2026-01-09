@@ -173,33 +173,53 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
           ]
               : [],
         ),
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              charClass.name.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            Text(
-              'Weapon: ${stats.weaponName}',
-              style: const TextStyle(fontSize: 14, color: Colors.white70),
-            ),
-            const Spacer(),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _statColumn('PWR', stats.power),
-                _statColumn('MAG', stats.magic),
-                _statColumn('DEX', stats.dexterity),
-                _statColumn('INT', stats.intelligence),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Image.asset(
+                    'assets/images/${charClass.name}.png',
+                    height: 115,
+                    width: 80,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: Colors.white),
+                  ),
+                ),
+                // const SizedBox(width: 12),
+                // Text(
+                //   'Weapon: ${stats.weaponName}',
+                //   style: const TextStyle(fontSize: 14, color: Colors.white70),
+                // ),
+                // Text(
+                //   charClass.name.toUpperCase(),
+                //   style: const TextStyle(
+                //     fontSize: 18,
+                //     fontWeight: FontWeight.bold,
+                //     color: Colors.white,
+                //   ),
+                // ),
               ],
             ),
+
+            // const Spacer(),
+            // Row(
+            //   mainAxisAlignment: MainAxisAlignment.spaceAround,
+            //   children: [
+            //     _statColumn('PWR', stats.power),
+            //     _statColumn('MAG', stats.magic),
+            //     _statColumn('DEX', stats.dexterity),
+            //     _statColumn('INT', stats.intelligence),
+            //   ],
+            // ),
           ],
         ),
       ),

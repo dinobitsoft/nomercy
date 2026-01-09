@@ -188,18 +188,42 @@ class Player extends SpriteAnimationComponent with HasGameRef<ActionGame> {
     }
 
     if (stats.type == CharacterClass.knight) {
+      // Melee attack - no change
       for (final enemy in game.enemies) {
-        if (position.distanceTo(enemy.position) < stats.attackRange * 60) { // Increased hit area
+        if (position.distanceTo(enemy.position) < stats.attackRange * 30) {
           enemy.takeDamage(stats.attackDamage);
         }
       }
     } else {
+      // NEW: Visual projectiles for ranged attacks
+      String projectileType;
+      Color projectileColor;
+
+      switch (stats.type) {
+        case CharacterClass.thief:
+          projectileType = 'knife';
+          projectileColor = Colors.grey;
+          break;
+        case CharacterClass.wizard:
+          projectileType = 'fireball';
+          projectileColor = Colors.orange;
+          break;
+        case CharacterClass.trader:
+          projectileType = 'arrow';
+          projectileColor = Colors.brown;
+          break;
+        default:
+          projectileType = 'projectile';
+          projectileColor = stats.color;
+      }
+
       final projectile = Projectile(
         position: position.clone(),
         direction: facingRight ? Vector2(1, 0) : Vector2(-1, 0),
         damage: stats.attackDamage,
         owner: this,
-        color: stats.color,
+        color: projectileColor,
+        type: projectileType,
       );
       game.world.add(projectile);
       game.projectiles.add(projectile);
