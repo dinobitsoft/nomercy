@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'character_class.dart';
 import 'character_stats.dart';
-import 'level_selection_screen.dart';
 import 'gamepad_manager.dart';
+import 'level_selection_screen.dart';
 
 class CharacterSelectionScreen extends StatefulWidget {
   const CharacterSelectionScreen({super.key});

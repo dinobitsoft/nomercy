@@ -1,12 +1,13 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
-
+import 'package:flutter/material.dart';
 import 'package:nomercy/player.dart';
+import 'package:nomercy/projectile.dart';
 import 'package:nomercy/tiled_platform.dart';
 
 import 'action_game.dart';
+import 'character_class.dart';
 import 'character_stats.dart';
 
 class Enemy extends SpriteAnimationComponent with HasGameRef<ActionGame> {
@@ -48,52 +49,6 @@ class Enemy extends SpriteAnimationComponent with HasGameRef<ActionGame> {
     }
   }
 
-  @override
-  void update(double dt) {
-    super.update(dt);
-
-    if (attackCooldown > 0) attackCooldown -= dt;
-
-    final toPlayer = player.position - position;
-    final distance = toPlayer.length;
-
-    // Adjusted detection range for larger characters
-    if (distance < 600) {
-      velocity.x = toPlayer.normalized().x * (stats.dexterity / 3) * 1.5;
-      facingRight = toPlayer.x > 0;
-    } else {
-      velocity.x = 0;
-    }
-
-    if (spritesLoaded && animation != null) {
-      scale.x = facingRight ? 1 : -1;
-    }
-
-    if (groundPlatform == null) {
-      velocity.y += 1000 * dt; // Increased gravity for larger feel
-      velocity.y = math.min(velocity.y, 600);
-    }
-
-    position += velocity * dt;
-
-    groundPlatform = null;
-    for (final platform in game.platforms) {
-      if (_checkPlatformCollision(platform)) {
-        if (velocity.y > 0 && position.y < platform.position.y) {
-          position.y = platform.position.y - platform.size.y / 2 - size.y / 2;
-          velocity.y = 0;
-          groundPlatform = platform;
-        }
-      }
-    }
-
-    // Adjusted attack range for larger characters
-    if (distance < stats.attackRange * 60 && attackCooldown <= 0) {
-      player.takeDamage(stats.attackDamage / 2);
-      attackCooldown = 2.0;
-    }
-  }
-
   bool _checkPlatformCollision(TiledPlatform platform) {
     final dx = (position.x - platform.position.x).abs();
     final dy = (position.y - platform.position.y).abs();
@@ -132,5 +87,99 @@ class Enemy extends SpriteAnimationComponent with HasGameRef<ActionGame> {
       Rect.fromLTWH(-size.x / 2, -size.y / 2 - 20, healthBarWidth * healthPercent, 10),
       Paint()..color = Colors.green,
     );
+  }
+
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+
+    if (attackCooldown > 0) attackCooldown -= dt;
+
+    final toPlayer = player.position - position;
+    final distance = toPlayer.length;
+
+    if (distance < 300) {
+      velocity.x = toPlayer.normalized().x * (stats.dexterity / 3);
+      facingRight = toPlayer.x > 0;
+    } else {
+      velocity.x = 0;
+    }
+
+    if (spritesLoaded && animation != null) {
+      scale.x = facingRight ? 1 : -1;
+    }
+
+    if (groundPlatform == null) {
+      velocity.y += 800 * dt;
+      velocity.y = math.min(velocity.y, 500);
+    }
+
+    position += velocity * dt;
+
+    groundPlatform = null;
+    for (final platform in game.platforms) {
+      if (_checkPlatformCollision(platform)) {
+        if (velocity.y > 0 && position.y < platform.position.y) {
+          position.y = platform.position.y - platform.size.y / 2 - size.y / 2;
+          velocity.y = 0;
+          groundPlatform = platform;
+        }
+      }
+    }
+
+    // UPDATED: Different attack for melee vs ranged
+    if (attackCooldown <= 0) {
+      if (stats.type == CharacterClass.knight) {
+        // Melee attack - must be close
+        if (distance < stats.attackRange * 30) {
+          player.takeDamage(stats.attackDamage / 2);
+          attackCooldown = 2.0;
+        }
+      } else {
+        // Ranged attack - shoot projectile at player
+        if (distance < 400) {  // Shoot from distance
+          _shootAtPlayer();
+          attackCooldown = 2.0;
+        }
+      }
+    }
+  }
+
+  void _shootAtPlayer() {
+    final direction = (player.position - position).normalized();
+
+    String projectileType;
+    Color projectileColor;
+
+    switch (stats.type) {
+      case CharacterClass.thief:
+        projectileType = 'knife';
+        projectileColor = Colors.grey;
+        break;
+      case CharacterClass.wizard:
+        projectileType = 'fireball';
+        projectileColor = Colors.orange;
+        break;
+      case CharacterClass.trader:
+        projectileType = 'arrow';
+        projectileColor = Colors.brown;
+        break;
+      default:
+        projectileType = 'projectile';
+        projectileColor = stats.color;
+    }
+
+    final projectile = Projectile(
+      position: position.clone(),
+      direction: direction,
+      damage: stats.attackDamage / 2,
+      enemyOwner: this,
+      color: projectileColor,
+      type: projectileType,
+    );
+
+    game.add(projectile);
+    game.projectiles.add(projectile);
   }
 }

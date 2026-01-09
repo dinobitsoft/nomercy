@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
-
+import 'package:flutter/material.dart';
 import 'package:nomercy/player.dart';
+
 import 'action_game.dart';
 
 class HUD extends PositionComponent with HasGameRef<ActionGame> {

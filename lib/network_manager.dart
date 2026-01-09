@@ -3,7 +3,6 @@ import 'package:nomercy/player.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 import 'character_stats.dart';
-import 'main.dart';
 
 class NetworkManager {
   static final NetworkManager _instance = NetworkManager._internal();

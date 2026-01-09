@@ -1,13 +1,13 @@
-import 'package:flame/input.dart';
-import 'package:flutter/material.dart';
-import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
+import 'package:flame/game.dart';
+import 'package:flame/input.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nomercy/gamepad_manager.dart';
 import 'package:nomercy/player.dart';
 import 'package:nomercy/projectile.dart';
 import 'package:nomercy/tiled_platform.dart';
-import 'package:nomercy/gamepad_manager.dart';
 
 import 'character_class.dart';
 import 'character_stats.dart';

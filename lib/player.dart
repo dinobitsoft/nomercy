@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
+import 'package:flutter/material.dart';
 import 'package:nomercy/projectile.dart';
 import 'package:nomercy/tiled_platform.dart';
 
@@ -188,20 +188,45 @@ class Player extends SpriteAnimationComponent with HasGameRef<ActionGame> {
     }
 
     if (stats.type == CharacterClass.knight) {
+      // Melee attack - no projectile
       for (final enemy in game.enemies) {
-        if (position.distanceTo(enemy.position) < stats.attackRange * 60) { // Increased hit area
+        if (position.distanceTo(enemy.position) < stats.attackRange * 30) {
           enemy.takeDamage(stats.attackDamage);
         }
       }
     } else {
+      // Ranged attack - create visible projectile
+      String projectileType;
+      Color projectileColor;
+
+      switch (stats.type) {
+        case CharacterClass.thief:
+          projectileType = 'knife';
+          projectileColor = Colors.grey;
+          break;
+        case CharacterClass.wizard:
+          projectileType = 'fireball';
+          projectileColor = Colors.orange;
+          break;
+        case CharacterClass.trader:
+          projectileType = 'arrow';
+          projectileColor = Colors.brown;
+          break;
+        default:
+          projectileType = 'projectile';
+          projectileColor = stats.color;
+      }
+
       final projectile = Projectile(
         position: position.clone(),
         direction: facingRight ? Vector2(1, 0) : Vector2(-1, 0),
         damage: stats.attackDamage,
+        speed: stats.projectileSpeed, // Using the new configurable speed
         owner: this,
-        color: stats.color,
+        color: projectileColor,
+        type: projectileType,
       );
-      game.world.add(projectile);
+      game.add(projectile);
       game.projectiles.add(projectile);
     }
   }

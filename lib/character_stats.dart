@@ -12,6 +12,7 @@ class CharacterStats {
   final String weaponName;
   final double attackRange;
   final double attackDamage;
+  final double projectileSpeed; // New property
   final Color color;
 
   CharacterStats({
@@ -24,6 +25,7 @@ class CharacterStats {
     required this.weaponName,
     required this.attackRange,
     required this.attackDamage,
+    this.projectileSpeed = 400.0, // Default value
     required this.color,
   });
 
@@ -39,6 +41,7 @@ class CharacterStats {
           weaponName: 'Sword Slash',
           attackRange: 2.0,
           attackDamage: 15,
+          projectileSpeed: 0, // Melee
           color: Colors.blue,
         );
       case CharacterClass.thief:
@@ -51,6 +54,7 @@ class CharacterStats {
           weaponName: 'Throwing Knives',
           attackRange: 8.0,
           attackDamage: 10,
+          projectileSpeed: 600.0, // Fast knives
           color: Colors.green,
         );
       case CharacterClass.wizard:
@@ -63,6 +67,7 @@ class CharacterStats {
           weaponName: 'Fireball',
           attackRange: 10.0,
           attackDamage: 20,
+          projectileSpeed: 300.0, // Slower but powerful
           color: Colors.purple,
         );
       case CharacterClass.trader:
@@ -75,6 +80,7 @@ class CharacterStats {
           weaponName: 'Bow & Arrow',
           attackRange: 12.0,
           attackDamage: 12,
+          projectileSpeed: 800.0, // Very fast arrows
           color: Colors.orange,
         );
     }
