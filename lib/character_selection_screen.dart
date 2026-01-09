@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'character_class.dart';
 import 'character_stats.dart';
 import 'level_selection_screen.dart';
+import 'gamepad_manager.dart';
 
 class CharacterSelectionScreen extends StatefulWidget {
   const CharacterSelectionScreen({super.key});
@@ -13,6 +14,13 @@ class CharacterSelectionScreen extends StatefulWidget {
 
 class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
   CharacterClass? selectedClass;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initial check for already connected gamepads
+    GamepadManager().checkConnection();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,76 +34,114 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
           ),
         ),
         child: SafeArea(
-          child: Row(
+          child: Stack(
             children: [
-              // Left side - Title and info
-              Expanded(
-                flex: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(40),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Choose Your\nCharacter',
-                        style: TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold,
-                          height: 1.2,
+              Row(
+                children: [
+                  // Left side - Title and info
+                  Expanded(
+                    flex: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(40),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Choose Your\nCharacter',
+                            style: TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                              height: 1.2,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          if (selectedClass != null) ...[
+                            ElevatedButton(
+                              onPressed: () => _startGame(context),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 30,
+                                  vertical: 15,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'START GAME',
+                                    style: TextStyle(fontSize: 24, color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Right side - Character grid
+                  Expanded(
+                    flex: 3,
+                    child: GridView.count(
+                      crossAxisCount: 2,
+                      padding: const EdgeInsets.all(50),
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 1.2,
+                      children: CharacterClass.values.map((charClass) {
+                        final stats = CharacterStats.fromClass(charClass);
+                        return _buildCharacterCard(charClass, stats);
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+              
+              // Gamepad Connection Indicator
+              Positioned(
+                top: 20,
+                right: 20,
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: GamepadManager().connected,
+                  builder: (context, isConnected, child) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isConnected ? Colors.green : Colors.grey,
+                          width: 2,
                         ),
                       ),
-                      // const SizedBox(height: 10),
-                      // Text(
-                      //   'Select a character to begin your adventure',
-                      //   style: TextStyle(
-                      //     fontSize: 18,
-                      //     color: Colors.grey[400],
-                      //   ),
-                      // ),
-                      const SizedBox(height: 20),
-                      if (selectedClass != null) ...[
-                        ElevatedButton(
-                          onPressed: () => _startGame(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 30,
-                              vertical: 15,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.videogame_asset_outlined,
+                            color: isConnected ? Colors.green : Colors.grey,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isConnected ? 'GAMEPAD READY' : 'NO GAMEPAD',
+                            style: TextStyle(
+                              color: isConnected ? Colors.green : Colors.grey,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'START GAME',
-                                style: TextStyle(fontSize: 24, color: Colors.white),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-
-              // Right side - Character grid
-              Expanded(
-                flex: 3,
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  padding: const EdgeInsets.all(50),
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 1.2,
-                  children: CharacterClass.values.map((charClass) {
-                    final stats = CharacterStats.fromClass(charClass);
-                    return _buildCharacterCard(charClass, stats);
-                  }).toList(),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -137,11 +183,12 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
             ),
             Text(
               'Weapon: ${stats.weaponName}',
-              style: const TextStyle(fontSize: 14),
+              style: const TextStyle(fontSize: 14, color: Colors.white70),
             ),
             const Spacer(),
             Row(
@@ -175,6 +222,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
         ),
       ],

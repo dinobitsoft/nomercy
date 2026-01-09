@@ -46,15 +46,15 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
     textPainter.layout();
     textPainter.paint(canvas, const Offset(30, 90));
 
-    // Attack button (visual only here, logic is in ActionGame.onTapDown)
-    // Note: Since this is now in the viewport, coordinates should be relative to the viewport size.
-    // However, ActionGame uses game.size.x in onTapDown for the click logic.
-    // We'll keep the rendering consistent with the logic.
-    final buttonX = game.size.x - 100;
+    // Attack button - Updated to bottom right and 2x smaller
+    // Logic position: Vector2(size.x - 80, size.y - 80)
+    final buttonX = game.size.x - 80;
+    final buttonY = game.size.y - 80;
+    final radius = 30.0; // 2 times smaller than original 60
     
     canvas.drawCircle(
-      Offset(buttonX, 100),
-      60,
+      Offset(buttonX, buttonY),
+      radius,
       Paint()..color = Colors.red.withOpacity(0.6),
     );
 
@@ -62,13 +62,11 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
       text: 'ATK',
       style: TextStyle(
         color: Colors.white,
-        fontSize: 24,
+        fontSize: 14, // Smaller font for smaller button
         fontWeight: FontWeight.bold,
       ),
     );
     textPainter.layout();
-    textPainter.paint(canvas, Offset(buttonX - 25, 85));
+    textPainter.paint(canvas, Offset(buttonX - 14, buttonY - 8));
   }
-  
-  // Removed manual positioning logic from update() as we'll add this to the camera's viewport
 }

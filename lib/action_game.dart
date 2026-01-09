@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
+import 'package:flutter/services.dart';
 import 'package:nomercy/player.dart';
 import 'package:nomercy/projectile.dart';
 import 'package:nomercy/tiled_platform.dart';
+import 'package:nomercy/gamepad_manager.dart';
 
 import 'character_class.dart';
 import 'character_stats.dart';
@@ -13,11 +15,12 @@ import 'enemy.dart';
 import 'game_map.dart';
 import 'hud.dart';
 
-class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
+class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, KeyboardEvents {
   final CharacterClass characterClass;
   final String mapName;
   late Player player;
   late JoystickComponent joystick;
+  final GamepadManager gamepadManager = GamepadManager();
   final List<Enemy> enemies = [];
   final List<Projectile> projectiles = [];
   final List<TiledPlatform> platforms = [];
@@ -32,6 +35,9 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
   @override
   Future<void> onLoad() async {
     await super.onLoad();
+
+    // Add gamepad manager as a component
+    add(gamepadManager);
 
     // Adjust camera for a tighter, more cinematic view on mobile
     camera.viewfinder.zoom = 1.2;
@@ -101,7 +107,6 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
     camera.viewfinder.visibleGameSize = Vector2(1280, 720);
 
     // Create joystick - Added to the camera viewport to stay fixed and visible
-    // Made 2 times smaller (Knob 25, BG 50) and moved closer to the very left bottom corner
     joystick = JoystickComponent(
       knob: CircleComponent(radius: 25, paint: Paint()..color = Colors.white.withOpacity(0.5)),
       background: CircleComponent(radius: 50, paint: Paint()..color = Colors.white.withOpacity(0.1)),
@@ -114,11 +119,19 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
   }
 
   @override
+  KeyEventResult onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
+    gamepadManager.onKeyEvent(event, keysPressed);
+//print(keysPressed);
+    print(event);
+    return KeyEventResult.handled;
+  }
+
+  @override
   void onTapDown(TapDownInfo info) {
     super.onTapDown(info);
     final tapPos = info.eventPosition.global;
 
-    // Attack button logic (moved to bottom right and made 2x smaller)
+    // Attack button logic
     final attackButtonPos = Vector2(size.x - 80, size.y - 80);
     if (tapPos.distanceTo(attackButtonPos) < 50) {
       attack();
