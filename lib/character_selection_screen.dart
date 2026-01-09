@@ -45,23 +45,23 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                           height: 1.2,
                         ),
                       ),
+                      // const SizedBox(height: 10),
+                      // Text(
+                      //   'Select a character to begin your adventure',
+                      //   style: TextStyle(
+                      //     fontSize: 18,
+                      //     color: Colors.grey[400],
+                      //   ),
+                      // ),
                       const SizedBox(height: 20),
-                      Text(
-                        'Select a character to begin your adventure',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey[400],
-                        ),
-                      ),
-                      const SizedBox(height: 40),
                       if (selectedClass != null) ...[
                         ElevatedButton(
                           onPressed: () => _startGame(context),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 60,
-                              vertical: 25,
+                              horizontal: 30,
+                              vertical: 15,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(15),
@@ -70,8 +70,6 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.play_arrow, size: 32),
-                              SizedBox(width: 10),
                               Text(
                                 'START GAME',
                                 style: TextStyle(fontSize: 24, color: Colors.white),
@@ -90,9 +88,9 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                 flex: 3,
                 child: GridView.count(
                   crossAxisCount: 2,
-                  padding: const EdgeInsets.all(40),
-                  crossAxisSpacing: 20,
-                  mainAxisSpacing: 20,
+                  padding: const EdgeInsets.all(50),
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
                   childAspectRatio: 1.2,
                   children: CharacterClass.values.map((charClass) {
                     final stats = CharacterStats.fromClass(charClass);

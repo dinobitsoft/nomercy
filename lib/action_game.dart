@@ -33,17 +33,33 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
   Future<void> onLoad() async {
     await super.onLoad();
 
-    camera.viewfinder.zoom = 0.8;
+    // Adjust camera for a tighter, more cinematic view on mobile
+    camera.viewfinder.zoom = 1.2;
+
+    // Load background
+    final background = SpriteComponent()
+      ..sprite = await loadSprite('ground.png')
+      ..size = Vector2(1920, 1080)
+      ..paint = (Paint()..color = Colors.blueGrey.withOpacity(0.2));
+    world.add(background);
+
+    // Create a large background gradient
+    final bgRect = RectangleComponent(
+      size: Vector2(5000, 2000),
+      position: Vector2(-1000, -500),
+      paint: Paint()..shader = UIGradient.linear(
+        const Offset(0, 0),
+        const Offset(0, 1000),
+        [const Color(0xFF1a1a2e), const Color(0xFF16213e)],
+      ).shader,
+    );
+    world.add(bgRect);
 
     // Load map from JSON
     final gameMap = await MapLoader.loadMap(mapName);
 
     // Create platforms with textures
     for (final platformData in gameMap.platforms) {
-      // Choose platform type based on your preference:
-
-      // Option 1: Simple sprite platform
-/*
       final platform = TiledPlatform(
         position: Vector2(
           platformData.x + platformData.width / 2,
@@ -52,32 +68,7 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
         size: Vector2(platformData.width, platformData.height),
         platformType: platformData.type,
       );
-*/
-
-      // Option 2: Tiled texture platform (better for large platforms)
-    final platform = TiledPlatform(
-      position: Vector2(
-        platformData.x + platformData.width / 2,
-        platformData.y + platformData.height / 2,
-      ),
-      size: Vector2(platformData.width, platformData.height),
-      platformType: platformData.type,
-    );
-
-
-      // Option 3: Enhanced platform with effects
-      /*
-    final platform = EnhancedPlatform(
-      position: Vector2(
-        platformData.x + platformData.width / 2,
-        platformData.y + platformData.height / 2,
-      ),
-      size: Vector2(platformData.width, platformData.height),
-      platformType: platformData.type,
-    );
-    */
-
-      add(platform);
+      world.add(platform);
       platforms.add(platform);
     }
 
@@ -105,27 +96,21 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
       enemies.add(enemy);
     }
 
-    // Create joystick - positioned for landscape
-    joystick = JoystickComponent(
-      knob: CircleComponent(radius: 40, paint: Paint()..color = Colors.white30),
-      background: CircleComponent(radius: 80, paint: Paint()..color = Colors.white10),
-      margin: const EdgeInsets.only(left: 60, bottom: 60),
-    );
-    // Joystick stays on screen, add to viewport or game (if it renders on top)
-    // Adding to game works for HUD elements usually if they are overlay
-    // But better to add to viewport if possible. For now, keep as add(joystick) 
-    // because joystick is a HUD component provided by Flame which attaches to viewport?
-    // JoystickComponent is a Component. If added to game, it is a sibling of World.
-    // If it's a sibling, it renders. 
-    add(joystick);
-
-    // Add HUD
-    add(HUD(player: player, game: this));
-
     // Camera setup for landscape
     camera.follow(player);
-    camera.viewfinder.visibleGameSize = Vector2(1920, 1080);
-    // Ensure camera stays within bounds if needed, but for now just follow
+    camera.viewfinder.visibleGameSize = Vector2(1280, 720);
+
+    // Create joystick - Added to the camera viewport to stay fixed and visible
+    // Made 2 times smaller (Knob 25, BG 50) and moved closer to the very left bottom corner
+    joystick = JoystickComponent(
+      knob: CircleComponent(radius: 25, paint: Paint()..color = Colors.white.withOpacity(0.5)),
+      background: CircleComponent(radius: 50, paint: Paint()..color = Colors.white.withOpacity(0.1)),
+      margin: const EdgeInsets.only(left: 40, bottom: 40),
+    );
+    camera.viewport.add(joystick);
+
+    // Add HUD to viewport
+    camera.viewport.add(HUD(player: player, game: this));
   }
 
   @override
@@ -133,9 +118,9 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
     super.onTapDown(info);
     final tapPos = info.eventPosition.global;
 
-    // Attack button positioned for landscape (top right)
-    final attackButtonPos = Vector2(size.x - 100, 100);
-    if (tapPos.distanceTo(attackButtonPos) < 60) {
+    // Attack button logic (moved to bottom right and made 2x smaller)
+    final attackButtonPos = Vector2(size.x - 80, size.y - 80);
+    if (tapPos.distanceTo(attackButtonPos) < 50) {
       attack();
     }
   }
@@ -153,5 +138,16 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector {
 
   void gameOver() {
     isGameOver = true;
+  }
+}
+
+class UIGradient {
+  static Paint linear(Offset from, Offset to, List<Color> colors) {
+    return Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: colors,
+      ).createShader(Rect.fromPoints(from, to));
   }
 }

@@ -29,12 +29,15 @@ class Player extends SpriteAnimationComponent with HasGameRef<ActionGame> {
   double attackAnimationTimer = 0;
   bool spritesLoaded = false;
 
+  // Base size is 40x60, we multiply by 4 to make them bigger
+  static final Vector2 baseSize = Vector2(128, 192);
+
   Player({required Vector2 position, required this.stats, required this.game})
       : super(position: position);
 
   @override
   Future<void> onLoad() async {
-    size = Vector2(40, 60);
+    size = baseSize.clone();
     anchor = Anchor.center;
 
     final characterName = stats.type.name;
@@ -117,13 +120,13 @@ class Player extends SpriteAnimationComponent with HasGameRef<ActionGame> {
     }
 
     if (joystickDirection == JoystickDirection.up && groundPlatform != null && !isCrouching) {
-      velocity.y = -300;
+      velocity.y = -400; // Increased jump slightly for larger character
       groundPlatform = null;
     }
 
     if (groundPlatform == null && !isClimbing) {
-      velocity.y += 800 * dt;
-      velocity.y = math.min(velocity.y, 500);
+      velocity.y += 1000 * dt; // Slightly more gravity for weight feel
+      velocity.y = math.min(velocity.y, 600);
     }
 
     position += velocity * dt;
@@ -152,7 +155,8 @@ class Player extends SpriteAnimationComponent with HasGameRef<ActionGame> {
       }
     }
 
-    size.y = isCrouching ? 30 : 60;
+    // Dynamic sizing for crouching (halves the height)
+    size.y = isCrouching ? baseSize.y / 2 : baseSize.y;
 
     if (health <= 0) {
       game.gameOver();
@@ -169,7 +173,7 @@ class Player extends SpriteAnimationComponent with HasGameRef<ActionGame> {
   bool _isNearWall(TiledPlatform wall) {
     final dx = (position.x - wall.position.x).abs();
     final dy = (position.y - wall.position.y).abs();
-    return dx < (size.x + wall.size.x) / 2 + 5 &&
+    return dx < (size.x + wall.size.x) / 2 + 10 && // Adjusted for size
         dy < (size.y + wall.size.y) / 2;
   }
 
@@ -185,7 +189,7 @@ class Player extends SpriteAnimationComponent with HasGameRef<ActionGame> {
 
     if (stats.type == CharacterClass.knight) {
       for (final enemy in game.enemies) {
-        if (position.distanceTo(enemy.position) < stats.attackRange * 30) {
+        if (position.distanceTo(enemy.position) < stats.attackRange * 60) { // Increased hit area
           enemy.takeDamage(stats.attackDamage);
         }
       }
@@ -218,8 +222,8 @@ class Player extends SpriteAnimationComponent with HasGameRef<ActionGame> {
       );
 
       final weaponPaint = Paint()..color = Colors.yellow;
-      final weaponOffset = facingRight ? Offset(size.x / 2 + 5, 0) : Offset(-size.x / 2 - 5, 0);
-      canvas.drawCircle(weaponOffset, 5, weaponPaint);
+      final weaponOffset = facingRight ? Offset(size.x / 2 + 10, 0) : Offset(-size.x / 2 - 10, 0);
+      canvas.drawCircle(weaponOffset, 15, weaponPaint); // Larger placeholder
     }
   }
 }

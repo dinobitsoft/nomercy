@@ -12,6 +12,7 @@ import 'character_stats.dart';
 class Enemy extends SpriteAnimationComponent with HasGameRef<ActionGame> {
   final CharacterStats stats;
   final Player player;
+  @override
   final ActionGame game;
   Vector2 velocity = Vector2.zero();
   double health = 100;
@@ -19,6 +20,9 @@ class Enemy extends SpriteAnimationComponent with HasGameRef<ActionGame> {
   TiledPlatform? groundPlatform;
   bool facingRight = true;
   bool spritesLoaded = false;
+
+  // Base size is 40x60, we multiply by 4 to make them bigger
+  static final Vector2 baseSize = Vector2(128, 192);
 
   Enemy({
     required Vector2 position,
@@ -29,7 +33,7 @@ class Enemy extends SpriteAnimationComponent with HasGameRef<ActionGame> {
 
   @override
   Future<void> onLoad() async {
-    size = Vector2(40, 60);
+    size = baseSize.clone();
     anchor = Anchor.center;
 
     final characterName = stats.type.name;
@@ -53,8 +57,9 @@ class Enemy extends SpriteAnimationComponent with HasGameRef<ActionGame> {
     final toPlayer = player.position - position;
     final distance = toPlayer.length;
 
-    if (distance < 300) {
-      velocity.x = toPlayer.normalized().x * (stats.dexterity / 3);
+    // Adjusted detection range for larger characters
+    if (distance < 600) {
+      velocity.x = toPlayer.normalized().x * (stats.dexterity / 3) * 1.5;
       facingRight = toPlayer.x > 0;
     } else {
       velocity.x = 0;
@@ -65,8 +70,8 @@ class Enemy extends SpriteAnimationComponent with HasGameRef<ActionGame> {
     }
 
     if (groundPlatform == null) {
-      velocity.y += 800 * dt;
-      velocity.y = math.min(velocity.y, 500);
+      velocity.y += 1000 * dt; // Increased gravity for larger feel
+      velocity.y = math.min(velocity.y, 600);
     }
 
     position += velocity * dt;
@@ -82,7 +87,8 @@ class Enemy extends SpriteAnimationComponent with HasGameRef<ActionGame> {
       }
     }
 
-    if (distance < stats.attackRange * 30 && attackCooldown <= 0) {
+    // Adjusted attack range for larger characters
+    if (distance < stats.attackRange * 60 && attackCooldown <= 0) {
       player.takeDamage(stats.attackDamage / 2);
       attackCooldown = 2.0;
     }
@@ -116,12 +122,14 @@ class Enemy extends SpriteAnimationComponent with HasGameRef<ActionGame> {
 
     final healthBarWidth = size.x;
     final healthPercent = health / 100;
+    
+    // Adjusted health bar position and size for larger character
     canvas.drawRect(
-      Rect.fromLTWH(-size.x / 2, -size.y / 2 - 10, healthBarWidth, 5),
+      Rect.fromLTWH(-size.x / 2, -size.y / 2 - 20, healthBarWidth, 10),
       Paint()..color = Colors.red,
     );
     canvas.drawRect(
-      Rect.fromLTWH(-size.x / 2, -size.y / 2 - 10, healthBarWidth * healthPercent, 5),
+      Rect.fromLTWH(-size.x / 2, -size.y / 2 - 20, healthBarWidth * healthPercent, 10),
       Paint()..color = Colors.green,
     );
   }

@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 
 import 'package:nomercy/player.dart';
-
-
 import 'action_game.dart';
+
 class HUD extends PositionComponent with HasGameRef<ActionGame> {
   final Player player;
   final ActionGame game;
@@ -15,7 +14,7 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
 
   @override
   void render(Canvas canvas) {
-    // Top-left HUD panel (optimized for landscape)
+    // Top-left HUD panel
     canvas.drawRect(
       const Rect.fromLTWH(20, 20, 280, 100),
       Paint()..color = Colors.black.withOpacity(0.7),
@@ -39,7 +38,7 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
       Paint()..color = Colors.green,
     );
 
-    // Money and Kills (horizontal layout)
+    // Money and Kills
     textPainter.text = TextSpan(
       text: '\$${player.stats.money}  |  Kills: ${game.enemiesDefeated}',
       style: textStyle,
@@ -47,9 +46,14 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
     textPainter.layout();
     textPainter.paint(canvas, const Offset(30, 90));
 
-    // Attack button (top right, larger for landscape)
+    // Attack button (visual only here, logic is in ActionGame.onTapDown)
+    // Note: Since this is now in the viewport, coordinates should be relative to the viewport size.
+    // However, ActionGame uses game.size.x in onTapDown for the click logic.
+    // We'll keep the rendering consistent with the logic.
+    final buttonX = game.size.x - 100;
+    
     canvas.drawCircle(
-      Offset(game.size.x - 100, 100),
+      Offset(buttonX, 100),
       60,
       Paint()..color = Colors.red.withOpacity(0.6),
     );
@@ -63,12 +67,8 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
       ),
     );
     textPainter.layout();
-    textPainter.paint(canvas, Offset(game.size.x - 125, 85));
+    textPainter.paint(canvas, Offset(buttonX - 25, 85));
   }
-
-  @override
-  void update(double dt) {
-    super.update(dt);
-    position = -game.camera.viewfinder.position + Vector2(0, 0);
-  }
+  
+  // Removed manual positioning logic from update() as we'll add this to the camera's viewport
 }
