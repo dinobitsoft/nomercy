@@ -10,10 +10,11 @@ import 'package:flame/components.dart';
 import 'package:nomercy/player.dart';
 import 'package:nomercy/projectile.dart';
 
-import 'action_game.dart';
-import 'character_class.dart';
-import 'character_stats.dart';
-import 'enemy.dart';
+import '../action_game.dart';
+import '../character_class.dart';
+import '../character_stats.dart';
+import '../chest/chest_data.dart';
+import '../enemy.dart';
 
 // Map data structures
 class GameMap {
@@ -22,6 +23,7 @@ class GameMap {
   final double height;
   final List<PlatformData> platforms;
   final SpawnPoint playerSpawn;
+  final List<ChestData> chests;
 
   GameMap({
     required this.name,
@@ -29,6 +31,7 @@ class GameMap {
     required this.height,
     required this.platforms,
     required this.playerSpawn,
+    required this.chests,
   });
 
   factory GameMap.fromJson(Map<String, dynamic> json) {
@@ -40,6 +43,9 @@ class GameMap {
           .map((p) => PlatformData.fromJson(p))
           .toList(),
       playerSpawn: SpawnPoint.fromJson(json['playerSpawn']),
+      chests: (json['chests'] as List? ?? [])
+          .map((c) => ChestData.fromJson(c))
+          .toList(),
     );
   }
 
@@ -113,61 +119,3 @@ class SpawnPoint {
 }
 
 // Map Loader class
-class MapLoader {
-  static Future<GameMap> loadMap(String mapName) async {
-    try {
-      // Load JSON from assets
-      final jsonString = await rootBundle.loadString('assets/maps/$mapName.json');
-      final jsonData = json.decode(jsonString);
-      return GameMap.fromJson(jsonData);
-    } catch (e) {
-      print('Error loading map: $e');
-      // Return default map if loading fails
-      return _getDefaultMap();
-    }
-  }
-
-  static GameMap _getDefaultMap() {
-    return GameMap(
-      name: 'default',
-      width: 1200,
-      height: 800,
-      platforms: [
-        PlatformData(
-          id: 1,
-          type: 'ground',
-          x: 0,
-          y: 750,
-          width: 1200,
-          height: 50,
-        ),
-      ],
-      playerSpawn: SpawnPoint(x: 100, y: 600),
-    );
-  }
-}
-
-// 3. Update Platform component to support different types:
-
-
-
-// 4. Update GameScreen to accept map name:
-
-// 5. Update pubspec.yaml to include maps folder:
-/*
-flutter:
-  assets:
-    - assets/images/knight.png
-    - assets/images/thief.png
-    - assets/images/wizard.png
-    - assets/images/trader.png
-    - assets/images/knight_attack.png
-    - assets/images/thief_attack.png
-    - assets/images/wizard_attack.png
-    - assets/images/trader_attack.png
-    - assets/maps/           # Add this line
-    - assets/maps/level_1.json
-    - assets/maps/level_2.json
-*/
-
-// 6. Optional: Create a level selection screen

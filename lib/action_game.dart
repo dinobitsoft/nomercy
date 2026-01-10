@@ -1,19 +1,20 @@
-import 'package:flame/input.dart';
-import 'package:flutter/material.dart';
-import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
+import 'package:flame/game.dart';
+import 'package:flame/input.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nomercy/gamepad_manager.dart';
 import 'package:nomercy/player.dart';
 import 'package:nomercy/projectile.dart';
 import 'package:nomercy/tiled_platform.dart';
-import 'package:nomercy/gamepad_manager.dart';
 
 import 'character_class.dart';
 import 'character_stats.dart';
+import 'chest/chest.dart';
 import 'enemy.dart';
-import 'game_map.dart';
 import 'hud.dart';
+import 'map/map_loader.dart';
 
 class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, KeyboardEvents {
   final CharacterClass characterClass;
@@ -24,6 +25,7 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
   final List<Enemy> enemies = [];
   final List<Projectile> projectiles = [];
   final List<TiledPlatform> platforms = [];
+  final List<Chest> chests = [];
   int enemiesDefeated = 0;
   bool isGameOver = false;
 
@@ -77,6 +79,18 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
       world.add(platform);
       platforms.add(platform);
     }
+
+    for (final chestData in gameMap.chests) {
+      final chest = Chest(
+        position: Vector2(chestData.x, chestData.y),
+        data: chestData,
+      );
+      add(chest);
+      world.add(chest);
+      chests.add(chest);
+    }
+
+    print('✅ ActionGame: ${chests.length} chests created');
 
     // Create player at spawn point
     player = Player(

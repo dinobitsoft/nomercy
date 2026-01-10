@@ -80,6 +80,19 @@ class Player extends SpriteAnimationComponent with HasGameRef<ActionGame> {
     final joystickDirection = game.joystick.direction;
     final moveSpeed = stats.dexterity / 2;
 
+    if (joystickDirection == JoystickDirection.down && groundPlatform != null) {
+      // Check if near any chest
+      for (final chest in game.chests) {
+        if (!chest.isOpened) {
+          final distance = position.distanceTo(chest.position);
+          if (distance < 80) {
+            chest.open(this);
+            break;  // Only open one chest at a time
+          }
+        }
+      }
+    }
+
     if (joystickDelta.x != 0) {
       velocity.x = joystickDelta.x * moveSpeed * 100;
       facingRight = joystickDelta.x > 0;

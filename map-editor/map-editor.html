@@ -110,6 +110,7 @@
         .ground-icon { background: #228b22; }
         .eraser-icon { background: #ff4444; }
         .spawn-icon { background: #4169e1; }
+        .chest-icon { background: linear-gradient(135deg, #DAA520, #FFD700); }
 
         .canvas-container {
             flex: 1;
@@ -258,50 +259,9 @@
             font-weight: bold;
             color: white;
         }
-
-        .orientation-warning {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #667eea;
-            color: white;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            z-index: 9999;
-        }
-
-        @media (orientation: portrait) {
-            .orientation-warning {
-                display: flex;
-            }
-            .container {
-                display: none;
-            }
-        }
-
-        .rotate-icon {
-            font-size: 60px;
-            margin-bottom: 20px;
-            animation: rotate 2s infinite;
-        }
-
-        @keyframes rotate {
-            0%, 100% { transform: rotate(0deg); }
-            50% { transform: rotate(90deg); }
-        }
     </style>
 </head>
 <body>
-<div class="orientation-warning">
-    <div class="rotate-icon">📱➡️💻</div>
-    <h1>Please Rotate Your Device</h1>
-    <p style="margin-top: 10px; font-size: 18px;">This editor works best in landscape mode</p>
-</div>
-
 <div class="container">
     <div class="header">
         <div>
@@ -310,8 +270,12 @@
         </div>
         <div class="stats">
             <div class="stat-item">
-                <span class="stat-label">Objects</span>
-                <span class="stat-value" id="objectCount">0</span>
+                <span class="stat-label">Platforms</span>
+                <span class="stat-value" id="platformCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Chests</span>
+                <span class="stat-value" id="chestCount">0</span>
             </div>
         </div>
     </div>
@@ -331,6 +295,10 @@
                 <button class="tool-button" onclick="selectTool('spawn')">
                     <span class="tool-icon spawn-icon"></span>
                     <span>Spawn</span>
+                </button>
+                <button class="tool-button" onclick="selectTool('chest')">
+                    <span class="tool-icon chest-icon"></span>
+                    <span>Chest</span>
                 </button>
                 <button class="tool-button" onclick="selectTool('eraser')">
                     <span class="tool-icon eraser-icon"></span>
@@ -357,7 +325,7 @@
                 <ul>
                     <li>• Click to place</li>
                     <li>• Right-click remove</li>
-                    <li>• 16:9 landscape</li>
+                    <li>• Place chests for rewards</li>
                     <li>• Set spawn point</li>
                 </ul>
             </div>
@@ -397,7 +365,6 @@
     const canvas = document.getElementById('mapCanvas');
     const ctx = canvas.getContext('2d');
 
-    // Map state with 16:9 landscape dimensions
     const mapData = {
         name: 'level_1',
         width: 1920,
@@ -405,13 +372,13 @@
         aspectRatio: '16:9',
         orientation: 'landscape',
         platforms: [],
+        chests: [],
         playerSpawn: { x: 200, y: 900 }
     };
 
     let currentTool = 'brick';
     let showGrid = true;
 
-    // Tool selection
     function selectTool(tool) {
         currentTool = tool;
         document.querySelectorAll('.tool-button').forEach(btn => {
@@ -420,7 +387,6 @@
         event.target.closest('.tool-button').classList.add('active');
     }
 
-    // Canvas events
     canvas.addEventListener('mousedown', (e) => {
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width;
@@ -430,14 +396,16 @@
 
         if (e.button === 0) {
             if (currentTool === 'eraser') {
-                removePlatform(x, y);
+                removeObject(x, y);
             } else if (currentTool === 'spawn') {
                 mapData.playerSpawn = { x: Math.round(x), y: Math.round(y) };
+            } else if (currentTool === 'chest') {
+                addChest(x, y);
             } else {
                 addPlatform(x, y);
             }
         } else if (e.button === 2) {
-            removePlatform(x, y);
+            removeObject(x, y);
         }
 
         render();
@@ -447,7 +415,6 @@
         e.preventDefault();
     });
 
-    // Add platform
     function addPlatform(x, y) {
         const width = parseInt(document.getElementById('blockWidth').value);
         const height = parseInt(document.getElementById('blockHeight').value);
@@ -462,25 +429,41 @@
         };
 
         mapData.platforms.push(platform);
-        updateObjectCount();
+        updateCounts();
     }
 
-    // Remove platform
-    function removePlatform(x, y) {
+    function addChest(x, y) {
+        const chest = {
+            id: Date.now(),
+            type: 'chest',
+            x: Math.round(x),
+            y: Math.round(y),
+            opened: false
+        };
+
+        mapData.chests.push(chest);
+        updateCounts();
+    }
+
+    function removeObject(x, y) {
         mapData.platforms = mapData.platforms.filter(platform => {
             const inBounds = x >= platform.x && x <= platform.x + platform.width &&
                            y >= platform.y && y <= platform.y + platform.height;
             return !inBounds;
         });
-        updateObjectCount();
+
+        mapData.chests = mapData.chests.filter(chest => {
+            const distance = Math.sqrt((x - chest.x) ** 2 + (y - chest.y) ** 2);
+            return distance > 30;
+        });
+
+        updateCounts();
     }
 
-    // Render map
     function render() {
         ctx.fillStyle = '#87ceeb';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Draw grid
         if (showGrid) {
             ctx.strokeStyle = '#ffffff33';
             ctx.lineWidth = 1;
@@ -501,14 +484,12 @@
             }
         }
 
-        // Draw safe zone boundaries
         ctx.strokeStyle = '#ff000066';
         ctx.lineWidth = 3;
         ctx.setLineDash([10, 5]);
         ctx.strokeRect(50, 50, canvas.width - 100, canvas.height - 100);
         ctx.setLineDash([]);
 
-        // Draw platforms
         mapData.platforms.forEach(platform => {
             let color;
             switch (platform.type) {
@@ -539,7 +520,10 @@
             );
         });
 
-        // Draw player spawn
+        mapData.chests.forEach(chest => {
+            drawChest(ctx, chest.x, chest.y, chest.opened);
+        });
+
         ctx.fillStyle = '#4169e1';
         ctx.beginPath();
         ctx.arc(mapData.playerSpawn.x, mapData.playerSpawn.y, 20, 0, Math.PI * 2);
@@ -553,11 +537,43 @@
         ctx.textAlign = 'center';
         ctx.fillText('SPAWN', mapData.playerSpawn.x, mapData.playerSpawn.y + 4);
 
-        // Draw dimensions
         ctx.fillStyle = '#000';
         ctx.font = '14px Arial';
         ctx.textAlign = 'left';
         ctx.fillText(`${canvas.width}×${canvas.height} (16:9)`, 10, 25);
+    }
+
+    function drawChest(ctx, x, y, opened) {
+        const gradient = ctx.createLinearGradient(x - 25, y - 25, x + 25, y + 25);
+        gradient.addColorStop(0, '#DAA520');
+        gradient.addColorStop(1, '#B8860B');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x - 25, y - 15, 50, 30);
+
+        ctx.strokeStyle = '#8B6914';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x - 25, y - 15, 50, 30);
+
+        ctx.fillStyle = opened ? '#555' : '#FFD700';
+        ctx.fillRect(x - 25, y - 30, 50, 15);
+        ctx.strokeRect(x - 25, y - 30, 50, 15);
+
+        ctx.fillStyle = '#4A4A4A';
+        ctx.fillRect(x - 5, y - 5, 10, 15);
+
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#8B6914';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 10px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('CHEST', x, y + 35);
     }
 
     function toggleGrid() {
@@ -565,8 +581,9 @@
         render();
     }
 
-    function updateObjectCount() {
-        document.getElementById('objectCount').textContent = mapData.platforms.length;
+    function updateCounts() {
+        document.getElementById('platformCount').textContent = mapData.platforms.length;
+        document.getElementById('chestCount').textContent = mapData.chests.length;
     }
 
     function generateMap() {
@@ -581,7 +598,7 @@
         a.click();
         URL.revokeObjectURL(url);
 
-        alert(`Map "${mapData.name}" generated!\n\nFormat: 16:9 Landscape\nSize: ${mapData.width}×${mapData.height}\nPlatforms: ${mapData.platforms.length}`);
+        alert(`Map "${mapData.name}" generated!\n\nPlatforms: ${mapData.platforms.length}\nChests: ${mapData.chests.length}`);
     }
 
     function loadMap() {
@@ -598,10 +615,11 @@
                 const loaded = JSON.parse(e.target.result);
                 mapData.name = loaded.name;
                 mapData.platforms = loaded.platforms || [];
+                mapData.chests = loaded.chests || [];
                 mapData.playerSpawn = loaded.playerSpawn || { x: 200, y: 900 };
 
                 document.getElementById('mapName').value = mapData.name;
-                updateObjectCount();
+                updateCounts();
                 render();
 
                 alert('Map loaded successfully!');
@@ -615,8 +633,9 @@
     function clearMap() {
         if (confirm('Clear the entire map?')) {
             mapData.platforms = [];
+            mapData.chests = [];
             mapData.playerSpawn = { x: 200, y: 900 };
-            updateObjectCount();
+            updateCounts();
             render();
         }
     }
