@@ -14,51 +14,60 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
 
   @override
   void render(Canvas canvas) {
-    // Top-left HUD panel background - height shrunk as everything is in one line
-    canvas.drawRect(
-      const Rect.fromLTWH(20, 20, 280, 90),
-      Paint()..color = Colors.black.withOpacity(0.7),
-    );
+    // Removed the black background panel to inherit game background
 
     const textStyle = TextStyle(
         color: Colors.white,
         fontSize: 20,
         fontWeight: FontWeight.bold,
-        shadows: [Shadow(blurRadius: 2, color: Colors.black, offset: Offset(1, 1))]
+        shadows: [
+          Shadow(blurRadius: 4, color: Colors.black, offset: Offset(2, 2)),
+          Shadow(blurRadius: 4, color: Colors.black, offset: Offset(-1, -1)),
+        ]
     );
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
-    // --- Stats Row (Health, Money, Kills in one line) ---
-    
+    // --- Stats Row (Moved up near top screen edge) ---
+    const double rowY = 20; // Icon center Y
+    const double textY = 10; // Text paint Y
+
     // Health
-    _drawHeart(canvas, const Offset(45, 45), 22);
+    _drawHeart(canvas, const Offset(45, rowY), 22);
     textPainter.text = TextSpan(text: '${player.health.toInt()}', style: textStyle);
     textPainter.layout();
-    textPainter.paint(canvas, const Offset(65, 35));
+    textPainter.paint(canvas, const Offset(65, textY));
 
     // Money
-    _drawCoin(canvas, const Offset(130, 45), 18);
+    _drawCoin(canvas, const Offset(130, rowY), 18);
     textPainter.text = TextSpan(text: '${player.stats.money}', style: textStyle);
     textPainter.layout();
-    textPainter.paint(canvas, const Offset(150, 35));
+    textPainter.paint(canvas, const Offset(150, textY));
 
     // Kills
-    _drawSkull(canvas, const Offset(220, 45), 18);
+    _drawSkull(canvas, const Offset(220, rowY), 18);
     textPainter.text = TextSpan(text: '${gameRef.enemiesDefeated}', style: textStyle);
     textPainter.layout();
-    textPainter.paint(canvas, const Offset(240, 35));
+    textPainter.paint(canvas, const Offset(240, textY));
 
-    // Health bar background (positioned below the stats line)
+    // Health bar background (Moved up accordingly)
+    const double barY = 40;
     canvas.drawRect(
-      const Rect.fromLTWH(40, 70, 240, 12),
-      Paint()..color = Colors.red.withOpacity(0.2),
+      const Rect.fromLTWH(40, barY, 240, 10),
+      Paint()..color = Colors.black.withOpacity(0.5), // Subtle border for health bar
     );
+    canvas.drawRect(
+      const Rect.fromLTWH(41, barY + 1, 238, 8),
+      Paint()..color = Colors.red.withOpacity(0.3),
+    );
+
     // Dynamic Health bar fill
     final healthPercent = (player.health / 100).clamp(0.0, 1.0);
-    canvas.drawRect(
-      Rect.fromLTWH(40, 70, 240 * healthPercent, 12),
-      Paint()..color = healthPercent > 0.3 ? Colors.green : Colors.orange,
-    );
+    if (healthPercent > 0) {
+      canvas.drawRect(
+        Rect.fromLTWH(41, barY + 1, 238 * healthPercent, 8),
+        Paint()..color = healthPercent > 0.3 ? Colors.green : Colors.orange,
+      );
+    }
 
     // --- Attack Button Rendering ---
     _drawAttackButton(canvas);
@@ -69,6 +78,13 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
     final buttonY = gameRef.size.y - 80;
     const radius = 35.0;
 
+    // Outer glow for button visibility
+    canvas.drawCircle(
+      Offset(buttonX, buttonY),
+      radius + 2,
+      Paint()..color = Colors.black.withOpacity(0.3),
+    );
+
     canvas.drawCircle(
       Offset(buttonX, buttonY),
       radius,
@@ -78,7 +94,12 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
     textPainter.text = const TextSpan(
       text: 'ATK',
-      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        shadows: [Shadow(blurRadius: 4, color: Colors.black)],
+      ),
     );
     textPainter.layout();
     textPainter.paint(canvas, Offset(buttonX - textPainter.width / 2, buttonY - textPainter.height / 2));
@@ -93,6 +114,7 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
         fontSize: size,
         fontFamily: FontAwesomeIcons.heart.fontFamily,
         package: FontAwesomeIcons.heart.fontFamily == null ? null : FontAwesomeIcons.heart.fontPackage,
+        shadows: const [Shadow(blurRadius: 4, color: Colors.black)],
       ),
     );
     textPainter.layout();
@@ -108,6 +130,7 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
         fontSize: size,
         fontFamily: FontAwesomeIcons.coins.fontFamily,
         package: FontAwesomeIcons.coins.fontFamily == null ? null : FontAwesomeIcons.coins.fontPackage,
+        shadows: const [Shadow(blurRadius: 4, color: Colors.black)],
       ),
     );
     textPainter.layout();
@@ -123,6 +146,7 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
         fontSize: size,
         fontFamily: FontAwesomeIcons.skull.fontFamily,
         package: FontAwesomeIcons.skull.fontFamily == null ? null : FontAwesomeIcons.skull.fontPackage,
+        shadows: const [Shadow(blurRadius: 4, color: Colors.black)],
       ),
     );
     textPainter.layout();
