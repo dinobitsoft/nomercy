@@ -181,45 +181,53 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Image.asset(
-                    'assets/images/${charClass.name}.png',
-                    height: 115,
-                    width: 80,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: Colors.white),
+                  height: 115,
+                  width: 80,
+                  // decoration: BoxDecoration(
+                  //   color: Colors.white.withOpacity(0.1),
+                  //   borderRadius: BorderRadius.circular(10),
+                  // ),
+                  clipBehavior: Clip.none,
+                  child: Transform.scale(
+                    scale: 1.8,
+                    child: Image.asset(
+                      'assets/images/${charClass.name}.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: Colors.white),
+                    ),
                   ),
                 ),
-                // const SizedBox(width: 12),
-                // Text(
-                //   'Weapon: ${stats.weaponName}',
-                //   style: const TextStyle(fontSize: 14, color: Colors.white70),
-                // ),
-                // Text(
-                //   charClass.name.toUpperCase(),
-                //   style: const TextStyle(
-                //     fontSize: 18,
-                //     fontWeight: FontWeight.bold,
-                //     color: Colors.white,
-                //   ),
-                // ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Text(
+                    //   charClass.name.toUpperCase(),
+                    //   style: const TextStyle(
+                    //     fontSize: 18,
+                    //     fontWeight: FontWeight.bold,
+                    //     color: Colors.white,
+                    //   ),
+                    // ),
+                    // const SizedBox(height: 8),
+                    // Text(
+                    //   'Weapon: ${stats.weaponName}',
+                    //   style: const TextStyle(fontSize: 14, color: Colors.white70),
+                    // ),
+                  ],
+                ),
               ],
             ),
-
-            // const Spacer(),
-            // Row(
-            //   mainAxisAlignment: MainAxisAlignment.spaceAround,
-            //   children: [
-            //     _statColumn('PWR', stats.power),
-            //     _statColumn('MAG', stats.magic),
-            //     _statColumn('DEX', stats.dexterity),
-            //     _statColumn('INT', stats.intelligence),
-            //   ],
-            // ),
+            const Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                // _statColumn('PWR', stats.power),
+                // _statColumn('MAG', stats.magic),
+                // _statColumn('DEX', stats.dexterity),
+                // _statColumn('INT', stats.intelligence),
+              ],
+            ),
           ],
         ),
       ),
