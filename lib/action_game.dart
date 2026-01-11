@@ -4,25 +4,31 @@ import 'package:flame/game.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nomercy/game/character/wizard.dart';
 import 'package:nomercy/gamepad_manager.dart';
-import 'package:nomercy/player.dart';
+import 'package:nomercy/player_type.dart';
 import 'package:nomercy/projectile.dart';
 import 'package:nomercy/tiled_platform.dart';
 
-import 'character_class.dart';
-import 'character_stats.dart';
 import 'chest/chest.dart';
-import 'enemy.dart';
+import 'game/bot_tactic.dart';
+import 'game/character/knight.dart';
+import 'game/character/thief.dart';
+import 'game/character/trader.dart';
+import 'game/game_character.dart';
+import 'game/tactic/aggressive_tactic.dart';
+import 'game/tactic/balanced_tactic.dart';
+import 'game/tactic/defensive_tactic.dart';
 import 'hud.dart';
 import 'map/map_loader.dart';
 
 class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, KeyboardEvents {
-  final CharacterClass characterClass;
+  final String selectedCharacterClass; // 'knight', 'thief', etc.
   final String mapName;
-  late Player player;
+  late GameCharacter player;
   late JoystickComponent joystick;
   final GamepadManager gamepadManager = GamepadManager();
-  final List<Enemy> enemies = [];
+  final List<GameCharacter> enemies = [];
   final List<Projectile> projectiles = [];
   final List<TiledPlatform> platforms = [];
   final List<Chest> chests = [];
@@ -30,7 +36,7 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
   bool isGameOver = false;
 
   ActionGame({
-    required this.characterClass,
+    required this.selectedCharacterClass,
     this.mapName = 'level_1',
   });
 
@@ -90,34 +96,40 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
       chests.add(chest);
     }
 
-    print('✅ ActionGame: ${chests.length} chests created');
-
-    // Create player at spawn point
-    player = Player(
-      position: Vector2(gameMap.playerSpawn.x, gameMap.playerSpawn.y),
-      stats: CharacterStats.fromClass(characterClass),
-      game: this,
+    // Create HUMAN player
+    player = _createCharacter(
+      selectedCharacterClass,
+      Vector2(gameMap.playerSpawn.x, gameMap.playerSpawn.y),
+      PlayerType.human,
     );
+    add(player);
     world.add(player);
 
-    // Create enemies
-    for (int i = 0; i < 3; i++) {
-      final enemyClass = CharacterClass.values[i % CharacterClass.values.length];
-      final enemy = Enemy(
-        position: Vector2(
-          gameMap.playerSpawn.x + 400 + i * 300.0,
-          gameMap.playerSpawn.y,
-        ),
-        stats: CharacterStats.fromClass(enemyClass),
-        player: player,
-        game: this,
+    // Create BOT enemies with different tactics
+    final botConfigs = [
+      {'class': 'knight', 'x': 600.0, 'tactic': AggressiveTactic()},  //TODO: fix hardcoded spawn points
+      {'class': 'thief', 'x': 1000.0, 'tactic': BalancedTactic()},
+      {'class': 'wizard', 'x': 1400.0, 'tactic': DefensiveTactic()},
+    ];
+
+    for (final config in botConfigs) {
+      final bot = _createCharacter(
+        config['class'] as String,
+        Vector2(config['x'] as double, gameMap.playerSpawn.y),
+        PlayerType.bot,
+        botTactic: config['tactic'] as BotTactic,
       );
-      world.add(enemy);
-      enemies.add(enemy);
+      add(bot);
+      world.add(bot);
+      enemies.add(bot);
     }
 
-    // Camera setup for landscape
+    // HUD
+    // add(HUD(player: player, game: this));
+
+    // Camera
     camera.follow(player);
+    // camera.viewfinder.visibleGameSize = Vector2(1920, 1080);
     camera.viewfinder.visibleGameSize = Vector2(1280, 720);
 
     // Create joystick - Added to the camera viewport to stay fixed and visible
@@ -146,9 +158,14 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
     final tapPos = info.eventPosition.global;
 
     // Attack button logic
-    final attackButtonPos = Vector2(size.x - 80, size.y - 80);
-    if (tapPos.distanceTo(attackButtonPos) < 50) {
-      attack();
+    // final attackButtonPos = Vector2(size.x - 80, size.y - 80); //TODO: compare game play
+    // if (tapPos.distanceTo(attackButtonPos) < 50) {
+    //   attack();
+    // }
+
+    final attackButtonPos = Vector2(size.x - 100, 100);
+    if (tapPos.distanceTo(attackButtonPos) < 60) {
+      player.attack();
     }
   }
 
@@ -156,7 +173,7 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
     player.attack();
   }
 
-  void removeEnemy(Enemy enemy) {
+  void removeEnemy(GameCharacter enemy) {
     enemies.remove(enemy);
     enemy.removeFromParent();
     enemiesDefeated++;
@@ -165,6 +182,46 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
 
   void gameOver() {
     isGameOver = true;
+  }
+
+  GameCharacter _createCharacter(
+      String characterClass,
+      Vector2 position,
+      PlayerType playerType, {
+        BotTactic? botTactic,
+      }) {
+    switch (characterClass) {
+      case 'knight':
+        return Knight(
+          position: position,
+          playerType: playerType,
+          botTactic: botTactic,
+        );
+      case 'thief':
+        return Thief(
+          position: position,
+          playerType: playerType,
+          botTactic: botTactic,
+        );
+      case 'wizard':
+        return Wizard(
+          position: position,
+          playerType: playerType,
+          botTactic: botTactic,
+        );
+      case 'trader':
+        return Trader(
+          position: position,
+          playerType: playerType,
+          botTactic: botTactic,
+        );
+      default:
+        return Knight(
+          position: position,
+          playerType: playerType,
+          botTactic: botTactic,
+        );
+    }
   }
 }
 

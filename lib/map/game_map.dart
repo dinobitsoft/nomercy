@@ -1,22 +1,5 @@
-// Add this to your Flutter game's main.dart
-
-// 1. Create a new file: lib/map_loader.dart
-import 'dart:convert';
-import 'package:flame/game.dart';
-import 'package:flame/input.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flame/components.dart';
-import 'package:nomercy/player.dart';
-import 'package:nomercy/projectile.dart';
-
-import '../action_game.dart';
-import '../character_class.dart';
-import '../character_stats.dart';
 import '../chest/chest_data.dart';
-import '../enemy.dart';
 
-// Map data structures
 class GameMap {
   final String name;
   final double width;

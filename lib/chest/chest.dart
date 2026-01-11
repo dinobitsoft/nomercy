@@ -2,9 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
+import 'package:nomercy/game/game_character.dart';
 
 import '../action_game.dart';
-import '../player.dart';
 import '../reward_text.dart';
 import 'chest_data.dart';
 import 'chest_particle.dart';
@@ -18,16 +18,26 @@ class Chest extends PositionComponent with HasGameRef<ActionGame> {
   double glowTimer = 0;
   double floatOffset = 0;
 
+  Sprite? closedSprite;
+  Sprite? openedSprite;
+
   Chest({
     required Vector2 position,
     required this.data,
   }) : super(position: position) {
-    size = Vector2(50, 50);
+    size = Vector2(80, 80); // Increased size for high-res sprites
     anchor = Anchor.center;
     isOpened = data.opened;
 
     // Generate random reward
     _generateReward();
+  }
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    closedSprite = await game.loadSprite('dower_chest.png');
+    openedSprite = await game.loadSprite('dower_chest_opened.png');
   }
 
   void _generateReward() {
@@ -54,11 +64,11 @@ class Chest extends PositionComponent with HasGameRef<ActionGame> {
       // Check if player is near
       final player = game.player;
       final distance = position.distanceTo(player.position);
-      isPlayerNear = distance < 80;
+      isPlayerNear = distance < 100; // Adjusted for larger size
     }
   }
 
-  void open(Player player) {
+  void open(GameCharacter player) {
     if (isOpened) return;
 
     isOpened = true;
@@ -74,7 +84,7 @@ class Chest extends PositionComponent with HasGameRef<ActionGame> {
       case ChestReward.money:
         final moneyGain = 50;
         player.stats.money += moneyGain;
-        _showRewardText('+\$$moneyGain', Colors.yellow);
+        _showRewardText('+\$${moneyGain}', Colors.yellow);
         break;
 
       case ChestReward.nothing:
@@ -120,71 +130,19 @@ class Chest extends PositionComponent with HasGameRef<ActionGame> {
     if (!isOpened && isPlayerNear) {
       final glowPaint = Paint()
         ..color = Colors.yellow.withOpacity(0.3 + math.sin(glowTimer * 5) * 0.2)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
-      canvas.drawRect(
-        Rect.fromCenter(center: Offset.zero, width: 60, height: 60),
-        glowPaint,
-      );
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20);
+      canvas.drawCircle(Offset.zero, 45, glowPaint);
     }
 
-    // Chest body
-    final gradient = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: isOpened
-          ? [const Color(0xFF8B7355), const Color(0xFF654321)]
-          : [const Color(0xFFDAA520), const Color(0xFFB8860B)],
-    );
-
-    final rect = Rect.fromCenter(center: Offset.zero, width: 50, height: 30);
-    final paint = Paint()..shader = gradient.createShader(rect);
-    canvas.drawRect(rect, paint);
-
-    // Chest border
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..color = const Color(0xFF8B6914)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
-    );
-
-    // Chest lid
-    final lidColor = isOpened
-        ? const Color(0xFF555555)
-        : const Color(0xFFFFD700);
-    canvas.drawRect(
-      Rect.fromCenter(center: const Offset(0, -22), width: 50, height: 15),
-      Paint()..color = lidColor,
-    );
-    canvas.drawRect(
-      Rect.fromCenter(center: const Offset(0, -22), width: 50, height: 15),
-      Paint()
-        ..color = const Color(0xFF8B6914)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
-    );
-
-    // Lock/Keyhole
-    canvas.drawRect(
-      Rect.fromCenter(center: Offset.zero, width: 10, height: 15),
-      Paint()..color = const Color(0xFF4A4A4A),
-    );
-
-    // Lock decoration
-    canvas.drawCircle(
-      Offset.zero,
-      5,
-      Paint()..color = isOpened ? const Color(0xFF888888) : const Color(0xFFFFD700),
-    );
-    canvas.drawCircle(
-      Offset.zero,
-      5,
-      Paint()
-        ..color = const Color(0xFF8B6914)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
+    // Render Sprite
+    final sprite = isOpened ? openedSprite : closedSprite;
+    if (sprite != null) {
+      sprite.render(
+        canvas,
+        position: Vector2(-size.x / 2, -size.y / 2),
+        size: size,
+      );
+    }
 
     // "E to open" hint
     if (isPlayerNear && !isOpened) {
@@ -193,7 +151,7 @@ class Chest extends PositionComponent with HasGameRef<ActionGame> {
           text: '⬇ Down to Open',
           style: TextStyle(
             color: Colors.white,
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: FontWeight.bold,
             shadows: [
               Shadow(color: Colors.black, blurRadius: 4),
@@ -203,7 +161,7 @@ class Chest extends PositionComponent with HasGameRef<ActionGame> {
         textDirection: TextDirection.ltr,
       );
       textPainter.layout();
-      textPainter.paint(canvas, Offset(-textPainter.width / 2, -40));
+      textPainter.paint(canvas, Offset(-textPainter.width / 2, -size.y / 2 - 20));
     }
 
     canvas.restore();

@@ -1,18 +1,17 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
-import 'package:nomercy/player.dart';
+import 'package:flutter/material.dart';
 
 import 'action_game.dart';
-import 'enemy.dart';
+import 'game/game_character.dart';
 import 'impact_effect.dart';
 
 class Projectile extends PositionComponent with HasGameRef<ActionGame> {
   final Vector2 direction;
   final double damage;
-  final Player? owner;  // null if from enemy
-  final Enemy? enemyOwner;  // null if from player
+  final GameCharacter? owner;  // null if from enemy
+  final GameCharacter? enemyOwner;  // null if from player
   final Color color;
   final String type;  // 'knife', 'fireball', 'arrow'
   double lifetime = 3.0;

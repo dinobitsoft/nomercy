@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'character_class.dart';
 import 'character_stats.dart';
-import 'level_selection_screen.dart';
+import 'game/stat/stats.dart';
 import 'gamepad_manager.dart';
+import 'level_selection_screen.dart';
 
 class CharacterSelectionScreen extends StatefulWidget {
   const CharacterSelectionScreen({super.key});
@@ -13,7 +13,14 @@ class CharacterSelectionScreen extends StatefulWidget {
 }
 
 class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
-  CharacterClass? selectedClass;
+  String? selectedCharacterClass;
+
+  final List<CharacterStats> characterOptions = [
+    KnightStats(),
+    ThiefStats(),
+    WizardStats(),
+    TraderStats(),
+  ];
 
   @override
   void initState() {
@@ -57,7 +64,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          if (selectedClass != null) ...[
+                          if (selectedCharacterClass != null) ...[
                             ElevatedButton(
                               onPressed: () => _startGame(context),
                               style: ElevatedButton.styleFrom(
@@ -95,9 +102,8 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                       crossAxisSpacing: 10,
                       mainAxisSpacing: 10,
                       childAspectRatio: 1.2,
-                      children: CharacterClass.values.map((charClass) {
-                        final stats = CharacterStats.fromClass(charClass);
-                        return _buildCharacterCard(charClass, stats);
+                      children: characterOptions.map((stats) {
+                        return _buildCharacterCard(stats.name.toLowerCase(), stats);
                       }).toList(),
                     ),
                   ),
@@ -151,10 +157,10 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
     );
   }
 
-  Widget _buildCharacterCard(CharacterClass charClass, CharacterStats stats) {
-    final isSelected = selectedClass == charClass;
+  Widget _buildCharacterCard(String charClass, CharacterStats stats) {
+    final isSelected = selectedCharacterClass == charClass;
     return GestureDetector(
-      onTap: () => setState(() => selectedClass = charClass),
+      onTap: () => setState(() => selectedCharacterClass = charClass),
       child: Container(
         decoration: BoxDecoration(
           color: isSelected ? stats.color.withOpacity(0.3) : Colors.grey[800],
@@ -191,7 +197,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                   child: Transform.scale(
                     scale: 1.8,
                     child: Image.asset(
-                      'assets/images/${charClass.name}.png',
+                      'assets/images/$charClass.png',
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: Colors.white),
                     ),
@@ -262,7 +268,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => LevelSelectionScreen(
-          characterClass: selectedClass!,
+          selectedCharacterClass: selectedCharacterClass!,
         ),
       ),
     );

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
-import 'character_class.dart';
 import 'game_screen.dart';
 
 class LevelSelectionScreen extends StatelessWidget {
-  final CharacterClass characterClass;
+  final String selectedCharacterClass;
 
-  const LevelSelectionScreen({super.key, required this.characterClass});
+  const LevelSelectionScreen({super.key, required this.selectedCharacterClass});
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +74,7 @@ class LevelSelectionScreen extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (context) => GameScreen(
-              characterClass: characterClass,
+              selectedCharacterClass: selectedCharacterClass,
               mapName: mapName,
             ),
           ),

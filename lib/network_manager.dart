@@ -1,5 +1,5 @@
 // network_manager.dart
-import 'package:nomercy/player.dart';
+import 'package:nomercy/game/game_character.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 import 'character_stats.dart';
@@ -11,7 +11,7 @@ class NetworkManager {
   NetworkManager._internal();
 
   late IO.Socket socket;
-  final Map<String, Player> remotePlayers = {};
+  final Map<String, GameCharacter> remotePlayers = {};
 
   void connect(String characterClass, CharacterStats stats) {
     socket = IO.io('http://YOUR_SERVER_IP:3000',
