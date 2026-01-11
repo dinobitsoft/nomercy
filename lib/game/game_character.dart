@@ -89,7 +89,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
       attackAnimationTimer -= dt;
       if (attackAnimationTimer <= 0) {
         isAttacking = false;
-        if (spritesLoaded && idleAnimation != null) animation = idleAnimation;
       }
     }
 
@@ -112,7 +111,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
 
   void applyPhysics(double dt) {
     if (groundPlatform == null && !isClimbing) {
-      velocity.y += 600 * dt; // Increased gravity for heavier feel
+      velocity.y += 600 * dt;
       velocity.y = math.min(velocity.y, 400);
     }
 
@@ -141,7 +140,9 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
   void updateAnimation() {
     if (!spritesLoaded) return;
 
-    if (!isAttacking) {
+    if (isAttacking && attackAnimation != null) {
+      animation = attackAnimation;
+    } else {
       if (velocity.x.abs() > 10) {
         animation = walkAnimation;
       } else {
