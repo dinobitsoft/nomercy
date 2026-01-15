@@ -158,15 +158,15 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
     final tapPos = info.eventPosition.global;
 
     // Attack button logic
-    // final attackButtonPos = Vector2(size.x - 80, size.y - 80); //TODO: compare game play
-    // if (tapPos.distanceTo(attackButtonPos) < 50) {
-    //   attack();
-    // }
-
-    final attackButtonPos = Vector2(size.x - 100, 100);
-    if (tapPos.distanceTo(attackButtonPos) < 60) {
-      player.attack();
+    final attackButtonPos = Vector2(size.x - 80, size.y - 80); //TODO: compare game play
+    if (tapPos.distanceTo(attackButtonPos) < 50) {
+      attack();
     }
+
+    // final attackButtonPos = Vector2(size.x - 100, 100);
+    // if (tapPos.distanceTo(attackButtonPos) < 60) {
+    //   player.attack();
+    // }
   }
 
   void attack() {

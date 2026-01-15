@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Map Editor - Landscape</title>
+    <title>Advanced Map Editor</title>
     <style>
         * {
             margin: 0;
@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1600px;
+            max-width: calc(100vw - 40px);
             margin: 0 auto;
             background: white;
             border-radius: 12px;
@@ -40,20 +40,13 @@
             font-size: 24px;
         }
 
-        .aspect-info {
-            background: rgba(255,255,255,0.2);
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
         .main-content {
             display: flex;
-            height: calc(100vh - 140px);
+            height: calc(100vh - 160px);
         }
 
         .toolbar {
-            width: 220px;
+            width: 250px;
             background: #f8f9fa;
             border-right: 2px solid #e0e0e0;
             padding: 15px;
@@ -111,6 +104,7 @@
         .eraser-icon { background: #ff4444; }
         .spawn-icon { background: #4169e1; }
         .chest-icon { background: linear-gradient(135deg, #DAA520, #FFD700); }
+        .bot-icon { background: #ff6b6b; }
 
         .canvas-container {
             flex: 1;
@@ -118,8 +112,13 @@
             overflow: auto;
             background: #e8eaf6;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            display: inline-block;
         }
 
         #mapCanvas {
@@ -127,8 +126,33 @@
             background: #87ceeb;
             cursor: crosshair;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            max-width: 100%;
-            max-height: 100%;
+        }
+
+        .resize-handle {
+            position: absolute;
+            background: #667eea;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .resize-handle:hover {
+            background: #5568d3;
+        }
+
+        .resize-right {
+            right: -10px;
+            top: 0;
+            width: 20px;
+            height: 100%;
+            cursor: ew-resize;
+        }
+
+        .resize-bottom {
+            bottom: -10px;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            cursor: ns-resize;
         }
 
         .controls {
@@ -158,8 +182,6 @@
 
         .btn-primary:hover {
             background: #218838;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
         }
 
         .btn-secondary {
@@ -167,17 +189,9 @@
             color: white;
         }
 
-        .btn-secondary:hover {
-            background: #5a6268;
-        }
-
         .btn-danger {
             background: #dc3545;
             color: white;
-        }
-
-        .btn-danger:hover {
-            background: #c82333;
         }
 
         .input-group {
@@ -192,48 +206,11 @@
             font-size: 13px;
         }
 
-        .input-group input {
+        .input-group input, .input-group select {
             padding: 6px 10px;
             border: 2px solid #ddd;
             border-radius: 6px;
             font-size: 13px;
-            width: 70px;
-        }
-
-        .grid-toggle {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .grid-toggle input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-        }
-
-        .info-panel {
-            background: #e3f2fd;
-            padding: 8px 12px;
-            border-radius: 6px;
-            margin-top: 12px;
-            font-size: 12px;
-        }
-
-        .info-panel h4 {
-            color: #1976d2;
-            margin-bottom: 6px;
-            font-size: 13px;
-        }
-
-        .info-panel ul {
-            list-style: none;
-            padding-left: 0;
-        }
-
-        .info-panel li {
-            padding: 3px 0;
-            color: #555;
         }
 
         .stats {
@@ -259,23 +236,76 @@
             font-weight: bold;
             color: white;
         }
+
+        .bot-config {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        .bot-config label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #333;
+        }
+
+        .bot-config select {
+            width: 100%;
+            padding: 6px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .page-indicator {
+            background: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .page-indicator button {
+            padding: 5px 15px;
+            border: none;
+            background: #667eea;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .page-indicator button:hover {
+            background: #5568d3;
+        }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
         <div>
-            <h1>🗺️ Game Map Editor - Landscape Mode</h1>
-            <div class="aspect-info">Canvas: 16:9 aspect ratio (1920×1080)</div>
+            <h1>🗺️ Advanced Map Editor</h1>
+            <div style="font-size: 12px; margin-top: 5px;">Multi-page, resizable maps with bot spawns</div>
         </div>
         <div class="stats">
+            <div class="stat-item">
+                <span class="stat-label">Pages</span>
+                <span class="stat-value" id="pageCount">1</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Width</span>
+                <span class="stat-value" id="widthDisplay">1920</span>
+            </div>
             <div class="stat-item">
                 <span class="stat-label">Platforms</span>
                 <span class="stat-value" id="platformCount">0</span>
             </div>
             <div class="stat-item">
-                <span class="stat-label">Chests</span>
-                <span class="stat-value" id="chestCount">0</span>
+                <span class="stat-label">Bots</span>
+                <span class="stat-value" id="botCount">0</span>
             </div>
         </div>
     </div>
@@ -294,7 +324,11 @@
                 </button>
                 <button class="tool-button" onclick="selectTool('spawn')">
                     <span class="tool-icon spawn-icon"></span>
-                    <span>Spawn</span>
+                    <span>Player Spawn</span>
+                </button>
+                <button class="tool-button" onclick="selectTool('bot')">
+                    <span class="tool-icon bot-icon"></span>
+                    <span>Bot Spawn</span>
                 </button>
                 <button class="tool-button" onclick="selectTool('chest')">
                     <span class="tool-icon chest-icon"></span>
@@ -307,7 +341,7 @@
             </div>
 
             <div class="tool-section">
-                <h3>📏 Size</h3>
+                <h3>📏 Platform Size</h3>
                 <div class="input-group" style="flex-direction: column; align-items: flex-start; gap: 6px;">
                     <div style="display: flex; gap: 6px; width: 100%;">
                         <label>W:</label>
@@ -320,19 +354,51 @@
                 </div>
             </div>
 
-            <div class="info-panel">
-                <h4>💡 Tips</h4>
-                <ul>
-                    <li>• Click to place</li>
-                    <li>• Right-click remove</li>
-                    <li>• Place chests for rewards</li>
-                    <li>• Set spawn point</li>
-                </ul>
+            <div class="tool-section" id="botConfig" style="display: none;">
+                <h3>🤖 Bot Configuration</h3>
+                <div class="bot-config">
+                    <label>Character Type:</label>
+                    <select id="botCharacter">
+                        <option value="knight">⚔️ Knight</option>
+                        <option value="thief">🗡️ Thief</option>
+                        <option value="wizard">🔮 Wizard</option>
+                        <option value="trader">🏹 Trader</option>
+                    </select>
+
+                    <label style="margin-top: 8px;">Tactic:</label>
+                    <select id="botTactic">
+                        <option value="aggressive">⚡ Aggressive</option>
+                        <option value="defensive">🛡️ Defensive</option>
+                        <option value="balanced">⚖️ Balanced</option>
+                        <option value="coward">🏃 Coward</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h3>📄 Map Pages</h3>
+                <button class="btn btn-primary" onclick="addPage()" style="width: 100%; margin-bottom: 8px;">
+                    ➕ Add Page (Right)
+                </button>
+                <button class="btn btn-danger" onclick="removePage()" style="width: 100%;">
+                    ➖ Remove Last Page
+                </button>
             </div>
         </div>
 
         <div class="canvas-container">
-            <canvas id="mapCanvas" width="1920" height="1080"></canvas>
+            <div class="page-indicator">
+                <span>📄 Map Width: <strong id="mapWidthText">1920px</strong></span>
+                <span>|</span>
+                <span>Pages: <strong id="pagesText">1</strong></span>
+                <button onclick="fitToView()">🔍 Fit to View</button>
+            </div>
+
+            <div class="canvas-wrapper">
+                <canvas id="mapCanvas" width="1920" height="1080"></canvas>
+                <div class="resize-handle resize-right" onmousedown="startResize(event, 'right')"></div>
+                <div class="resize-handle resize-bottom" onmousedown="startResize(event, 'bottom')"></div>
+            </div>
         </div>
     </div>
 
@@ -352,7 +418,7 @@
             <input type="text" id="mapName" value="level_1" style="width: 120px;">
         </div>
 
-        <div class="grid-toggle">
+        <div class="input-group">
             <input type="checkbox" id="showGrid" onchange="toggleGrid()" checked>
             <label for="showGrid">Grid</label>
         </div>
@@ -365,19 +431,24 @@
     const canvas = document.getElementById('mapCanvas');
     const ctx = canvas.getContext('2d');
 
+    const BASE_PAGE_WIDTH = 1920;
+    const BASE_HEIGHT = 1080;
+
     const mapData = {
         name: 'level_1',
-        width: 1920,
-        height: 1080,
-        aspectRatio: '16:9',
-        orientation: 'landscape',
+        width: BASE_PAGE_WIDTH,
+        height: BASE_HEIGHT,
+        pages: 1,
         platforms: [],
         chests: [],
+        bots: [],
         playerSpawn: { x: 200, y: 900 }
     };
 
     let currentTool = 'brick';
     let showGrid = true;
+    let isResizing = false;
+    let resizeDirection = null;
 
     function selectTool(tool) {
         currentTool = tool;
@@ -385,6 +456,10 @@
             btn.classList.remove('active');
         });
         event.target.closest('.tool-button').classList.add('active');
+
+        // Show/hide bot config
+        document.getElementById('botConfig').style.display =
+            tool === 'bot' ? 'block' : 'none';
     }
 
     canvas.addEventListener('mousedown', (e) => {
@@ -401,6 +476,8 @@
                 mapData.playerSpawn = { x: Math.round(x), y: Math.round(y) };
             } else if (currentTool === 'chest') {
                 addChest(x, y);
+            } else if (currentTool === 'bot') {
+                addBot(x, y);
             } else {
                 addPlatform(x, y);
             }
@@ -445,6 +522,23 @@
         updateCounts();
     }
 
+    function addBot(x, y) {
+        const character = document.getElementById('botCharacter').value;
+        const tactic = document.getElementById('botTactic').value;
+
+        const bot = {
+            id: Date.now(),
+            type: 'bot',
+            x: Math.round(x),
+            y: Math.round(y),
+            character: character,
+            tactic: tactic
+        };
+
+        mapData.bots.push(bot);
+        updateCounts();
+    }
+
     function removeObject(x, y) {
         mapData.platforms = mapData.platforms.filter(platform => {
             const inBounds = x >= platform.x && x <= platform.x + platform.width &&
@@ -457,13 +551,98 @@
             return distance > 30;
         });
 
+        mapData.bots = mapData.bots.filter(bot => {
+            const distance = Math.sqrt((x - bot.x) ** 2 + (y - bot.y) ** 2);
+            return distance > 30;
+        });
+
         updateCounts();
+    }
+
+    function addPage() {
+        mapData.pages++;
+        mapData.width = BASE_PAGE_WIDTH * mapData.pages;
+        canvas.width = mapData.width;
+        updateCounts();
+        render();
+    }
+
+    function removePage() {
+        if (mapData.pages > 1) {
+            mapData.pages--;
+            const newWidth = BASE_PAGE_WIDTH * mapData.pages;
+
+            // Remove objects beyond new width
+            mapData.platforms = mapData.platforms.filter(p => p.x < newWidth);
+            mapData.chests = mapData.chests.filter(c => c.x < newWidth);
+            mapData.bots = mapData.bots.filter(b => b.x < newWidth);
+
+            mapData.width = newWidth;
+            canvas.width = newWidth;
+            updateCounts();
+            render();
+        }
+    }
+
+    function startResize(e, direction) {
+        e.preventDefault();
+        isResizing = true;
+        resizeDirection = direction;
+
+        const onMouseMove = (e) => {
+            if (!isResizing) return;
+
+            if (resizeDirection === 'right') {
+                const newWidth = Math.max(BASE_PAGE_WIDTH, Math.round(e.clientX - canvas.getBoundingClientRect().left));
+                canvas.width = newWidth;
+                mapData.width = newWidth;
+                mapData.pages = Math.ceil(newWidth / BASE_PAGE_WIDTH);
+            } else if (resizeDirection === 'bottom') {
+                const newHeight = Math.max(720, Math.round(e.clientY - canvas.getBoundingClientRect().top));
+                canvas.height = newHeight;
+                mapData.height = newHeight;
+            }
+
+            updateCounts();
+            render();
+        };
+
+        const onMouseUp = () => {
+            isResizing = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    }
+
+    function fitToView() {
+        const container = document.querySelector('.canvas-container');
+        const maxWidth = container.clientWidth - 100;
+        const scale = maxWidth / canvas.width;
+        canvas.style.transform = `scale(${scale})`;
+        canvas.style.transformOrigin = 'top center';
     }
 
     function render() {
         ctx.fillStyle = '#87ceeb';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+        // Draw page separators
+        ctx.strokeStyle = '#ff000066';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([10, 5]);
+        for (let i = 1; i < mapData.pages; i++) {
+            const x = i * BASE_PAGE_WIDTH;
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        // Grid
         if (showGrid) {
             ctx.strokeStyle = '#ffffff33';
             ctx.lineWidth = 1;
@@ -484,25 +663,9 @@
             }
         }
 
-        ctx.strokeStyle = '#ff000066';
-        ctx.lineWidth = 3;
-        ctx.setLineDash([10, 5]);
-        ctx.strokeRect(50, 50, canvas.width - 100, canvas.height - 100);
-        ctx.setLineDash([]);
-
+        // Platforms
         mapData.platforms.forEach(platform => {
-            let color;
-            switch (platform.type) {
-                case 'brick':
-                    color = '#8b4513';
-                    break;
-                case 'ground':
-                    color = '#228b22';
-                    break;
-                default:
-                    color = '#666';
-            }
-
+            let color = platform.type === 'brick' ? '#8b4513' : '#228b22';
             ctx.fillStyle = color;
             ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
 
@@ -520,10 +683,17 @@
             );
         });
 
+        // Chests
         mapData.chests.forEach(chest => {
             drawChest(ctx, chest.x, chest.y, chest.opened);
         });
 
+        // Bots
+        mapData.bots.forEach(bot => {
+            drawBot(ctx, bot.x, bot.y, bot.character, bot.tactic);
+        });
+
+        // Player spawn
         ctx.fillStyle = '#4169e1';
         ctx.beginPath();
         ctx.arc(mapData.playerSpawn.x, mapData.playerSpawn.y, 20, 0, Math.PI * 2);
@@ -535,12 +705,7 @@
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 12px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('SPAWN', mapData.playerSpawn.x, mapData.playerSpawn.y + 4);
-
-        ctx.fillStyle = '#000';
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'left';
-        ctx.fillText(`${canvas.width}×${canvas.height} (16:9)`, 10, 25);
+        ctx.fillText('PLAYER', mapData.playerSpawn.x, mapData.playerSpawn.y + 4);
     }
 
     function drawChest(ctx, x, y, opened) {
@@ -550,7 +715,6 @@
 
         ctx.fillStyle = gradient;
         ctx.fillRect(x - 25, y - 15, 50, 30);
-
         ctx.strokeStyle = '#8B6914';
         ctx.lineWidth = 3;
         ctx.strokeRect(x - 25, y - 15, 50, 30);
@@ -558,22 +722,44 @@
         ctx.fillStyle = opened ? '#555' : '#FFD700';
         ctx.fillRect(x - 25, y - 30, 50, 15);
         ctx.strokeRect(x - 25, y - 30, 50, 15);
+    }
 
-        ctx.fillStyle = '#4A4A4A';
-        ctx.fillRect(x - 5, y - 5, 10, 15);
+    function drawBot(ctx, x, y, character, tactic) {
+        const colors = {
+            knight: '#4169e1',
+            thief: '#228b22',
+            wizard: '#8a2be2',
+            trader: '#ff8c00'
+        };
 
-        ctx.fillStyle = '#FFD700';
-        ctx.beginPath();
-        ctx.arc(x, y, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#8B6914';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        // Bot body
+        ctx.fillStyle = colors[character] || '#ff6b6b';
+        ctx.fillRect(x - 20, y - 30, 40, 60);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x - 20, y - 30, 40, 60);
 
-        ctx.fillStyle = '#000';
-        ctx.font = 'bold 10px Arial';
+        // Character icon
+        const icons = {
+            knight: '⚔️',
+            thief: '🗡️',
+            wizard: '🔮',
+            trader: '🏹'
+        };
+        ctx.font = '24px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('CHEST', x, y + 35);
+        ctx.fillText(icons[character] || '🤖', x, y + 5);
+
+        // Tactic label
+        ctx.font = 'bold 10px Arial';
+        ctx.fillStyle = '#fff';
+        const tacticText = tactic.substring(0, 3).toUpperCase();
+        ctx.fillText(tacticText, x, y - 35);
+
+        // Name
+        ctx.font = '10px Arial';
+        ctx.fillStyle = '#000';
+        ctx.fillText(character.toUpperCase(), x, y + 45);
     }
 
     function toggleGrid() {
@@ -583,7 +769,11 @@
 
     function updateCounts() {
         document.getElementById('platformCount').textContent = mapData.platforms.length;
-        document.getElementById('chestCount').textContent = mapData.chests.length;
+        document.getElementById('botCount').textContent = mapData.bots.length;
+        document.getElementById('pageCount').textContent = mapData.pages;
+        document.getElementById('widthDisplay').textContent = mapData.width;
+        document.getElementById('mapWidthText').textContent = `${mapData.width}px`;
+        document.getElementById('pagesText').textContent = mapData.pages;
     }
 
     function generateMap() {
@@ -598,7 +788,7 @@
         a.click();
         URL.revokeObjectURL(url);
 
-        alert(`Map "${mapData.name}" generated!\n\nPlatforms: ${mapData.platforms.length}\nChests: ${mapData.chests.length}`);
+        alert(`Map "${mapData.name}" generated!\n\nWidth: ${mapData.width}px (${mapData.pages} pages)\nHeight: ${mapData.height}px\nPlatforms: ${mapData.platforms.length}\nBots: ${mapData.bots.length}`);
     }
 
     function loadMap() {
@@ -614,9 +804,16 @@
             try {
                 const loaded = JSON.parse(e.target.result);
                 mapData.name = loaded.name;
+                mapData.width = loaded.width || BASE_PAGE_WIDTH;
+                mapData.height = loaded.height || BASE_HEIGHT;
+                mapData.pages = loaded.pages || Math.ceil(mapData.width / BASE_PAGE_WIDTH);
                 mapData.platforms = loaded.platforms || [];
                 mapData.chests = loaded.chests || [];
+                mapData.bots = loaded.bots || [];
                 mapData.playerSpawn = loaded.playerSpawn || { x: 200, y: 900 };
+
+                canvas.width = mapData.width;
+                canvas.height = mapData.height;
 
                 document.getElementById('mapName').value = mapData.name;
                 updateCounts();
@@ -634,6 +831,7 @@
         if (confirm('Clear the entire map?')) {
             mapData.platforms = [];
             mapData.chests = [];
+            mapData.bots = [];
             mapData.playerSpawn = { x: 200, y: 900 };
             updateCounts();
             render();

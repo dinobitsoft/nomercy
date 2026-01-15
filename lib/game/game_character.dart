@@ -17,8 +17,8 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
   BotTactic? botTactic;
 
   // Character dimensions
-  static const double baseWidth = 128.0;
-  static const double baseHeight = 128.0;
+  static const double baseWidth = 160.0;
+  static const double baseHeight = 240.0;
 
   // Physics
   Vector2 velocity = Vector2.zero();
@@ -92,6 +92,15 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
       }
     }
 
+    if (health <= 0) {
+      if (playerType == PlayerType.bot) {
+        game.removeEnemy(this);
+      } else {
+        game.gameOver();
+      }
+      return;
+    }
+
     // Update based on type
     if (playerType == PlayerType.human) {
       updateHumanControl(dt);
@@ -111,8 +120,8 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
 
   void applyPhysics(double dt) {
     if (groundPlatform == null && !isClimbing) {
-      velocity.y += 600 * dt;
-      velocity.y = math.min(velocity.y, 400);
+      velocity.y += 1000 * dt;
+      velocity.y = math.min(velocity.y, 600);
     }
 
     position += velocity * dt;
@@ -172,7 +181,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
     // Health bar for bots
     if (playerType == PlayerType.bot) {
       final healthBarWidth = size.x;
-      final healthPercent = health / 100;
+      final healthPercent = (health / 100).clamp(0.0, 1.0);
       canvas.drawRect(
         Rect.fromLTWH(-size.x / 2, -size.y / 2 - 20, healthBarWidth, 10),
         Paint()..color = Colors.red,
