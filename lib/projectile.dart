@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'action_game.dart';
 import 'game/game_character.dart';
 import 'impact_effect.dart';
+import 'network_manager.dart';
 
 class Projectile extends PositionComponent with HasGameRef<ActionGame> {
   final Vector2 direction;
@@ -57,7 +58,7 @@ class Projectile extends PositionComponent with HasGameRef<ActionGame> {
       }
     }
 
-    // Check collision with player (if from enemy)
+    // Check collision with player (if from enemy or remote player)
     if (enemyOwner != null) {
       if (position.distanceTo(game.player.position) < 30) {
         game.player.takeDamage(damage);
@@ -70,6 +71,7 @@ class Projectile extends PositionComponent with HasGameRef<ActionGame> {
 
     // Check collision with enemies (if from player)
     if (owner != null) {
+      // Check AI enemies
       for (final enemy in game.enemies) {
         if (position.distanceTo(enemy.position) < 30) {
           enemy.takeDamage(damage);
@@ -77,6 +79,23 @@ class Projectile extends PositionComponent with HasGameRef<ActionGame> {
           removeFromParent();
           game.projectiles.remove(this);
           return;
+        }
+      }
+
+      // Check remote players in multiplayer mode
+      if (game.enableMultiplayer) {
+        for (final entry in NetworkManager().remotePlayers.entries) {
+          final remotePlayer = entry.value;
+          final playerId = entry.key;
+
+          if (remotePlayer.health > 0 && position.distanceTo(remotePlayer.position) < 30) {
+            // Send damage to server
+            NetworkManager().sendDamage(playerId, damage);
+            _createImpactEffect();
+            removeFromParent();
+            game.projectiles.remove(this);
+            return;
+          }
         }
       }
     }

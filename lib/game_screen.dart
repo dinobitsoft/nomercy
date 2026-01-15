@@ -6,11 +6,13 @@ import 'action_game.dart';
 class GameScreen extends StatelessWidget {
   final String selectedCharacterClass;
   final String mapName;
+  final bool enableMultiplayer;
 
   const GameScreen({
     super.key,
     required this.selectedCharacterClass,
     this.mapName = 'level_1',
+    this.enableMultiplayer = false, // Add multiplayer toggle
   });
 
   @override
@@ -20,6 +22,7 @@ class GameScreen extends StatelessWidget {
         game: ActionGame(
           selectedCharacterClass: selectedCharacterClass,
           mapName: mapName,
+          enableMultiplayer: enableMultiplayer,
         ),
       ),
     );

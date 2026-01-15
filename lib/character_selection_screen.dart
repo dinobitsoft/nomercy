@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'character_stats.dart';
 import 'game/stat/stats.dart';
@@ -27,7 +28,6 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
   @override
   void initState() {
     super.initState();
-    // Initial check for already connected gamepads
     GamepadManager().checkConnection();
     
     _pageController = PageController(
@@ -35,7 +35,6 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
       initialPage: 0,
     );
     
-    // Set initial selection
     selectedCharacterClass = characterOptions[0].name.toLowerCase();
   }
 
@@ -61,48 +60,49 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
             children: [
               Row(
                 children: [
-                  // Left side - Title and info
+                  // Left side - Main Menu
                   Expanded(
                     flex: 2,
                     child: Padding(
-                      padding: const EdgeInsets.all(40),
+                      padding: const EdgeInsets.symmetric(horizontal: 40),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Choose Your\nCharacter',
+                          Text(
+                            'NO MERCY',
                             style: TextStyle(
-                              fontSize: 48,
+                              fontSize: 56,
                               fontWeight: FontWeight.bold,
-                              height: 1.2,
                               color: Colors.white,
+                              letterSpacing: 4,
                             ),
                           ),
-                          const SizedBox(height: 20),
-                          if (selectedCharacterClass != null) 
-                            ElevatedButton(
-                              onPressed: () => _startGame(context),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 30,
-                                  vertical: 15,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'START GAME',
-                                    style: TextStyle(fontSize: 24, color: Colors.white),
-                                  ),
-                                ],
-                              ),
-                            ),
+                          const SizedBox(height: 40),
+                          _buildMenuItem(
+                            icon: FontAwesomeIcons.user,
+                            label: 'SINGLE PLAYER',
+                            color: Colors.blueAccent,
+                            onTap: () => _startGame(context),
+                          ),
+                          const SizedBox(height: 15),
+                          _buildMenuItem(
+                            icon: FontAwesomeIcons.users,
+                            label: 'MULTIPLAYER',
+                            color: Colors.orangeAccent,
+                            onTap: () {
+                              // TODO: Implement Multiplayer Screen
+                            },
+                          ),
+                          const SizedBox(height: 15),
+                          _buildMenuItem(
+                            icon: FontAwesomeIcons.arrowUp,
+                            label: 'UPGRADE',
+                            color: Colors.greenAccent,
+                            onTap: () {
+                              // TODO: Implement Upgrade Screen
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -124,7 +124,6 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                         final stats = characterOptions[index];
                         final charClass = stats.name.toLowerCase();
                         
-                        // Calculate scale for carousel effect
                         return AnimatedBuilder(
                           animation: _pageController,
                           builder: (context, child) {
@@ -133,7 +132,6 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                               value = _pageController.page! - index;
                               value = (1 - (value.abs() * 0.3)).clamp(0.7, 1.0);
                             } else {
-                              // Initial state before dimensions are available
                               value = index == 0 ? 1.0 : 0.7;
                             }
                             
@@ -191,6 +189,45 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                       ),
                     );
                   },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.white24),
+            borderRadius: BorderRadius.circular(15),
+            color: Colors.white.withOpacity(0.05),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FaIcon(icon, color: color, size: 20),
+              const SizedBox(width: 20),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
                 ),
               ),
             ],
