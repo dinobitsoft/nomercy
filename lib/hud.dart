@@ -1,0 +1,155 @@
+import 'package:flame/components.dart';
+import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
+import 'action_game.dart';
+import 'game/game_character.dart';
+
+class HUD extends PositionComponent with HasGameRef<ActionGame> {
+  final GameCharacter player;
+
+  HUD({required this.player, required ActionGame game}) {
+    priority = 100;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    // Removed the black background panel to inherit game background
+
+    const textStyle = TextStyle(
+        color: Colors.white,
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        shadows: [
+          Shadow(blurRadius: 4, color: Colors.black, offset: Offset(2, 2)),
+          Shadow(blurRadius: 4, color: Colors.black, offset: Offset(-1, -1)),
+        ]
+    );
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+
+    // --- Stats Row (Moved up near top screen edge) ---
+    const double rowY = 20; // Icon center Y
+    const double textY = 10; // Text paint Y
+
+    // Health
+    _drawHeart(canvas, const Offset(45, rowY), 22);
+    textPainter.text = TextSpan(text: '${player.health.toInt()}', style: textStyle);
+    textPainter.layout();
+    textPainter.paint(canvas, const Offset(65, textY));
+
+    // Money
+    _drawCoin(canvas, const Offset(130, rowY), 18);
+    textPainter.text = TextSpan(text: '${player.stats.money}', style: textStyle);
+    textPainter.layout();
+    textPainter.paint(canvas, const Offset(150, textY));
+
+    // Kills
+    _drawSkull(canvas, const Offset(220, rowY), 18);
+    textPainter.text = TextSpan(text: '${gameRef.enemiesDefeated}', style: textStyle);
+    textPainter.layout();
+    textPainter.paint(canvas, const Offset(240, textY));
+
+    // Health bar background (Moved up accordingly)
+    const double barY = 40;
+    canvas.drawRect(
+      const Rect.fromLTWH(40, barY, 240, 10),
+      Paint()..color = Colors.black.withOpacity(0.5), // Subtle border for health bar
+    );
+    canvas.drawRect(
+      const Rect.fromLTWH(41, barY + 1, 238, 8),
+      Paint()..color = Colors.red.withOpacity(0.3),
+    );
+
+    // Dynamic Health bar fill
+    final healthPercent = (player.health / 100).clamp(0.0, 1.0);
+    if (healthPercent > 0) {
+      canvas.drawRect(
+        Rect.fromLTWH(41, barY + 1, 238 * healthPercent, 8),
+        Paint()..color = healthPercent > 0.3 ? Colors.green : Colors.orange,
+      );
+    }
+
+    // --- Attack Button Rendering ---
+    _drawAttackButton(canvas);
+  }
+
+  void _drawAttackButton(Canvas canvas) {
+    final buttonX = gameRef.size.x - 80;
+    final buttonY = gameRef.size.y - 80;
+    const radius = 35.0;
+
+    // Outer glow for button visibility
+    canvas.drawCircle(
+      Offset(buttonX, buttonY),
+      radius + 2,
+      Paint()..color = Colors.black.withOpacity(0.3),
+    );
+
+    canvas.drawCircle(
+      Offset(buttonX, buttonY),
+      radius,
+      Paint()..color = Colors.red.withOpacity(0.6),
+    );
+
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+    textPainter.text = const TextSpan(
+      text: 'ATK',
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        shadows: [Shadow(blurRadius: 4, color: Colors.black)],
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(buttonX - textPainter.width / 2, buttonY - textPainter.height / 2));
+  }
+
+  void _drawHeart(Canvas canvas, Offset center, double size) {
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+    textPainter.text = TextSpan(
+      text: String.fromCharCode(FontAwesomeIcons.heart.codePoint),
+      style: TextStyle(
+        color: Colors.red,
+        fontSize: size,
+        fontFamily: FontAwesomeIcons.heart.fontFamily,
+        package: FontAwesomeIcons.heart.fontFamily == null ? null : FontAwesomeIcons.heart.fontPackage,
+        shadows: const [Shadow(blurRadius: 4, color: Colors.black)],
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, center - Offset(textPainter.width / 2, textPainter.height / 2));
+  }
+
+  void _drawCoin(Canvas canvas, Offset center, double size) {
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+    textPainter.text = TextSpan(
+      text: String.fromCharCode(FontAwesomeIcons.coins.codePoint),
+      style: TextStyle(
+        color: Colors.amber[300],
+        fontSize: size,
+        fontFamily: FontAwesomeIcons.coins.fontFamily,
+        package: FontAwesomeIcons.coins.fontFamily == null ? null : FontAwesomeIcons.coins.fontPackage,
+        shadows: const [Shadow(blurRadius: 4, color: Colors.black)],
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, center - Offset(textPainter.width / 2, textPainter.height / 2));
+  }
+
+  void _drawSkull(Canvas canvas, Offset center, double size) {
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+    textPainter.text = TextSpan(
+      text: String.fromCharCode(FontAwesomeIcons.skull.codePoint),
+      style: TextStyle(
+        color: Colors.grey[300],
+        fontSize: size,
+        fontFamily: FontAwesomeIcons.skull.fontFamily,
+        package: FontAwesomeIcons.skull.fontFamily == null ? null : FontAwesomeIcons.skull.fontPackage,
+        shadows: const [Shadow(blurRadius: 4, color: Colors.black)],
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, center - Offset(textPainter.width / 2, textPainter.height / 2));
+  }
+}

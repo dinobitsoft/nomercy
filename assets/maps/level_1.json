@@ -1,0 +1,205 @@
+{
+  "name": "level_1",
+  "width": 1920,
+  "height": 1080,
+  "aspectRatio": "16:9",
+  "orientation": "landscape",
+  "platforms": [
+    {
+      "id": 1767879452903,
+      "type": "brick",
+      "x": 71,
+      "y": 607,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879453847,
+      "type": "brick",
+      "x": 249,
+      "y": 610,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879455623,
+      "type": "brick",
+      "x": 1003,
+      "y": 604,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879456127,
+      "type": "brick",
+      "x": 1217,
+      "y": 606,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879457855,
+      "type": "brick",
+      "x": 851,
+      "y": 689,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879458830,
+      "type": "brick",
+      "x": 720,
+      "y": 775,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879461070,
+      "type": "ground",
+      "x": 31,
+      "y": 941,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879461774,
+      "type": "ground",
+      "x": 150,
+      "y": 933,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879462526,
+      "type": "ground",
+      "x": 242,
+      "y": 942,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879463175,
+      "type": "ground",
+      "x": 360,
+      "y": 941,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879463886,
+      "type": "ground",
+      "x": 481,
+      "y": 931,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879464686,
+      "type": "ground",
+      "x": 603,
+      "y": 933,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879465206,
+      "type": "ground",
+      "x": 782,
+      "y": 939,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879466975,
+      "type": "ground",
+      "x": 882,
+      "y": 939,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879467686,
+      "type": "ground",
+      "x": 958,
+      "y": 934,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879468214,
+      "type": "ground",
+      "x": 1123,
+      "y": 939,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879468998,
+      "type": "ground",
+      "x": 1246,
+      "y": 928,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879469630,
+      "type": "ground",
+      "x": 1357,
+      "y": 930,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879471734,
+      "type": "ground",
+      "x": 1454,
+      "y": 916,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879472406,
+      "type": "ground",
+      "x": 1539,
+      "y": 893,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879473174,
+      "type": "ground",
+      "x": 1610,
+      "y": 867,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879473934,
+      "type": "ground",
+      "x": 1666,
+      "y": 845,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879474998,
+      "type": "ground",
+      "x": 1743,
+      "y": 862,
+      "width": 120,
+      "height": 30
+    },
+    {
+      "id": 1767879475718,
+      "type": "ground",
+      "x": 1766,
+      "y": 884,
+      "width": 120,
+      "height": 30
+    }
+  ],
+  "playerSpawn": {
+    "x": 200,
+    "y": 900
+  }
+}
