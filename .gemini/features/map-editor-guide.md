@@ -472,7 +472,7 @@ For smooth 60 FPS in landscape:
 // Optimize camera
 camera.viewfinder.zoom = 0.8;
 
-// Limit enemy count
+// Limit bot count
 for (int i = 0; i < 3; i++) { // Max 3-5 enemies
 
 // Reduce particle effects if needed

@@ -1,49 +1,30 @@
-import 'dart:math' as math;
-
+import '../../bot/bot_state.dart';
+import '../../bot/smart_bot_ai.dart';
 import '../../projectile.dart';
 import '../bot_tactic.dart';
 import '../game_character.dart';
 
 class DefensiveTactic implements BotTactic {
+  final SmartBotAI ai = SmartBotAI(
+    name: 'Defensive',
+    personality: BotPersonality.defensive,
+  );
+
   @override
-  String get name => 'Defensive';
+  String get name => ai.name;
 
   @override
   void execute(GameCharacter bot, GameCharacter target, double dt) {
-    final distance = bot.position.distanceTo(target.position);
-    final toTarget = target.position - bot.position;
-
-    // Maintain safe distance
-    final optimalRange = bot.stats.attackRange * 25;
-
-    if (distance < optimalRange - 100) {
-      // Too close - retreat
-      bot.velocity.x = -toTarget.normalized().x * (bot.stats.dexterity / 2);
-      bot.facingRight = toTarget.x > 0;
-    } else if (distance > optimalRange + 100) {
-      // Too far - advance slowly
-      bot.velocity.x = toTarget.normalized().x * (bot.stats.dexterity / 3);
-      bot.facingRight = toTarget.x > 0;
-    } else {
-      // Good range - stay and shoot
-      bot.velocity.x = 0;
-      bot.facingRight = toTarget.x > 0;
-    }
-
-    // Attack when in good position
-    if (bot.attackCooldown <= 0 && distance < bot.stats.attackRange * 30) {
-      bot.attack();
-      bot.attackCooldown = 1.5; // Slower, careful attacks
-    }
+    ai.executeAI(bot, target, dt);
   }
 
   @override
-  bool shouldEvade(GameCharacter bot, List<Projectile> incoming) {
-    return incoming.isNotEmpty && math.Random().nextDouble() < 0.7; // 70% evade
+  bool shouldEvade(GameCharacter bot, List<Projectile> incomingProjectiles) {
+    return ai.shouldEvade(bot, incomingProjectiles);
   }
 
   @override
   void onDamageTaken(GameCharacter bot, double damage) {
-    print('${bot.stats.name} bot: Retreating to safety!');
+    ai.onDamageTaken(bot, damage);
   }
 }

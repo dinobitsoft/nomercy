@@ -4,10 +4,10 @@ import '../../projectile.dart';
 import '../bot_tactic.dart';
 import '../game_character.dart';
 
-class BerserkerTactic implements BotTactic {
+class TacticalTactic implements BotTactic {
   final SmartBotAI ai = SmartBotAI(
-    name: 'Berserker',
-    personality: BotPersonality.berserker,
+    name: 'Tactical',
+    personality: BotPersonality.tactical,
   );
 
   @override
@@ -20,12 +20,11 @@ class BerserkerTactic implements BotTactic {
 
   @override
   bool shouldEvade(GameCharacter bot, List<Projectile> incomingProjectiles) {
-    return false; // Berserker never evades
+    return ai.shouldEvade(bot, incomingProjectiles);
   }
 
   @override
   void onDamageTaken(GameCharacter bot, double damage) {
     ai.onDamageTaken(bot, damage);
-    print('${bot.stats.name} bot: PAIN MAKES ME STRONGER!');
   }
 }
