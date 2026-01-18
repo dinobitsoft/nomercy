@@ -11,6 +11,7 @@ class GameScreen extends StatelessWidget {
   final GameMode gameMode;
   final bool procedural;
   final MapGeneratorConfig? mapConfig;
+  final bool enableMultiplayer;
 
   const GameScreen({
     super.key,
@@ -19,6 +20,7 @@ class GameScreen extends StatelessWidget {
     this.gameMode = GameMode.survival,
     this.procedural = false,
     this.mapConfig,
+    this.enableMultiplayer = false,
   });
 
   @override
@@ -34,6 +36,7 @@ class GameScreen extends StatelessWidget {
               gameMode: gameMode,
               procedural: procedural,
               mapConfig: mapConfig,
+              enableMultiplayer: enableMultiplayer,
             ),
           ),
 

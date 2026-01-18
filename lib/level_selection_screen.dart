@@ -131,7 +131,7 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
             builder: (context) => GameScreen(
               selectedCharacterClass: widget.selectedCharacterClass,
               mapName: mapName,
-              // enableMultiplayer: enableMultiplayer,
+              enableMultiplayer: enableMultiplayer,
               gameMode: GameMode.survival, //TODO: fix by passing as parameter
             ),
           ),
