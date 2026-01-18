@@ -3,8 +3,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'character_stats.dart';
 import 'game/stat/stats.dart';
-import 'game_mode.dart';
-import 'game_screen.dart';
 import 'gamepad_manager.dart';
 import 'level_selection_screen.dart';
 import 'mode_selection_screen.dart';
@@ -32,12 +30,12 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
   void initState() {
     super.initState();
     GamepadManager().checkConnection();
-    
+
     _pageController = PageController(
       viewportFraction: 0.5,
       initialPage: 0,
     );
-    
+
     selectedCharacterClass = characterOptions[0].name.toLowerCase();
   }
 
@@ -86,16 +84,14 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                             icon: FontAwesomeIcons.user,
                             label: 'SINGLE PLAYER',
                             color: Colors.blueAccent,
-                            onTap: () => _startGame(context),
+                            onTap: () => _startSinglePlayer(context),
                           ),
                           const SizedBox(height: 15),
                           _buildMenuItem(
                             icon: FontAwesomeIcons.users,
                             label: 'MULTIPLAYER',
                             color: Colors.orangeAccent,
-                            onTap: () {
-                              // TODO: Implement Multiplayer Screen
-                            },
+                            onTap: () => _startMultiplayer(context),
                           ),
                           const SizedBox(height: 15),
                           _buildMenuItem(
@@ -104,6 +100,12 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                             color: Colors.greenAccent,
                             onTap: () {
                               // TODO: Implement Upgrade Screen
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Upgrade screen coming soon!'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
                             },
                           ),
                         ],
@@ -126,7 +128,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                       itemBuilder: (context, index) {
                         final stats = characterOptions[index];
                         final charClass = stats.name.toLowerCase();
-                        
+
                         return AnimatedBuilder(
                           animation: _pageController,
                           builder: (context, child) {
@@ -137,7 +139,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                             } else {
                               value = index == 0 ? 1.0 : 0.7;
                             }
-                            
+
                             return Center(
                               child: SizedBox(
                                 height: 450 * value,
@@ -153,7 +155,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                   ),
                 ],
               ),
-              
+
               // Gamepad Connection Indicator
               Positioned(
                 top: 20,
@@ -344,10 +346,10 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
     );
   }
 
-  void _startGame(BuildContext context) {
+  // Single Player - Goes to mode selection
+  void _startSinglePlayer(BuildContext context) {
     if (selectedCharacterClass == null) return;
 
-    // CHANGED: Navigate to Mode Selection instead of directly to game
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -358,18 +360,87 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
     );
   }
 
-// Or if you want to skip mode selection and go straight to survival:
-  void _startQuickGame(BuildContext context) {
+  // Multiplayer - Goes to level selection with multiplayer enabled
+  void _startMultiplayer(BuildContext context) {
     if (selectedCharacterClass == null) return;
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => GameScreen(
-          selectedCharacterClass: selectedCharacterClass!,
-          mapName: 'level_1',
-          gameMode: GameMode.survival, // Quick start in survival mode
+    // Show multiplayer info dialog first
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: Row(
+          children: [
+            Icon(Icons.wifi, color: Colors.orangeAccent),
+            const SizedBox(width: 10),
+            const Text(
+              'Multiplayer Mode',
+              style: TextStyle(color: Colors.white),
+            ),
+          ],
         ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'You\'re about to enter multiplayer mode!',
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            const SizedBox(height: 15),
+            Text(
+              '• Fight against real players online\n'
+                  '• Server: localhost:3000\n'
+                  '• Make sure server is running\n'
+                  '• Your character: ${selectedCharacterClass!.toUpperCase()}',
+              style: TextStyle(color: Colors.grey[400], fontSize: 14),
+            ),
+            const SizedBox(height: 15),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.orange),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Server must be running at http://10.0.2.2:3000',
+                      style: TextStyle(color: Colors.orange[200], fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => LevelSelectionScreen(
+                    selectedCharacterClass: selectedCharacterClass!,
+                  ),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orangeAccent,
+            ),
+            child: const Text('Connect', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
