@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'game_mode.dart';
 import 'game_screen.dart';
 
 class LevelSelectionScreen extends StatefulWidget {
@@ -131,6 +132,7 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
               selectedCharacterClass: widget.selectedCharacterClass,
               mapName: mapName,
               enableMultiplayer: enableMultiplayer,
+              gameMode: GameMode.survival, //TODO: fix by passing as parameter
             ),
           ),
         );

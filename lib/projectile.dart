@@ -11,7 +11,7 @@ import 'network_manager.dart';
 class Projectile extends PositionComponent with HasGameRef<ActionGame> {
   final Vector2 direction;
   final double damage;
-  final GameCharacter? owner;  // null if from enemy
+  final GameCharacter? owner;  // null if from bot
   final GameCharacter? enemyOwner;  // null if from player
   final Color color;
   final String type;  // 'knife', 'fireball', 'arrow'
@@ -58,7 +58,7 @@ class Projectile extends PositionComponent with HasGameRef<ActionGame> {
       }
     }
 
-    // Check collision with player (if from enemy or remote player)
+    // Check collision with player (if from bot or remote player)
     if (enemyOwner != null) {
       if (position.distanceTo(game.player.position) < 30) {
         game.player.takeDamage(damage);

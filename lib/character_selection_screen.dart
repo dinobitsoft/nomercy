@@ -3,8 +3,11 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'character_stats.dart';
 import 'game/stat/stats.dart';
+import 'game_mode.dart';
+import 'game_screen.dart';
 import 'gamepad_manager.dart';
 import 'level_selection_screen.dart';
+import 'mode_selection_screen.dart';
 
 class CharacterSelectionScreen extends StatefulWidget {
   const CharacterSelectionScreen({super.key});
@@ -343,11 +346,29 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
 
   void _startGame(BuildContext context) {
     if (selectedCharacterClass == null) return;
-    Navigator.pushReplacement(
+
+    // CHANGED: Navigate to Mode Selection instead of directly to game
+    Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => LevelSelectionScreen(
+        builder: (context) => ModeSelectionScreen(
           selectedCharacterClass: selectedCharacterClass!,
+        ),
+      ),
+    );
+  }
+
+// Or if you want to skip mode selection and go straight to survival:
+  void _startQuickGame(BuildContext context) {
+    if (selectedCharacterClass == null) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GameScreen(
+          selectedCharacterClass: selectedCharacterClass!,
+          mapName: 'level_1',
+          gameMode: GameMode.survival, // Quick start in survival mode
         ),
       ),
     );

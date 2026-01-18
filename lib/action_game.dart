@@ -20,7 +20,11 @@ import 'game/game_character.dart';
 import 'game/tactic/aggressive_tactic.dart';
 import 'game/tactic/balanced_tactic.dart';
 import 'game/tactic/defensive_tactic.dart';
+import 'game/tactic/tactical_tactic.dart';
+import 'game_manager.dart';
+import 'game_mode.dart';
 import 'hud.dart';
+import 'map/map_generator_config.dart';
 import 'map/map_loader.dart';
 import 'network_manager.dart'; // Add this import
 
@@ -38,11 +42,19 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
   final List<Chest> chests = [];
   int enemiesDefeated = 0;
   bool isGameOver = false;
+  late GameManager gameManager;
+  GameMode gameMode; // Default to survival
+  final bool procedural;
+  final MapGeneratorConfig? mapConfig;
+
 
   ActionGame({
     required this.selectedCharacterClass,
+    required this.gameMode,
     this.mapName = 'level_1',
     this.enableMultiplayer = false, // Default to false for backward compatibility
+    this.procedural = false,
+    this.mapConfig,
   });
 
   @override
@@ -62,6 +74,10 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
       ..paint = (Paint()..color = Colors.blueGrey.withOpacity(0.2));
     world.add(background);
 
+    final gameMap = procedural
+        ? await MapLoader.loadMap(mapName, procedural: true, config: mapConfig)
+        : await MapLoader.loadMap(mapName, procedural: false);
+
     // Create a large background gradient
     final bgRect = RectangleComponent(
       size: Vector2(5000, 2000),
@@ -73,9 +89,6 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
       ).shader,
     );
     world.add(bgRect);
-
-    // Load map from JSON
-    final gameMap = await MapLoader.loadMap(mapName);
 
     // Create platforms with textures
     for (final platformData in gameMap.platforms) {
@@ -112,26 +125,60 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
     add(player);
     world.add(player);
 
+    // NEW - Initialize Game Manager
+    gameManager = GameManager(mode: gameMode);
+    add(gameManager);
+    world.add(gameManager);
+
     // Only create BOT enemies if multiplayer is disabled
     if (!enableMultiplayer) {
       final botConfigs = [
-        {'class': 'knight', 'x': 600.0, 'tactic': AggressiveTactic()},
-        {'class': 'thief', 'x': 1000.0, 'tactic': BalancedTactic()},
-        {'class': 'wizard', 'x': 1400.0, 'tactic': DefensiveTactic()},
-        {'class': 'trader', 'x': 1200.0, 'tactic': BerserkerTactic()},
+        {
+          'class': 'knight',
+          'x': 600.0,
+          'y': gameMap.playerSpawn.y,
+          'tactic': AggressiveTactic(), // Close-combat aggressor
+          'name': 'Aggressive Knight'
+        },
+        {
+          'class': 'thief',
+          'x': 900.0,
+          'y': gameMap.playerSpawn.y - 100, // Start on higher platform
+          'tactic': TacticalTactic(), // Smart hit-and-run
+          'name': 'Tactical Thief'
+        },
+        {
+          'class': 'wizard',
+          'x': 1200.0,
+          'y': gameMap.playerSpawn.y,
+          'tactic': DefensiveTactic(), // Safe ranged attacker
+          'name': 'Defensive Wizard'
+        },
+        {
+          'class': 'trader',
+          'x': 1500.0,
+          'y': gameMap.playerSpawn.y,
+          'tactic': BalancedTactic(), // Versatile fighter
+          'name': 'Balanced Trader'
+        },
       ];
 
       for (final config in botConfigs) {
         final bot = _createCharacter(
           config['class'] as String,
-          Vector2(config['x'] as double, gameMap.playerSpawn.y),
+          Vector2(config['x'] as double, config['y'] as double),
           PlayerType.bot,
           botTactic: config['tactic'] as BotTactic,
         );
+
+        // Optional: Set custom name
+        print('Spawning ${config['name']} at (${config['x']}, ${config['y']})');
+
         add(bot);
         world.add(bot);
         enemies.add(bot);
       }
+
     }
 
     // Camera
@@ -148,6 +195,13 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
 
     // Add HUD to viewport
     camera.viewport.add(HUD(player: player, game: this));
+
+    if (procedural && mapConfig != null) {
+      print('🗺️  Playing on procedural map:');
+      print('   Style: ${mapConfig!.style.name}');
+      print('   Difficulty: ${mapConfig!.difficulty.name}');
+      print('   Seed: ${mapConfig!.seed}');
+    }
 
     // Connect to multiplayer server if enabled
     if (enableMultiplayer) {
@@ -188,14 +242,39 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
   }
 
   @override
+  void onTapUp(TapUpInfo info) {
+    super.onTapUp(info);
+    // Release block when tap is released
+    player.stopBlock();
+  }
+
+  @override
   void onTapDown(TapDownInfo info) {
     super.onTapDown(info);
     final tapPos = info.eventPosition.global;
 
-    // Attack button logic
+    // Attack button
     final attackButtonPos = Vector2(size.x - 80, size.y - 80);
     if (tapPos.distanceTo(attackButtonPos) < 50) {
-      attack();
+      player.attack();
+      return;
+    }
+
+    // Dodge button
+    final dodgeButtonPos = Vector2(size.x - 170, size.y - 80);
+    if (tapPos.distanceTo(dodgeButtonPos) < 40) {
+      final direction = joystick.relativeDelta.length > 0.1
+          ? joystick.relativeDelta
+          : Vector2(player.facingRight ? 1 : -1, 0);
+      player.dodge(direction);
+      return;
+    }
+
+    // Block button (hold to block - released in onTapUp)
+    final blockButtonPos = Vector2(size.x - 80, size.y - 170);
+    if (tapPos.distanceTo(blockButtonPos) < 40) {
+      player.startBlock();
+      return;
     }
   }
 
@@ -227,16 +306,34 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
       return; // Don't remove from local game, server will handle it
     }
 
-    // Handle local AI enemy
+    // Handle local AI bot
     enemies.remove(enemy);
     enemy.removeFromParent();
     enemiesDefeated++;
     player.stats.money += 20;
+
+    gameManager.onEnemyDefeated();
   }
 
   void gameOver() {
+    if (isGameOver) return;
     isGameOver = true;
-    debugPrint('Game Over!');
+
+    print('\n╔══════════════════════════════╗');
+    print('║       GAME OVER!             ║');
+    print('╚══════════════════════════════╝');
+    print('Wave Reached: ${gameManager.currentWave}');
+    print('Total Kills: $enemiesDefeated');
+    print('Gold Earned: ${player.stats.money}');
+
+    // Show game over screen (implement this)
+    _showGameOverScreen();
+  }
+
+  void _showGameOverScreen() {
+    // TODO: Add game over overlay
+    // For now just pause the game
+    pauseEngine();
   }
 
   @override
