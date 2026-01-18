@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'game_manager.dart';
+
 import 'game_mode.dart';
-import 'game_screen.dart';
+import 'map/map_selection_screen.dart';
 
 class ModeSelectionScreen extends StatelessWidget {
   final String selectedCharacterClass;
@@ -107,12 +107,12 @@ class ModeSelectionScreen extends StatelessWidget {
       ) {
     return GestureDetector(
       onTap: () {
+        // Navigate to map selection instead
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => GameScreen(
+            builder: (context) => MapSelectionScreen(
               selectedCharacterClass: selectedCharacterClass,
-              mapName: 'level_1',
               gameMode: mode,
             ),
           ),

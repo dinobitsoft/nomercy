@@ -24,6 +24,7 @@ import 'game/tactic/tactical_tactic.dart';
 import 'game_manager.dart';
 import 'game_mode.dart';
 import 'hud.dart';
+import 'map/map_generator_config.dart';
 import 'map/map_loader.dart';
 import 'network_manager.dart'; // Add this import
 
@@ -43,6 +44,8 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
   bool isGameOver = false;
   late GameManager gameManager;
   GameMode gameMode; // Default to survival
+  final bool procedural;
+  final MapGeneratorConfig? mapConfig;
 
 
   ActionGame({
@@ -50,6 +53,8 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
     required this.gameMode,
     this.mapName = 'level_1',
     this.enableMultiplayer = false, // Default to false for backward compatibility
+    this.procedural = false,
+    this.mapConfig,
   });
 
   @override
@@ -69,6 +74,10 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
       ..paint = (Paint()..color = Colors.blueGrey.withOpacity(0.2));
     world.add(background);
 
+    final gameMap = procedural
+        ? await MapLoader.loadMap(mapName, procedural: true, config: mapConfig)
+        : await MapLoader.loadMap(mapName, procedural: false);
+
     // Create a large background gradient
     final bgRect = RectangleComponent(
       size: Vector2(5000, 2000),
@@ -80,9 +89,6 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
       ).shader,
     );
     world.add(bgRect);
-
-    // Load map from JSON
-    final gameMap = await MapLoader.loadMap(mapName);
 
     // Create platforms with textures
     for (final platformData in gameMap.platforms) {
@@ -189,6 +195,13 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
 
     // Add HUD to viewport
     camera.viewport.add(HUD(player: player, game: this));
+
+    if (procedural && mapConfig != null) {
+      print('🗺️  Playing on procedural map:');
+      print('   Style: ${mapConfig!.style.name}');
+      print('   Difficulty: ${mapConfig!.difficulty.name}');
+      print('   Seed: ${mapConfig!.seed}');
+    }
 
     // Connect to multiplayer server if enabled
     if (enableMultiplayer) {
