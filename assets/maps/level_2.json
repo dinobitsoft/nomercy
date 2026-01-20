@@ -158,6 +158,20 @@
       "opened": false
     }
   ],
+  "items": [
+    {
+      "id": 0,
+      "type": "healthPotion",
+      "x": 500,
+      "y": 650
+    },
+    {
+      "id": 2,
+      "type": "healthPotion",
+      "x": 900,
+      "y": 550
+    }
+  ]
   "playerSpawn": {
     "x": 196,
     "y": 565

@@ -108,6 +108,13 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
         attackAnimation = idleAnimation;
       }
 
+      try {
+        final jumpSprite = await game.loadSprite('${characterName}_jump.png');
+        jumpAnimation = SpriteAnimation.spriteList([jumpSprite], stepTime: 0.1);
+      } catch (e) {
+        jumpAnimation = idleAnimation;
+      }
+
       animation = idleAnimation;
       spritesLoaded = true;
     } catch (e) {

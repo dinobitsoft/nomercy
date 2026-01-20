@@ -1,4 +1,5 @@
 import '../chest/chest_data.dart';
+import '../item/item_data.dart';
 
 class GameMap {
   final String name;
@@ -7,6 +8,7 @@ class GameMap {
   final List<PlatformData> platforms;
   final SpawnPoint playerSpawn;
   final List<ChestData> chests;
+  final List<ItemData> items;
 
   GameMap({
     required this.name,
@@ -15,6 +17,7 @@ class GameMap {
     required this.platforms,
     required this.playerSpawn,
     required this.chests,
+    this.items = const [], //TODO: make it required
   });
 
   factory GameMap.fromJson(Map<String, dynamic> json) {
@@ -28,6 +31,9 @@ class GameMap {
       playerSpawn: SpawnPoint.fromJson(json['playerSpawn']),
       chests: (json['chests'] as List? ?? [])
           .map((c) => ChestData.fromJson(c))
+          .toList(),
+      items: (json['items'] as List? ?? []) // ADD THIS
+          .map((i) => ItemData.fromJson(i))
           .toList(),
     );
   }

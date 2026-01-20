@@ -7,8 +7,8 @@ abstract class CharacterStats {
   double dexterity;
   double intelligence;
   int money;
-  final String weaponName;
-  final double attackRange;
+  String weaponName;
+  double attackRange;
   late final double attackDamage;
   final Color color;
 
