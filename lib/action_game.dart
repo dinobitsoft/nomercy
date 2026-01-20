@@ -93,7 +93,7 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
     );
     world.add(bgRect);
 
-    // Create platforms with textures
+    // Create platforms with textures - Priority 10 (bottom layer)
     for (final platformData in gameMap.platforms) {
       final platform = TiledPlatform(
         position: Vector2(
@@ -103,21 +103,25 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
         size: Vector2(platformData.width, platformData.height),
         platformType: platformData.type,
       );
+
+      platform.priority = 10;
       world.add(platform);
       platforms.add(platform);
     }
 
-    // Create chests
+    // Create chests - Priority 50 (middle layer)
     for (final chestData in gameMap.chests) {
       final chest = Chest(
         position: Vector2(chestData.x, chestData.y),
         data: chestData,
       );
+      chest.priority = 50;
       add(chest);
       world.add(chest);
       chests.add(chest);
     }
 
+    // Create items - Priority 50 (middle layer)
     for (final itemData in gameMap.items) {
       final itemDrop = ItemDrop(
         position: Vector2(itemData.x, itemData.y),
@@ -128,7 +132,7 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
       itemDrops.add(itemDrop);
     }
 
-    // Create HUMAN player
+    // Create HUMAN player - Priority 100 (top character layer)
     player = _createCharacter(
       selectedCharacterClass,
       Vector2(gameMap.playerSpawn.x, gameMap.playerSpawn.y),
@@ -183,7 +187,7 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
           PlayerType.bot,
           botTactic: config['tactic'] as BotTactic,
         );
-
+        bot.priority = 80;
         // Optional: Set custom name
         print('Spawning ${config['name']} at (${config['x']}, ${config['y']})');
 

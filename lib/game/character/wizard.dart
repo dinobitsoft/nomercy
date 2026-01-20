@@ -49,6 +49,7 @@ class Wizard extends GameCharacter {
         groundPlatform != null &&
         !isBlocking &&
         !isAttackCommitted &&
+        !isAirborne &&
         stamina >= 20) {
       velocity.y = -280; // Lower jump height
       groundPlatform = null;

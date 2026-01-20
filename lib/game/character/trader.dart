@@ -60,6 +60,7 @@ class Trader extends GameCharacter {
         groundPlatform != null &&
         !isBlocking &&
         !isAttackCommitted &&
+        !isAirborne &&
         stamina >= 18) {
       velocity.y = -300;
       groundPlatform = null;

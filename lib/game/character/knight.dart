@@ -48,8 +48,9 @@ class Knight extends GameCharacter {
         groundPlatform != null &&
         !isBlocking &&
         !isAttackCommitted &&
+        !isAirborne &&
         stamina >= 20) {
-      velocity.y = -300;
+      velocity.y = -500;
       groundPlatform = null;
       stamina -= 20;
       isJumping = true;

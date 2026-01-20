@@ -51,6 +51,7 @@ class Thief extends GameCharacter {
         groundPlatform != null &&
         !isBlocking &&
         !isAttackCommitted &&
+        !isAirborne &&
         stamina >= 15) {
       velocity.y = -320; // Slightly higher jump
       groundPlatform = null;
