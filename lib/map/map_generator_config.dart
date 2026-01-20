@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'package:flame/components.dart';
 
 import '../chest/chest_data.dart';
+import '../item/item.dart';
+import '../item/item_data.dart';
 import '../map/game_map.dart';
 
 enum MapStyle {
@@ -86,6 +88,7 @@ class ProceduralMapGenerator {
   final List<GeneratedPlatform> platforms = [];
   final List<Vector2> chestPositions = [];
   Vector2? playerSpawn;
+  final List<ItemData> itemDataList = [];
 
   // Jump parameters (from game mechanics)
   static const double maxJumpHeight = 300;
@@ -141,6 +144,7 @@ class ProceduralMapGenerator {
     // Place chests
     _placeChests();
 
+    _placeItems();
     // Convert to GameMap
     return _buildGameMap();
   }
@@ -351,6 +355,45 @@ class ProceduralMapGenerator {
       if (!platforms.any((p) => p.overlaps(newPlatform))) {
         platforms.add(newPlatform);
       }
+    }
+
+  }
+
+  void _placeItems() {
+    print('Placing health potions and weapons...');
+
+    // Place 3-5 health potions
+    final potionCount = 3 + random.nextInt(3);
+    final platformsForPotions = platforms.where((p) => p.layer >= 1).toList();
+    platformsForPotions.shuffle(random);
+
+    for (int i = 0; i < potionCount && i < platformsForPotions.length; i++) {
+      final platform = platformsForPotions[i];
+      itemDataList.add(ItemData(
+        id: itemDataList.length,
+        type: 'healthPotion',
+        x: platform.position.x,
+        y: platform.position.y - platform.size.y / 2 - 30,
+      ));
+    }
+
+    // Place 1-2 weapons on high platforms
+    final weaponCount = 1 + random.nextInt(2);
+    final highPlatforms = platforms.where((p) => p.layer >= 3).toList();
+    highPlatforms.shuffle(random);
+
+    final weapons = Weapon.getAllWeapons();
+    for (int i = 0; i < weaponCount && i < highPlatforms.length; i++) {
+      final platform = highPlatforms[i];
+      final weapon = weapons[random.nextInt(weapons.length)];
+
+      itemDataList.add(ItemData(
+        id: itemDataList.length,
+        type: 'weapon',
+        x: platform.position.x,
+        y: platform.position.y - platform.size.y / 2 - 30,
+        weaponId: weapon.id,
+      ));
     }
   }
 
@@ -579,6 +622,7 @@ class ProceduralMapGenerator {
         y: playerSpawn!.y,
       ),
       chests: chestDataList,
+      items: itemDataList,
     );
   }
 }

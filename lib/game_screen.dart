@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 
 import 'action_game.dart';
 import 'game_mode.dart';
+import 'item/inventory_screen.dart';
 import 'map/map_generator_config.dart';
 
-class GameScreen extends StatelessWidget {
+class GameScreen extends StatefulWidget {
   final String selectedCharacterClass;
   final String? mapName;
   final GameMode gameMode;
@@ -24,31 +25,66 @@ class GameScreen extends StatelessWidget {
   });
 
   @override
+  State<GameScreen> createState() => _GameScreenState();
+}
+
+class _GameScreenState extends State<GameScreen> {
+  late ActionGame _game;
+
+  @override
+  void initState() {
+    super.initState();
+    _game = ActionGame(
+      selectedCharacterClass: widget.selectedCharacterClass,
+      mapName: widget.mapName ?? 'level_1',
+      gameMode: widget.gameMode,
+      procedural: widget.procedural,
+      mapConfig: widget.mapConfig,
+      enableMultiplayer: widget.enableMultiplayer,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
           // Game
           GameWidget(
-            game: ActionGame(
-              selectedCharacterClass: selectedCharacterClass,
-              mapName: mapName ?? 'level_1',
-              gameMode: gameMode,
-              procedural: procedural,
-              mapConfig: mapConfig,
-              enableMultiplayer: enableMultiplayer,
-            ),
+            game: _game,
           ),
 
           // Pause button
           Positioned(
-            top: 40,
+            top: 100,
             left: 20,
             child: SafeArea(
               child: IconButton(
-                icon: const Icon(Icons.pause, size: 32, color: Colors.white),
-                onPressed: () {
-                  _showPauseMenu(context);
+                icon: const Icon(Icons.backpack, size: 32, color: Colors.white),
+                onPressed: () async {
+                  _game.pauseEngine();
+
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => InventoryScreen(
+                        inventory: _game.inventory,
+                        equippedWeapon: _game.equippedWeapon,
+                        playerStats: _game.player.stats,
+                        onEquipWeapon: (weapon) {
+                          _game.equipWeapon(weapon);
+                        },
+                        onSellItem: (item) {
+                          _game.sellItem(item);
+                        },
+                        onBuyWeapon: (weapon) {
+                          _game.buyWeapon(weapon);
+                        },
+                      ),
+                    ),
+                  );
+
+                  _game.resumeEngine();
                 },
               ),
             ),
@@ -70,22 +106,22 @@ class GameScreen extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (procedural && mapConfig != null) ...[
+            if (widget.procedural && widget.mapConfig != null) ...[
               Text(
-                'Map Style: ${mapConfig!.style.name}',
+                'Map Style: ${widget.mapConfig!.style.name}',
                 style: const TextStyle(color: Colors.white70),
               ),
               Text(
-                'Difficulty: ${mapConfig!.difficulty.name}',
+                'Difficulty: ${widget.mapConfig!.difficulty.name}',
                 style: const TextStyle(color: Colors.white70),
               ),
               Text(
-                'Seed: ${mapConfig!.seed}',
+                'Seed: ${widget.mapConfig!.seed}',
                 style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
             ] else ...[
               Text(
-                'Map: $mapName',
+                'Map: ${widget.mapName}',
                 style: const TextStyle(color: Colors.white70),
               ),
             ],

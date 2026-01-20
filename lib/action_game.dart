@@ -5,7 +5,6 @@ import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nomercy/game/character/wizard.dart';
-import 'package:nomercy/game/tactic/berserker_tactic.dart';
 import 'package:nomercy/gamepad_manager.dart';
 import 'package:nomercy/player_type.dart';
 import 'package:nomercy/projectile.dart';
@@ -24,6 +23,8 @@ import 'game/tactic/tactical_tactic.dart';
 import 'game_manager.dart';
 import 'game_mode.dart';
 import 'hud.dart';
+import 'item/item.dart';
+import 'item/item_drop.dart';
 import 'map/map_generator_config.dart';
 import 'map/map_loader.dart';
 import 'network_manager.dart'; // Add this import
@@ -31,8 +32,10 @@ import 'network_manager.dart'; // Add this import
 class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, KeyboardEvents {
   final String selectedCharacterClass;
   final String mapName;
-  final bool enableMultiplayer; // New parameter
-
+  final bool enableMultiplayer;
+  final List<ItemDrop> itemDrops = [];
+  final List<Item> inventory = [];
+  Weapon? equippedWeapon;
   late GameCharacter player;
   late JoystickComponent joystick;
   final GamepadManager gamepadManager = GamepadManager();
@@ -113,6 +116,16 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
       add(chest);
       world.add(chest);
       chests.add(chest);
+    }
+
+    for (final itemData in gameMap.items) {
+      final itemDrop = ItemDrop(
+        position: Vector2(itemData.x, itemData.y),
+        item: itemData.toItem(),
+      );
+      add(itemDrop);
+      world.add(itemDrop);
+      itemDrops.add(itemDrop);
     }
 
     // Create HUMAN player
@@ -384,6 +397,64 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
         );
     }
   }
+
+  void addToInventory(Item item) {
+    inventory.add(item);
+    print('Added ${item.name} to inventory');
+  }
+
+  void removeFromInventory(Item item) {
+    inventory.remove(item);
+  }
+
+  void equipWeapon(Weapon? weapon) {
+    // Unapply old weapon bonuses
+    if (equippedWeapon != null) {
+      player.stats.power -= equippedWeapon!.powerBonus;
+      player.stats.magic -= equippedWeapon!.magicBonus;
+      player.stats.dexterity -= equippedWeapon!.dexterityBonus;
+      player.stats.intelligence -= equippedWeapon!.intelligenceBonus;
+      player.stats.attackDamage -= equippedWeapon!.damage;
+      player.stats.attackRange = 2.0; // Reset to default
+    }
+
+    equippedWeapon = weapon;
+
+    // Apply new weapon bonuses
+    if (weapon != null) {
+      player.stats.power += weapon.powerBonus;
+      player.stats.magic += weapon.magicBonus;
+      player.stats.dexterity += weapon.dexterityBonus;
+      player.stats.intelligence += weapon.intelligenceBonus;
+      player.stats.attackDamage += weapon.damage;
+      player.stats.attackRange = weapon.range;
+      player.stats.weaponName = weapon.name;
+
+      print('Equipped ${weapon.name}!');
+      print('New damage: ${player.stats.attackDamage}');
+    }
+  }
+
+  void sellItem(Item item) {
+    final sellPrice = item.value ~/ 2;
+    player.stats.money += sellPrice;
+    removeFromInventory(item);
+    print('Sold ${item.name} for $sellPrice gold');
+  }
+
+  void buyWeapon(Weapon weapon) {
+    if (player.stats.money >= weapon.value) {
+      player.stats.money -= weapon.value;
+      addToInventory(weapon);
+      print('Bought ${weapon.name} for ${weapon.value} gold');
+    }
+  }
+
+  void openInventory() {
+    pauseEngine();
+    // This will be called from game_screen.dart
+  }
+
 }
 
 class UIGradient {

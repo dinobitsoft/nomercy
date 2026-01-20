@@ -26,11 +26,14 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/knight.png
+    - assets/images/knight_attack.png
+    - assets/images/knight_jump.png
+    - assets/images/knight_walk.png
+    - assets/images/knight_landing.png
     - assets/images/thief.png
+    - assets/images/thief_attack.png
     - assets/images/wizard.png
     - assets/images/trader.png
-    - assets/images/knight_attack.png
-    - assets/images/thief_attack.png
     - assets/images/wizard_attack.png
     - assets/images/trader_attack.png
     - assets/images/brick.png
@@ -39,6 +42,7 @@ flutter:
     - assets/images/ground_tile.png
     - assets/images/dower_chest.png
     - assets/images/dower_chest_opened.png
+    - assets/images/health_potion.png
     - assets/maps/
     - assets/maps/level_1.json
     - assets/maps/level_2.json
