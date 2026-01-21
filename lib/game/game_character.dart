@@ -75,7 +75,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
   double attackAnimationTimer = 0;
   bool spritesLoaded = false;
 
-  // NEW: Better state tracking
+  // State tracking
   bool wasGrounded = false;
   double landingAnimationTimer = 0;
   double jumpAnimationTimer = 0;
@@ -120,6 +120,20 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
         jumpAnimation = idleAnimation;
       }
 
+      try {
+        final landingSprite = await game.loadSprite('${characterName}_landing.png');
+        landingAnimation = SpriteAnimation.spriteList([landingSprite], stepTime: 0.1);
+      } catch (e) {
+        landingAnimation = idleAnimation;
+      }
+
+      try {
+        final walkSprite = await game.loadSprite('${characterName}_walk.png');
+        landingAnimation = SpriteAnimation.spriteList([walkSprite], stepTime: 0.1);
+      } catch (e) {
+        landingAnimation = idleAnimation;
+      }
+
       animation = idleAnimation;
       spritesLoaded = true;
     } catch (e) {
@@ -140,9 +154,17 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
       if (comboTimer <= 0) comboCount = 0;
     }
 
-    // NEW: Track animation timers
+    // Track animation timers
     if (landingAnimationTimer > 0) landingAnimationTimer -= dt;
     if (jumpAnimationTimer > 0) jumpAnimationTimer -= dt;
+
+    // ✅ Track attack animation timer separately
+    if (attackAnimationTimer > 0) {
+      attackAnimationTimer -= dt;
+      if (attackAnimationTimer <= 0) {
+        isAttacking = false; // Only clear when animation completes
+      }
+    }
 
     // Stamina regeneration
     if (stamina < maxStamina && !isBlocking && !isDodging && !isAttacking) {
@@ -154,14 +176,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
       attackCommitTime -= dt;
       if (attackCommitTime <= 0) {
         isAttackCommitted = false;
-      }
-    }
-
-    // Handle attack animation
-    if (attackAnimationTimer > 0) {
-      attackAnimationTimer -= dt;
-      if (attackAnimationTimer <= 0) {
-        isAttacking = false;
       }
     }
 
@@ -205,7 +219,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
       return;
     }
 
-    // IMPORTANT: Store ground state BEFORE physics
+    // Store ground state BEFORE physics
     wasGrounded = groundPlatform != null;
 
     // Update based on type
@@ -217,21 +231,21 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
       }
     }
 
-    // Apply physics (this updates groundPlatform)
+    // Apply physics
     applyPhysics(dt);
 
-    // IMPORTANT: Check landing AFTER physics
+    // Check landing AFTER physics
     final isGroundedNow = groundPlatform != null;
 
     if (!wasGrounded && isGroundedNow) {
       // Just landed!
       _handleLanding();
-      landingAnimationTimer = 0.2; // Landing animation duration
+      landingAnimationTimer = 0.25; // ✅ Increased for better visibility
     }
 
     if (wasGrounded && !isGroundedNow) {
-      // Just left ground (jumped or fell)
-      jumpAnimationTimer = 0.3; // Jump animation duration
+      // Just left ground
+      jumpAnimationTimer = 0.3;
       isAirborne = true;
       airborneTime = 0;
     }
@@ -244,7 +258,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
       airborneTime += dt;
     }
 
-    // Update animation based on final state
+    // Update animation
     updateAnimation();
 
     // Update size
@@ -292,7 +306,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
     isAttacking = true;
     isAttackCommitted = true;
     attackCommitTime = 0.3;
-    attackAnimationTimer = 0.2;
+    attackAnimationTimer = 0.3; // ✅ Increased from 0.2 for better visibility
 
     // Combo system
     if (comboTimer > 0) {
@@ -359,7 +373,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
     final fallSpeed = velocity.y;
 
     if (fallSpeed > hardLandingThreshold) {
-      // Hard landing
+      // Hard landing - stun
       final stunTime = math.min(1.0, (fallSpeed - hardLandingThreshold) / 200);
       isStunned = true;
       stunDuration = stunTime;
@@ -369,9 +383,9 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
 
       print('${stats.name}: Hard landing! Stunned for ${stunTime.toStringAsFixed(1)}s');
     } else if (fallSpeed > 200) {
-      // Normal landing
+      // Normal landing - brief recovery
       isLanding = true;
-      landingRecoveryTime = 0.15;
+      landingRecoveryTime = 0.25; // ✅ Increased from 0.15 for better visibility
     }
 
     velocity.y = 0;
@@ -387,25 +401,34 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
   void updateAnimation() {
     if (!spritesLoaded) return;
 
-    // Priority order (highest to lowest):
-    // 1. Stunned
-    // 2. Landing (just touched ground)
-    // 3. Dodging
-    // 4. Attacking
+    // ✅ FIXED PRIORITY ORDER:
+    // 1. Stunned (overrides everything)
+    // 2. Attacking (shows during any state - HIGHEST PRIORITY)
+    // 3. Landing (just touched ground)
+    // 4. Dodging
     // 5. Jumping/Airborne
     // 6. Moving/Idle
 
     if (isStunned) {
       animation = idleAnimation;
-    } else if (landingAnimationTimer > 0 && landingAnimation != null) {
-      animation = landingAnimation;
-    } else if (isDodging) {
-      animation = walkAnimation;
-    } else if (isAttacking && attackAnimation != null) {
+    }
+    else if (isAttacking && attackAnimation != null && attackAnimationTimer > 0) {
       animation = attackAnimation;
-    } else if ((isAirborne || jumpAnimationTimer > 0) && jumpAnimation != null) {
+    }
+    // Landing animation
+    else if ((isLanding || landingAnimationTimer > 0) && landingAnimation != null) {
+      animation = landingAnimation;
+    }
+    // Jump/Airborne
+    else if ((isAirborne || jumpAnimationTimer > 0) && jumpAnimation != null) {
       animation = jumpAnimation;
-    } else {
+    }
+    // Dodge roll
+    else if (isDodging) {
+      animation = walkAnimation;
+    }
+    // Ground movement
+    else {
       if (velocity.x.abs() > 10) {
         animation = walkAnimation;
       } else {
@@ -503,6 +526,30 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
 
     if (comboCount > 1) {
       _renderComboIndicator(canvas);
+    }
+
+    // TODO: DEBUG: Show current state (REMOVE after testing)
+    final debugStates = <String>[];
+    if (isAttacking) debugStates.add('ATK');
+    if (isLanding) debugStates.add('LAND');
+    if (isAirborne) debugStates.add('AIR');
+    if (attackAnimationTimer > 0) debugStates.add('ATK_ANIM:${attackAnimationTimer.toStringAsFixed(2)}');
+    if (landingAnimationTimer > 0) debugStates.add('LAND_ANIM:${landingAnimationTimer.toStringAsFixed(2)}');
+
+    if (debugStates.isNotEmpty) {
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: debugStates.join(' | '),
+          style: const TextStyle(
+            color: Colors.yellow,
+            fontSize: 10,
+            backgroundColor: Colors.black,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(-50, size.y / 2 + 20));
     }
   }
 
