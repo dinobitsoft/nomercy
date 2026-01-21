@@ -96,48 +96,158 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
     await _loadSprites();
   }
 
+  /// ✅ IMPROVED: Separate idle and walk sprites with sprite sheet support
   Future<void> _loadSprites() async {
     final characterName = stats.name.toLowerCase();
+    print('Loading sprites for: $characterName');
 
     try {
-      final sprite = await game.loadSprite('$characterName.png');
-      idleAnimation = SpriteAnimation.spriteList([sprite], stepTime: 1.0);
-      walkAnimation = SpriteAnimation.spriteList([sprite], stepTime: 0.2);
-      jumpAnimation = SpriteAnimation.spriteList([sprite], stepTime: 0.1);
-      landingAnimation = SpriteAnimation.spriteList([sprite], stepTime: 0.1);
-
+      // === IDLE ANIMATION ===
       try {
-        final attackSprite = await game.loadSprite('${characterName}_attack.png');
-        attackAnimation = SpriteAnimation.spriteList([attackSprite, sprite], stepTime: 0.1);
+        final idleImage = await game.images.load('${characterName}_idle.png');
+
+        // Check if it's a sprite sheet (width > height means multiple frames)
+        if (idleImage.width > idleImage.height * 1.5) {
+          // Sprite sheet detected
+          final frameCount = (idleImage.width / idleImage.height).round();
+          idleAnimation = SpriteAnimation.fromFrameData(
+            idleImage,
+            SpriteAnimationData.sequenced(
+              amount: frameCount,
+              stepTime: 0.2,
+              textureSize: Vector2(idleImage.height.toDouble(), idleImage.height.toDouble()),
+            ),
+          );
+          print('  ✅ Loaded idle sprite sheet ($frameCount frames)');
+        } else {
+          // Single sprite
+          final idleSprite = Sprite(idleImage);
+          idleAnimation = SpriteAnimation.spriteList([idleSprite], stepTime: 0.5);
+          print('  ✅ Loaded idle sprite');
+        }
+      } catch (e) {
+        // Fallback to base character sprite
+        try {
+          final baseSprite = await game.loadSprite('$characterName.png');
+          idleAnimation = SpriteAnimation.spriteList([baseSprite], stepTime: 1.0);
+          print('  ⚠️ Using base sprite for idle');
+        } catch (e2) {
+          throw Exception('No idle sprite found for $characterName');
+        }
+      }
+
+      // === WALK ANIMATION ===
+      try {
+        final walkImage = await game.images.load('${characterName}_walk.png');
+
+        if (walkImage.width > walkImage.height * 1.5) {
+          // Walk sprite sheet
+          final frameCount = (walkImage.width / walkImage.height).round();
+          walkAnimation = SpriteAnimation.fromFrameData(
+            walkImage,
+            SpriteAnimationData.sequenced(
+              amount: frameCount,
+              stepTime: 0.1,  // Faster for smooth walk cycle
+              textureSize: Vector2(walkImage.height.toDouble(), walkImage.height.toDouble()),
+            ),
+          );
+          print('  ✅ Loaded walk sprite sheet ($frameCount frames)');
+        } else {
+          // Single walk sprite
+          final walkSprite = Sprite(walkImage);
+          walkAnimation = SpriteAnimation.spriteList([walkSprite], stepTime: 0.15);
+          print('  ✅ Loaded walk sprite');
+        }
+      } catch (e) {
+        // Fallback to idle animation
+        walkAnimation = idleAnimation;
+        print('  ⚠️ Walk sprite not found, using idle');
+      }
+
+      // === ATTACK ANIMATION ===
+      try {
+        final attackImage = await game.images.load('${characterName}_attack.png');
+
+        if (attackImage.width > attackImage.height * 1.5) {
+          final frameCount = (attackImage.width / attackImage.height).round();
+          attackAnimation = SpriteAnimation.fromFrameData(
+            attackImage,
+            SpriteAnimationData.sequenced(
+              amount: frameCount,
+              stepTime: 0.06,
+              textureSize: Vector2(attackImage.height.toDouble(), attackImage.height.toDouble()),
+              loop: false,  // Attack shouldn't loop
+            ),
+          );
+          print('  ✅ Loaded attack sprite sheet ($frameCount frames)');
+        } else {
+          final attackSprite = Sprite(attackImage);
+          attackAnimation = SpriteAnimation.spriteList([attackSprite], stepTime: 0.1);
+          print('  ✅ Loaded attack sprite');
+        }
       } catch (e) {
         attackAnimation = idleAnimation;
+        print('  ⚠️ Attack sprite not found, using idle');
       }
 
+      // === JUMP ANIMATION ===
       try {
-        final jumpSprite = await game.loadSprite('${characterName}_jump.png');
-        jumpAnimation = SpriteAnimation.spriteList([jumpSprite], stepTime: 0.1);
+        final jumpImage = await game.images.load('${characterName}_jump.png');
+
+        if (jumpImage.width > jumpImage.height * 1.5) {
+          final frameCount = (jumpImage.width / jumpImage.height).round();
+          jumpAnimation = SpriteAnimation.fromFrameData(
+            jumpImage,
+            SpriteAnimationData.sequenced(
+              amount: frameCount,
+              stepTime: 0.15,
+              textureSize: Vector2(jumpImage.height.toDouble(), jumpImage.height.toDouble()),
+            ),
+          );
+          print('  ✅ Loaded jump sprite sheet ($frameCount frames)');
+        } else {
+          final jumpSprite = Sprite(jumpImage);
+          jumpAnimation = SpriteAnimation.spriteList([jumpSprite], stepTime: 0.1);
+          print('  ✅ Loaded jump sprite');
+        }
       } catch (e) {
         jumpAnimation = idleAnimation;
+        print('  ⚠️ Jump sprite not found, using idle');
       }
 
+      // === LANDING ANIMATION ===
       try {
-        final landingSprite = await game.loadSprite('${characterName}_landing.png');
-        landingAnimation = SpriteAnimation.spriteList([landingSprite], stepTime: 0.1);
+        final landingImage = await game.images.load('${characterName}_landing.png');
+
+        if (landingImage.width > landingImage.height * 1.5) {
+          final frameCount = (landingImage.width / landingImage.height).round();
+          landingAnimation = SpriteAnimation.fromFrameData(
+            landingImage,
+            SpriteAnimationData.sequenced(
+              amount: frameCount,
+              stepTime: 0.125,
+              textureSize: Vector2(landingImage.height.toDouble(), landingImage.height.toDouble()),
+              loop: false,
+            ),
+          );
+          print('  ✅ Loaded landing sprite sheet ($frameCount frames)');
+        } else {
+          final landingSprite = Sprite(landingImage);
+          landingAnimation = SpriteAnimation.spriteList([landingSprite], stepTime: 0.1);
+          print('  ✅ Loaded landing sprite');
+        }
       } catch (e) {
         landingAnimation = idleAnimation;
+        print('  ⚠️ Landing sprite not found, using idle');
       }
 
-      try {
-        final walkSprite = await game.loadSprite('${characterName}_walk.png');
-        landingAnimation = SpriteAnimation.spriteList([walkSprite], stepTime: 0.1);
-      } catch (e) {
-        landingAnimation = idleAnimation;
-      }
-
+      // Set initial animation
       animation = idleAnimation;
       spritesLoaded = true;
+
+      print('✅ All sprites loaded for $characterName');
     } catch (e) {
-      print('Could not load sprite for $characterName: $e');
+      print('❌ Fatal error loading sprites for $characterName: $e');
       spritesLoaded = false;
     }
   }
@@ -158,11 +268,11 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
     if (landingAnimationTimer > 0) landingAnimationTimer -= dt;
     if (jumpAnimationTimer > 0) jumpAnimationTimer -= dt;
 
-    // ✅ Track attack animation timer separately
+    // Track attack animation timer
     if (attackAnimationTimer > 0) {
       attackAnimationTimer -= dt;
       if (attackAnimationTimer <= 0) {
-        isAttacking = false; // Only clear when animation completes
+        isAttacking = false;
       }
     }
 
@@ -238,13 +348,11 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
     final isGroundedNow = groundPlatform != null;
 
     if (!wasGrounded && isGroundedNow) {
-      // Just landed!
       _handleLanding();
-      landingAnimationTimer = 0.25; // ✅ Increased for better visibility
+      landingAnimationTimer = 0.25;
     }
 
     if (wasGrounded && !isGroundedNow) {
-      // Just left ground
       jumpAnimationTimer = 0.3;
       isAirborne = true;
       airborneTime = 0;
@@ -306,7 +414,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
     isAttacking = true;
     isAttackCommitted = true;
     attackCommitTime = 0.3;
-    attackAnimationTimer = 0.3; // ✅ Increased from 0.2 for better visibility
+    attackAnimationTimer = 0.3;
 
     // Combo system
     if (comboTimer > 0) {
@@ -355,7 +463,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
 
     for (final platform in game.platforms) {
       if (_checkPlatformCollision(platform)) {
-        // Only land if falling down and above platform
         if (velocity.y > 0 && position.y < platform.position.y) {
           position.y = platform.position.y - platform.size.y / 2 - size.y / 2;
           newGroundPlatform = platform;
@@ -373,7 +480,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
     final fallSpeed = velocity.y;
 
     if (fallSpeed > hardLandingThreshold) {
-      // Hard landing - stun
       final stunTime = math.min(1.0, (fallSpeed - hardLandingThreshold) / 200);
       isStunned = true;
       stunDuration = stunTime;
@@ -383,9 +489,8 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
 
       print('${stats.name}: Hard landing! Stunned for ${stunTime.toStringAsFixed(1)}s');
     } else if (fallSpeed > 200) {
-      // Normal landing - brief recovery
       isLanding = true;
-      landingRecoveryTime = 0.25; // ✅ Increased from 0.15 for better visibility
+      landingRecoveryTime = 0.25;
     }
 
     velocity.y = 0;
@@ -401,13 +506,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
   void updateAnimation() {
     if (!spritesLoaded) return;
 
-    // ✅ FIXED PRIORITY ORDER:
-    // 1. Stunned (overrides everything)
-    // 2. Attacking (shows during any state - HIGHEST PRIORITY)
-    // 3. Landing (just touched ground)
-    // 4. Dodging
-    // 5. Jumping/Airborne
-    // 6. Moving/Idle
+    // Priority: Stun > Attack > Landing > Dodge > Jump > Walk > Idle
 
     if (isStunned) {
       animation = idleAnimation;
@@ -415,24 +514,21 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
     else if (isAttacking && attackAnimation != null && attackAnimationTimer > 0) {
       animation = attackAnimation;
     }
-    // Landing animation
-    else if ((isLanding || landingAnimationTimer > 0) && landingAnimation != null) {
+    else if (landingAnimationTimer > 0 && landingAnimation != null) {
       animation = landingAnimation;
     }
-    // Jump/Airborne
-    else if ((isAirborne || jumpAnimationTimer > 0) && jumpAnimation != null) {
-      animation = jumpAnimation;
-    }
-    // Dodge roll
     else if (isDodging) {
       animation = walkAnimation;
     }
-    // Ground movement
+    else if ((isAirborne || jumpAnimationTimer > 0) && jumpAnimation != null) {
+      animation = jumpAnimation;
+    }
+    // ✅ FIXED: Separate walk and idle based on velocity
     else {
       if (velocity.x.abs() > 10) {
-        animation = walkAnimation;
+        animation = walkAnimation;  // Uses knight_walk.png
       } else {
-        animation = idleAnimation;
+        animation = idleAnimation;  // Uses knight_idle.png
       }
     }
 
@@ -526,30 +622,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
 
     if (comboCount > 1) {
       _renderComboIndicator(canvas);
-    }
-
-    // TODO: DEBUG: Show current state (REMOVE after testing)
-    final debugStates = <String>[];
-    if (isAttacking) debugStates.add('ATK');
-    if (isLanding) debugStates.add('LAND');
-    if (isAirborne) debugStates.add('AIR');
-    if (attackAnimationTimer > 0) debugStates.add('ATK_ANIM:${attackAnimationTimer.toStringAsFixed(2)}');
-    if (landingAnimationTimer > 0) debugStates.add('LAND_ANIM:${landingAnimationTimer.toStringAsFixed(2)}');
-
-    if (debugStates.isNotEmpty) {
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: debugStates.join(' | '),
-          style: const TextStyle(
-            color: Colors.yellow,
-            fontSize: 10,
-            backgroundColor: Colors.black,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-      textPainter.paint(canvas, Offset(-50, size.y / 2 + 20));
     }
   }
 
