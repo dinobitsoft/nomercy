@@ -3,12 +3,12 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
-import 'action_game.dart';
-import 'game/game_character.dart';
-import 'impact_effect.dart';
-import 'network_manager.dart';
+import '../../action_game.dart';
+import '../../core/event_bus.dart';
+import '../../game/game_character.dart';
+import '../../managers/network_manager.dart';
 
-class Projectile extends PositionComponent with HasGameRef<ActionGame> {
+class Projectile extends PositionComponent with HasGameReference<ActionGame> {
   final Vector2 direction;
   final double damage;
   final GameCharacter? owner;  // null if from bot
@@ -32,7 +32,7 @@ class Projectile extends PositionComponent with HasGameRef<ActionGame> {
   }) {
     size = Vector2(20, 20);
     anchor = Anchor.center;
-    priority = 110;
+    priority = 50;
     // Calculate rotation based on direction
     rotation = math.atan2(direction.y, direction.x);
   }
@@ -62,6 +62,7 @@ class Projectile extends PositionComponent with HasGameRef<ActionGame> {
     if (enemyOwner != null) {
       if (position.distanceTo(game.player.position) < 30) {
         game.player.takeDamage(damage);
+        EventBus().emit(CharacterDamagedEvent(characterId: '', damage: null, remainingHealth: null));
         _createImpactEffect();
         removeFromParent();
         game.projectiles.remove(this);

@@ -1,6 +1,6 @@
 import '../../bot/bot_state.dart';
 import '../../bot/smart_bot_ai.dart';
-import '../../projectile.dart';
+import '../../projectile/projectile.dart';
 import '../bot_tactic.dart';
 import '../game_character.dart';
 

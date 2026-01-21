@@ -1,20 +1,20 @@
 import 'dart:async' as dart_async;
+
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:socket_io_common/src/util/event_emitter.dart';
 
-import 'action_game.dart';
-import 'character_stats.dart';
-import 'game/bot_tactic.dart';
-import 'game/character/knight.dart';
-import 'game/character/thief.dart';
-import 'game/character/trader.dart';
-import 'game/character/wizard.dart';
-import 'game/game_character.dart';
-import 'game/stat/stats.dart';
-import 'player_type.dart';
-import 'projectile.dart';
+import '../action_game.dart';
+import '../character_stats.dart';
+import '../entities/projectile/projectile.dart';
+import '../game/character/knight.dart';
+import '../game/character/thief.dart';
+import '../game/character/trader.dart';
+import '../game/character/wizard.dart';
+import '../game/game_character.dart';
+import '../game/stat/stats.dart';
+import '../player_type.dart';
 
 class NetworkManager {
   static final NetworkManager _instance = NetworkManager._internal();

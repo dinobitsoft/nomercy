@@ -6,7 +6,7 @@ import '../action_game.dart';
 import '../game/game_character.dart';
 import 'item.dart';
 
-class ItemDrop extends PositionComponent with HasGameRef<ActionGame> {
+class ItemDrop extends PositionComponent with HasGameReference<ActionGame> {
   final Item item;
   bool isPlayerNear = false;
   double glowTimer = 0;

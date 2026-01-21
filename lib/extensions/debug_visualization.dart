@@ -154,7 +154,7 @@ extension DebugVisualization on GameCharacter {
 /// =============================================
 /// Add this to ActionGame to show all priorities:
 
-class PriorityDebugOverlay extends PositionComponent with HasGameRef<ActionGame> {
+class PriorityDebugOverlay extends PositionComponent with HasGameReference<ActionGame> {
   @override
   void render(Canvas canvas) {
     final components = game.world.children.toList()

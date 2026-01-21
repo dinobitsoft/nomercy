@@ -10,7 +10,7 @@ import 'chest_data.dart';
 import 'chest_particle.dart';
 import 'chest_reward.dart';
 
-class Chest extends PositionComponent with HasGameRef<ActionGame> {
+class Chest extends PositionComponent with HasGameReference<ActionGame> {
   final ChestData data;
   bool isOpened = false;
   bool isPlayerNear = false;

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'action_game.dart';
 
-class TiledPlatform extends PositionComponent with HasGameRef<ActionGame> {
+class TiledPlatform extends PositionComponent with HasGameReference<ActionGame> {
   final String platformType;
   ui.Image? texture;
   bool textureLoaded = false;

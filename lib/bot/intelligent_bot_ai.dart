@@ -1,5 +1,5 @@
 import '../game/game_character.dart';
-import '../projectile.dart';
+import '../projectile/projectile.dart';
 import 'bot_decision.dart';
 import 'bot_state.dart';
 

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
@@ -7,10 +9,10 @@ import 'package:flutter/services.dart';
 import 'package:nomercy/game/character/wizard.dart';
 import 'package:nomercy/gamepad_manager.dart';
 import 'package:nomercy/player_type.dart';
-import 'package:nomercy/projectile.dart';
 import 'package:nomercy/tiled_platform.dart';
 
 import 'chest/chest.dart';
+import 'entities/projectile/projectile.dart';
 import 'game/bot_tactic.dart';
 import 'game/character/knight.dart';
 import 'game/character/thief.dart';
@@ -27,7 +29,7 @@ import 'item/item.dart';
 import 'item/item_drop.dart';
 import 'map/map_generator_config.dart';
 import 'map/map_loader.dart';
-import 'network_manager.dart'; // Add this import
+import 'managers/network_manager.dart'; // Add this import
 
 class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, KeyboardEvents {
   final String selectedCharacterClass;
@@ -323,6 +325,8 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
       return; // Don't remove from local game, server will handle it
     }
 
+    _dropLootFromEnemy(enemy);
+
     // Handle local AI bot
     enemies.remove(enemy);
     enemy.removeFromParent();
@@ -330,6 +334,36 @@ class ActionGame extends FlameGame with HasCollisionDetection, TapDetector, Keyb
     player.stats.money += 20;
 
     gameManager.onEnemyDefeated();
+  }
+
+  void _dropLootFromEnemy(GameCharacter enemy) {
+    final random = math.Random();
+
+    // 40% chance to drop health potion
+    if (random.nextDouble() < 0.4) {
+      final healthPotion = ItemDrop(
+        position: enemy.position.clone(),
+        item: HealthPotion(),
+      );
+      add(healthPotion);
+      world.add(healthPotion);
+      itemDrops.add(healthPotion);
+      print('💊 Health potion dropped!');
+    }
+    // 20% chance to drop a random weapon
+    else if (random.nextDouble() < 0.25) {
+      final weapons = Weapon.getAllWeapons();
+      final randomWeapon = weapons[random.nextInt(weapons.length)];
+
+      final weaponDrop = ItemDrop(
+        position: enemy.position.clone(),
+        item: randomWeapon,
+      );
+      add(weaponDrop);
+      world.add(weaponDrop);
+      itemDrops.add(weaponDrop);
+      print('⚔️ ${randomWeapon.name} dropped!');
+    }
   }
 
   void gameOver() {

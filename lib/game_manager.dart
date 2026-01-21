@@ -17,7 +17,7 @@ import 'game/tactic/tactical_tactic.dart';
 import 'game_mode.dart';
 import 'player_type.dart';
 
-class GameManager extends Component with HasGameRef<ActionGame> {
+class GameManager extends Component with HasGameReference<ActionGame> {
   final GameMode mode;
 
   // Wave system

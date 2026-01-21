@@ -1,4 +1,4 @@
-import '../../projectile.dart';
+import '../../projectile/projectile.dart';
 import '../bot_tactic.dart';
 import '../game_character.dart';
 

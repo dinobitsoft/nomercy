@@ -1,6 +1,6 @@
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
-import 'package:nomercy/projectile.dart';
+import 'package:nomercy/projectile/projectile.dart';
 
 import '../../player_type.dart';
 import '../bot_tactic.dart';
