@@ -32,7 +32,7 @@ class Projectile extends PositionComponent with HasGameRef<ActionGame> {
   }) {
     size = Vector2(20, 20);
     anchor = Anchor.center;
-
+    priority = 110;
     // Calculate rotation based on direction
     rotation = math.atan2(direction.y, direction.x);
   }
