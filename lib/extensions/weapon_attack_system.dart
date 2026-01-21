@@ -6,7 +6,7 @@ import '../action_game.dart';
 import '../game/game_character.dart';
 import '../projectile.dart';
 import '../player_type.dart';
-import 'item.dart';
+import '../item/item.dart';
 
 extension WeaponAttackSystem on GameCharacter {
 
@@ -91,8 +91,8 @@ extension WeaponAttackSystem on GameCharacter {
         position: position.clone(),
         direction: direction,
         damage: finalDamage * (isPowerShot ? 1.5 : 1.0),
-        owner: playerType == PlayerType.human ? this as Player : null,
-        enemyOwner: playerType == PlayerType.bot ? this as Enemy : null,
+        owner: playerType == PlayerType.human ? this : null,
+        enemyOwner: playerType == PlayerType.bot ? this : null,
         color: _getProjectileColor(weapon, isPowerShot),
         type: weapon.projectileType,
       );
