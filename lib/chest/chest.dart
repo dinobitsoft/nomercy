@@ -4,13 +4,13 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import 'package:nomercy/game/game_character.dart';
 
-import '../action_game.dart';
+import '../game/action_game.dart';
 import '../reward_text.dart';
 import 'chest_data.dart';
 import 'chest_particle.dart';
 import 'chest_reward.dart';
 
-class Chest extends PositionComponent with HasGameRef<ActionGame> {
+class Chest extends PositionComponent with HasGameReference<ActionGame> {
   final ChestData data;
   bool isOpened = false;
   bool isPlayerNear = false;

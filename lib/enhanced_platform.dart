@@ -3,9 +3,9 @@ import 'dart:ui' as ui;
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
-import 'action_game.dart';
+import 'game/action_game.dart';
 
-class EnhancedPlatform extends SpriteComponent with HasGameRef<ActionGame> {
+class EnhancedPlatform extends SpriteComponent with HasGameReference<ActionGame> {
   final String platformType;
   bool textureLoaded = false;
   ui.Image? overlayTexture;

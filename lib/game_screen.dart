@@ -1,7 +1,7 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
-import 'action_game.dart';
+import 'game/action_game.dart';
 import 'game_mode.dart';
 import 'item/inventory_screen.dart';
 import 'map/map_generator_config.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 
-import '../action_game.dart';
+import '../game/action_game.dart';
 import '../game/game_character.dart';
 
 /// Add this to GameCharacter to visualize state issues
@@ -154,7 +154,7 @@ extension DebugVisualization on GameCharacter {
 /// =============================================
 /// Add this to ActionGame to show all priorities:
 
-class PriorityDebugOverlay extends PositionComponent with HasGameRef<ActionGame> {
+class PriorityDebugOverlay extends PositionComponent with HasGameReference<ActionGame> {
   @override
   void render(Canvas canvas) {
     final components = game.world.children.toList()

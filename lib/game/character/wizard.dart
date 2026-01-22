@@ -1,13 +1,18 @@
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
-import 'package:nomercy/projectile.dart';
 
+import '../../core/event_bus.dart';
+import '../../core/game_event.dart';
+import '../../entities/projectile/projectile.dart';
 import '../../player_type.dart';
 import '../bot_tactic.dart';
 import '../game_character.dart';
 import '../stat/stats.dart';
 import '../tactic/defensive_tactic.dart';
 class Wizard extends GameCharacter {
+
+  final EventBus _eventBus = EventBus();
+
   Wizard({
     required super.position,
     required super.playerType,
@@ -56,6 +61,8 @@ class Wizard extends GameCharacter {
       stamina -= 20;
       isJumping = true;
     }
+
+    _eventBus.emit(PlaySFXEvent(soundId: 'jump', volume: 0.7));
 
     // Dodge roll
     if (joystickDelta.length > 0.5 &&
@@ -117,9 +124,11 @@ class Wizard extends GameCharacter {
     // Charged fireball on high combo
     final damageMultiplier = 1.0 + (comboCount - 1) * 0.25; // +25% per combo
 
+    final direction = facingRight ? Vector2(1, 0) : Vector2(-1, 0);
+
     final projectile = Projectile(
       position: position.clone(),
-      direction: facingRight ? Vector2(1, 0) : Vector2(-1, 0),
+      direction: direction,
       damage: stats.attackDamage * damageMultiplier,
       owner: playerType == PlayerType.human ? this as Player : null,
       enemyOwner: playerType == PlayerType.bot ? this as Enemy : null,
@@ -130,9 +139,20 @@ class Wizard extends GameCharacter {
     game.world.add(projectile);
     game.projectiles.add(projectile);
 
+    // Emit projectile fired event
+    _eventBus.emit(ProjectileFiredEvent(
+      shooterId: stats.name,
+      projectileType: 'arrow',
+      position: position.clone(),
+      direction: direction,
+      damage: projectile.damage,
+    ));
+
     // Recoil effect - wizard gets pushed back slightly
     if (!isAirborne) {
       velocity.x -= (facingRight ? 30 : -30);
     }
+
+    _eventBus.emit(PlaySFXEvent(soundId: 'fireball_shot', volume: 0.8));
   }
 }

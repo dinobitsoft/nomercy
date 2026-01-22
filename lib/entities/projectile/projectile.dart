@@ -3,18 +3,20 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
-import 'action_game.dart';
-import 'game/game_character.dart';
-import 'impact_effect.dart';
-import 'network_manager.dart';
+import '../../core/game_event.dart';
+import '../../game/action_game.dart';
+import '../../core/event_bus.dart';
+import '../../game/game_character.dart';
+import '../../impact_effect.dart';
+import '../../managers/network_manager.dart';
 
-class Projectile extends PositionComponent with HasGameRef<ActionGame> {
-  final Vector2 direction;
-  final double damage;
-  final GameCharacter? owner;  // null if from bot
-  final GameCharacter? enemyOwner;  // null if from player
-  final Color color;
-  final String type;  // 'knife', 'fireball', 'arrow'
+class Projectile extends PositionComponent with HasGameReference<ActionGame> {
+  Vector2 direction;
+  double damage;
+  GameCharacter? owner;  // null if from bot
+  GameCharacter? enemyOwner;  // null if from player
+  Color color;
+  String type;  // 'knife', 'fireball', 'arrow'
   double lifetime = 3.0;
   final List<Vector2> trail = [];
   double trailTimer = 0;
@@ -32,7 +34,7 @@ class Projectile extends PositionComponent with HasGameRef<ActionGame> {
   }) {
     size = Vector2(20, 20);
     anchor = Anchor.center;
-    priority = 110;
+    priority = 50;
     // Calculate rotation based on direction
     rotation = math.atan2(direction.y, direction.x);
   }
@@ -62,6 +64,17 @@ class Projectile extends PositionComponent with HasGameRef<ActionGame> {
     if (enemyOwner != null) {
       if (position.distanceTo(game.player.position) < 30) {
         game.player.takeDamage(damage);
+        
+        // Refactored: Emit event and creation of impact effect is handled there if needed, 
+        // but here we call it directly as before, ensuring consistency.
+        EventBus().emit(CharacterDamagedEvent(
+          characterId: game.player.stats.name, 
+          damage: damage, 
+          remainingHealth: game.player.health, 
+          healthPercent: (game.player.health / 100) * 100, // Assuming 100 is max
+          damageSource: 'projectile'
+        ));
+        
         _createImpactEffect();
         removeFromParent();
         game.projectiles.remove(this);
@@ -75,6 +88,15 @@ class Projectile extends PositionComponent with HasGameRef<ActionGame> {
       for (final enemy in game.enemies) {
         if (position.distanceTo(enemy.position) < 30) {
           enemy.takeDamage(damage);
+          
+          EventBus().emit(CharacterDamagedEvent(
+            characterId: enemy.stats.name,
+            damage: damage,
+            remainingHealth: enemy.health,
+            healthPercent: (enemy.health / 100) * 100,
+            damageSource: 'projectile'
+          ));
+
           _createImpactEffect();
           removeFromParent();
           game.projectiles.remove(this);
@@ -91,6 +113,15 @@ class Projectile extends PositionComponent with HasGameRef<ActionGame> {
           if (remotePlayer.health > 0 && position.distanceTo(remotePlayer.position) < 30) {
             // Send damage to server
             NetworkManager().sendDamage(playerId, damage);
+            
+            EventBus().emit(CharacterDamagedEvent(
+              characterId: remotePlayer.stats.name,
+              damage: damage,
+              remainingHealth: remotePlayer.health,
+              healthPercent: (remotePlayer.health / 100) * 100,
+              damageSource: 'projectile'
+            ));
+
             _createImpactEffect();
             removeFromParent();
             game.projectiles.remove(this);

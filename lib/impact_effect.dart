@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'dart:math' as math;
 
-import 'action_game.dart';
+import 'game/action_game.dart';
 
-class ImpactEffect extends PositionComponent with HasGameRef<ActionGame> {
+class ImpactEffect extends PositionComponent with HasGameReference<ActionGame> {
   final Color color;
   double lifetime = 0.3;
   final List<ParticleData> particles = [];

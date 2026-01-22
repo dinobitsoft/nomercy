@@ -1,4 +1,4 @@
-import '../projectile.dart';
+import '../entities/projectile/projectile.dart';
 import 'game_character.dart';
 
 abstract class BotTactic {

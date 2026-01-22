@@ -1,9 +1,9 @@
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
-import '../action_game.dart';
+import 'game/action_game.dart';
 
-class RewardText extends PositionComponent with HasGameRef<ActionGame> {
+class RewardText extends PositionComponent with HasGameReference<ActionGame> {
   final String text;
   final Color color;
   double lifetime = 2.0;

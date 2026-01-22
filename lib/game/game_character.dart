@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'dart:math' as math;
 
-import '../action_game.dart';
+import 'action_game.dart';
 import '../character_stats.dart';
 import '../player_type.dart';
 import '../tiled_platform.dart';
@@ -11,7 +11,7 @@ import 'bot_tactic.dart';
 typedef Player = GameCharacter;
 typedef Enemy = GameCharacter;
 
-abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<ActionGame> {
+abstract class GameCharacter extends SpriteAnimationComponent with HasGameReference<ActionGame> {
   final CharacterStats stats;
   final PlayerType playerType;
   BotTactic? botTactic;
@@ -319,7 +319,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
       }
     }
 
-    // Check if dying
+/*    // Check if dying //TODO: fix and think about this
     if (health <= 0) {
       if (playerType == PlayerType.bot) {
         game.removeEnemy(this);
@@ -327,7 +327,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
         game.gameOver();
       }
       return;
-    }
+    }*/
 
     // Store ground state BEFORE physics
     wasGrounded = groundPlatform != null;
@@ -350,17 +350,20 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
     if (!wasGrounded && isGroundedNow) {
       _handleLanding();
       landingAnimationTimer = 0.25;
+      isLanding = true;
     }
 
     if (wasGrounded && !isGroundedNow) {
       jumpAnimationTimer = 0.3;
       isAirborne = true;
+      isJumping = true;
       airborneTime = 0;
     }
 
     if (isGroundedNow) {
       isAirborne = false;
       airborneTime = 0;
+      isJumping = false;
     } else {
       isAirborne = true;
       airborneTime += dt;
@@ -514,18 +517,18 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRef<Ac
     else if (isAttacking && attackAnimation != null && attackAnimationTimer > 0) {
       animation = attackAnimation;
     }
-    else if (landingAnimationTimer > 0 && landingAnimation != null) {
+    else if (isLanding && landingAnimation != null && landingAnimationTimer > 0) {
       animation = landingAnimation;
     }
     else if (isDodging) {
       animation = walkAnimation;
     }
-    else if ((isAirborne || jumpAnimationTimer > 0) && jumpAnimation != null) {
+    else if ((isAirborne || isJumping || jumpAnimationTimer > 0) && jumpAnimation != null) {
       animation = jumpAnimation;
     }
     // ✅ FIXED: Separate walk and idle based on velocity
     else {
-      if (velocity.x.abs() > 10) {
+      if (velocity.x.abs() > 5) {
         animation = walkAnimation;  // Uses knight_walk.png
       } else {
         animation = idleAnimation;  // Uses knight_idle.png
