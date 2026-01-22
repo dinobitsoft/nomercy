@@ -168,6 +168,25 @@ class ActionGame extends FlameGame
     add(player);
     world.add(player);
 
+    // Create BOT enemies with different tactics
+    final botConfigs = [
+      {'class': 'knight', 'x': 600.0, 'tactic': AggressiveTactic()},  //TODO: fix hardcoded spawn points
+      {'class': 'thief', 'x': 1000.0, 'tactic': BalancedTactic()},
+      {'class': 'wizard', 'x': 1400.0, 'tactic': DefensiveTactic()},
+    ];
+
+    for (final config in botConfigs) {
+      final bot = _createCharacter(
+        config['class'] as String,
+        Vector2(config['x'] as double, gameMap.playerSpawn.y),
+        PlayerType.bot,
+        botTactic: config['tactic'] as BotTactic,
+      );
+      add(bot);
+      world.add(bot);
+      enemies.add(bot);
+    }
+
     // Setup camera
     camera.follow(player);
     camera.viewfinder.visibleGameSize = Vector2(1280, 720);
