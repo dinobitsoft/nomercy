@@ -1,6 +1,8 @@
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/event_bus.dart';
+import '../../core/game_event.dart';
 import '../../entities/projectile/projectile.dart';
 import '../../player_type.dart';
 import '../bot_tactic.dart';
@@ -9,6 +11,9 @@ import '../stat/stats.dart';
 import '../tactic/balanced_tactic.dart';
 
 class Trader extends GameCharacter {
+
+  final EventBus _eventBus = EventBus();
+
   Trader({
     required super.position,
     required super.playerType,
@@ -57,6 +62,8 @@ class Trader extends GameCharacter {
       stamina -= 18;
       isJumping = true;
     }
+
+    _eventBus.emit(PlaySFXEvent(soundId: 'jump', volume: 0.7));
 
     // Dodge roll
     if (joystickDelta.length > 0.5 &&
@@ -120,9 +127,11 @@ class Trader extends GameCharacter {
     // High combo = power shot (slightly slower but more damage)
     final isPowerShot = comboCount >= 4;
 
+    final direction = facingRight ? Vector2(1, 0) : Vector2(-1, 0);
+
     final projectile = Projectile(
       position: position.clone(),
-      direction: facingRight ? Vector2(1, 0) : Vector2(-1, 0),
+      direction: direction,
       damage: stats.attackDamage * damageMultiplier * (isPowerShot ? 1.5 : 1.0),
       owner: playerType == PlayerType.human ? this as Player : null,
       enemyOwner: playerType == PlayerType.bot ? this as Enemy : null,
@@ -133,6 +142,15 @@ class Trader extends GameCharacter {
     game.world.add(projectile);
     game.projectiles.add(projectile);
 
+    // Emit projectile fired event
+    _eventBus.emit(ProjectileFiredEvent(
+      shooterId: stats.name,
+      projectileType: 'arrow',
+      position: position.clone(),
+      direction: direction,
+      damage: projectile.damage,
+    ));
+
     // Drawing bow - slight backward movement for realism
     if (!isAirborne) {
       velocity.x -= (facingRight ? 20 : -20);
@@ -141,5 +159,7 @@ class Trader extends GameCharacter {
     if (isPowerShot) {
       print('${stats.name}: Power Shot!');
     }
+
+    _eventBus.emit(PlaySFXEvent(soundId: 'arrow_shot', volume: 0.8));
   }
 }

@@ -131,6 +131,6 @@ class Thief extends GameCharacter {
     }
 
     // Play sound
-    _eventBus.emit(PlaySFXEvent(soundId: 'arrow_shot', volume: 0.8));
+    _eventBus.emit(PlaySFXEvent(soundId: 'dagger_shot', volume: 0.8));
   }
 }
