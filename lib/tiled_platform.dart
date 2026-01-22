@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
-import 'action_game.dart';
+import 'game/action_game.dart';
 
 class TiledPlatform extends PositionComponent with HasGameReference<ActionGame> {
   final String platformType;

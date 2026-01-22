@@ -2,7 +2,7 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
-import 'action_game.dart';
+import 'game/action_game.dart';
 import 'game/game_character.dart';
 
 class HUD extends PositionComponent with HasGameRef<ActionGame> {

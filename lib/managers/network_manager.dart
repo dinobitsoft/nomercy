@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:socket_io_common/src/util/event_emitter.dart';
 
-import '../action_game.dart';
+import '../game/action_game.dart';
 import '../character_stats.dart';
 import '../entities/projectile/projectile.dart';
 import '../game/character/knight.dart';

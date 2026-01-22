@@ -1,7 +1,7 @@
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
-import '../action_game.dart';
+import '../game/action_game.dart';
 
 class ChestParticle extends PositionComponent with HasGameReference<ActionGame> {
   Vector2 velocity;

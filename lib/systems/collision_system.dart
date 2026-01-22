@@ -1,6 +1,8 @@
 import 'package:flame/components.dart';
 
+import '../config/game_config.dart';
 import '../core/event_bus.dart';
+import '../core/game_event.dart';
 import '../entities/projectile/projectile.dart';
 import '../game/game_character.dart';
 import '../tiled_platform.dart';
@@ -109,11 +111,15 @@ class CollisionSystem {
     character.takeDamage(projectile.damage);
     projectile.removeFromParent();
 
+    // Calculate dynamic health percent based on max health
+    final healthPercent = (character.health / GameConfig.characterBaseHealth) * 100;
+
     // Emit collision event
     EventBus().emit(CharacterDamagedEvent(
       characterId: character.stats.name,
       damage: projectile.damage,
       remainingHealth: character.health,
+      healthPercent: healthPercent,
     ));
   }
 

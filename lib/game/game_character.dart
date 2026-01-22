@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'dart:math' as math;
 
-import '../action_game.dart';
+import 'action_game.dart';
 import '../character_stats.dart';
 import '../player_type.dart';
 import '../tiled_platform.dart';
@@ -319,7 +319,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       }
     }
 
-    // Check if dying
+/*    // Check if dying //TODO: fix and think about this
     if (health <= 0) {
       if (playerType == PlayerType.bot) {
         game.removeEnemy(this);
@@ -327,7 +327,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
         game.gameOver();
       }
       return;
-    }
+    }*/
 
     // Store ground state BEFORE physics
     wasGrounded = groundPlatform != null;

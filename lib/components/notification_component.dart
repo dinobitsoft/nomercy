@@ -1,27 +1,34 @@
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
-import 'game/action_game.dart';
-
-class RewardText extends PositionComponent with HasGameReference<ActionGame> {
-  final String text;
+class NotificationComponent extends PositionComponent {
+  final String message;
   final Color color;
-  double lifetime = 2.0;
+  final IconData? icon;
+  double lifetime;
   double opacity = 1.0;
 
-  RewardText({
-    required this.text,
-    required Vector2 position,
+  NotificationComponent({
+    required this.message,
     required this.color,
-  }) : super(position: position);
+    required this.lifetime,
+    this.icon,
+    required Vector2 position,
+  }) : super(position: position) {
+    priority = 999; // Always on top
+  }
 
   @override
   void update(double dt) {
     super.update(dt);
 
-    position.y -= 50 * dt;  // Float up
     lifetime -= dt;
-    opacity = lifetime / 2.0;
+    position.y -= 30 * dt; // Float up
+
+    // Fade out in last 0.5 seconds
+    if (lifetime < 0.5) {
+      opacity = lifetime / 0.5;
+    }
 
     if (lifetime <= 0) {
       removeFromParent();
@@ -32,22 +39,27 @@ class RewardText extends PositionComponent with HasGameReference<ActionGame> {
   void render(Canvas canvas) {
     final textPainter = TextPainter(
       text: TextSpan(
-        text: text,
+        text: message,
         style: TextStyle(
           color: color.withOpacity(opacity),
-          fontSize: 24,
+          fontSize: 20,
           fontWeight: FontWeight.bold,
           shadows: [
             Shadow(
               color: Colors.black.withOpacity(opacity),
               blurRadius: 4,
+              offset: const Offset(2, 2),
             ),
           ],
         ),
       ),
       textDirection: TextDirection.ltr,
     );
+
     textPainter.layout();
-    textPainter.paint(canvas, Offset(-textPainter.width / 2, -textPainter.height / 2));
+    textPainter.paint(
+      canvas,
+      Offset(-textPainter.width / 2, -textPainter.height / 2),
+    );
   }
 }

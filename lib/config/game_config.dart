@@ -15,6 +15,7 @@ class GameConfig {
   static const double characterHeight = 240.0;
   static const double characterBaseHealth = 100.0;
   static const double characterBaseStamina = 100.0;
+  static const double lowHealthThreshold = 0.2; // 20%
 
   // === COMBAT ===
   static const double attackCommitTime = 0.3;

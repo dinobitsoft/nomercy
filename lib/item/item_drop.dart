@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
-import '../action_game.dart';
+import '../game/action_game.dart';
 import '../game/game_character.dart';
 import 'item.dart';
 
@@ -67,7 +67,7 @@ class ItemDrop extends PositionComponent with HasGameReference<ActionGame> {
 
     // Remove from game
     removeFromParent();
-    game.itemDrops.remove(this);
+    // game.itemDrops.remove(this); // TODO: think about this
   }
 
   void _showPickupText(String text, Color color) {

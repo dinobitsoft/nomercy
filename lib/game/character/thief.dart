@@ -1,15 +1,18 @@
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
-import 'package:nomercy/projectile/projectile.dart';
 
+import '../../core/event_bus.dart';
+import '../../core/game_event.dart';
+import '../../entities/projectile/projectile.dart';
 import '../../player_type.dart';
 import '../bot_tactic.dart';
 import '../game_character.dart';
 import '../stat/stats.dart';
 import '../tactic/balanced_tactic.dart';
 
-
 class Thief extends GameCharacter {
+  final EventBus _eventBus = EventBus();
+
   Thief({
     required super.position,
     required super.playerType,
@@ -21,13 +24,10 @@ class Thief extends GameCharacter {
 
   @override
   void updateHumanControl(double dt) {
-    // Skip if stunned, landing recovery, or dodge rolling
     if (isStunned || isLanding || isDodging) return;
 
     final joystickDelta = game.joystick.relativeDelta;
     final moveSpeed = stats.dexterity / 2;
-
-    // Thief has better mobility during attack commit
     final moveMultiplier = isAttackCommitted ? 0.5 : 1.0;
 
     if (joystickDelta.x != 0 && !isBlocking) {
@@ -37,7 +37,6 @@ class Thief extends GameCharacter {
       velocity.x *= 0.7;
     }
 
-    // Block with down input
     if (joystickDelta.y > 0.5 && groundPlatform != null) {
       startBlock();
       velocity.x = 0;
@@ -45,7 +44,6 @@ class Thief extends GameCharacter {
       stopBlock();
     }
 
-    // Jump - Thief has lower jump stamina cost (more agile)
     final joystickDirection = game.joystick.direction;
     if (joystickDirection == JoystickDirection.up &&
         groundPlatform != null &&
@@ -53,13 +51,14 @@ class Thief extends GameCharacter {
         !isAttackCommitted &&
         !isAirborne &&
         stamina >= 15) {
-      velocity.y = -320; // Slightly higher jump
+      velocity.y = -320;
       groundPlatform = null;
-      stamina -= 15; // Less stamina cost
+      stamina -= 15;
       isJumping = true;
+
+      _eventBus.emit(PlaySFXEvent(soundId: 'jump', volume: 0.7));
     }
 
-    // Dodge roll - Thief has shorter cooldown
     if (joystickDelta.length > 0.5 &&
         joystickDelta.y < -0.5 &&
         groundPlatform != null &&
@@ -77,7 +76,6 @@ class Thief extends GameCharacter {
   }
 
   void _botAdvancedMechanics(double dt) {
-    // Thief bots are more aggressive with dodging
     final nearbyProjectiles = game.projectiles.where((p) {
       return p.owner != null &&
           position.distanceTo(p.position) < 200 &&
@@ -87,8 +85,8 @@ class Thief extends GameCharacter {
     if (nearbyProjectiles.isNotEmpty && stamina > 15) {
       final projectile = nearbyProjectiles.first;
       final dodgeDir = Vector2(
-          projectile.direction.x > 0 ? -1 : 1,
-          0
+        projectile.direction.x > 0 ? -1 : 1,
+        0,
       );
       dodge(dodgeDir);
     }
@@ -97,31 +95,42 @@ class Thief extends GameCharacter {
   @override
   void attack() {
     if (isBlocking) return;
-
-    // Prepare attack with common logic
     if (!prepareAttack()) return;
 
-    // Thief-specific ranged attack - throwing knives
-    // Can throw multiple knives in a combo
-    final knifeCount = comboCount >= 3 ? 3 : 1; // Triple throw on high combo
+    // Throwing knives - multiple projectiles on combo
+    final knifeCount = comboCount >= 3 ? 3 : 1;
 
     for (int i = 0; i < knifeCount; i++) {
-      final spreadAngle = (i - (knifeCount - 1) / 2) * 0.2; // Spread knives
+      final spreadAngle = (i - (knifeCount - 1) / 2) * 0.2;
       final baseDirection = facingRight ? Vector2(1, 0) : Vector2(-1, 0);
-      final direction = Vector2(baseDirection.x, baseDirection.y)..rotate(spreadAngle);
+      final direction = Vector2(baseDirection.x, baseDirection.y)
+        ..rotate(spreadAngle);
 
       final projectile = Projectile(
         position: position.clone(),
         direction: direction,
         damage: stats.attackDamage * (1.0 + (comboCount - 1) * 0.15),
-        owner: playerType == PlayerType.human ? this as Player : null,
-        enemyOwner: playerType == PlayerType.bot ? this as Enemy : null,
+        owner: playerType == PlayerType.human ? this : null,
+        enemyOwner: playerType == PlayerType.bot ? this : null,
         color: Colors.grey,
         type: 'knife',
       );
+
       game.add(projectile);
       game.world.add(projectile);
       game.projectiles.add(projectile);
+
+      // Emit projectile fired event
+      _eventBus.emit(ProjectileFiredEvent(
+        shooterId: stats.name,
+        projectileType: 'knife',
+        position: position.clone(),
+        direction: direction,
+        damage: projectile.damage,
+      ));
     }
+
+    // Play sound
+    _eventBus.emit(PlaySFXEvent(soundId: 'arrow_shot', volume: 0.8));
   }
 }

@@ -5,14 +5,33 @@ import 'package:nomercy/managers/performance_monitor.dart';
 /// FPS Counter overlay component
 class FPSCounter extends PositionComponent {
   final PerformanceMonitor _monitor = PerformanceMonitor();
-  final TextPaint _textPaint = TextPaint(
-    style: const TextStyle(
-      color: Colors.green,
-      fontSize: 14,
-      fontWeight: FontWeight.bold,
-      fontFamily: 'monospace',
+  
+  final Map<Color, TextPaint> _paints = {
+    Colors.green: TextPaint(
+      style: const TextStyle(
+        color: Colors.green,
+        fontSize: 14,
+        fontWeight: FontWeight.bold,
+        fontFamily: 'monospace',
+      ),
     ),
-  );
+    Colors.orange: TextPaint(
+      style: const TextStyle(
+        color: Colors.orange,
+        fontSize: 14,
+        fontWeight: FontWeight.bold,
+        fontFamily: 'monospace',
+      ),
+    ),
+    Colors.red: TextPaint(
+      style: const TextStyle(
+        color: Colors.red,
+        fontSize: 14,
+        fontWeight: FontWeight.bold,
+        fontFamily: 'monospace',
+      ),
+    ),
+  };
 
   FPSCounter() {
     position = Vector2(10, 10);
@@ -32,11 +51,11 @@ class FPSCounter extends PositionComponent {
       color = Colors.orange;
     }
 
-    _textPaint.style = _textPaint.style.copyWith(color: color);
+    final paint = _paints[color] ?? _paints[Colors.green]!;
 
     final text = 'FPS: ${fps.toStringAsFixed(1)}\n'
         'Frame: ${frameTime.toStringAsFixed(1)}ms';
 
-    _textPaint.render(canvas, text, Vector2.zero());
+    paint.render(canvas, text, Vector2.zero());
   }
 }

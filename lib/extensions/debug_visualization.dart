@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 
-import '../action_game.dart';
+import '../game/action_game.dart';
 import '../game/game_character.dart';
 
 /// Add this to GameCharacter to visualize state issues

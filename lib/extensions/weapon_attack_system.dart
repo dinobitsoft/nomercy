@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
-import '../action_game.dart';
+import '../game/action_game.dart';
 import '../entities/projectile/projectile.dart';
 import '../game/game_character.dart';
 import '../player_type.dart';

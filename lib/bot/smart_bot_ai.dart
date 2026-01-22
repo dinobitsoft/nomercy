@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 
+import '../entities/projectile/projectile.dart';
 import '../game/game_character.dart';
-import '../projectile/projectile.dart';
 import 'bot_decision.dart';
 import 'bot_state.dart';
 import 'intelligent_bot_ai.dart';

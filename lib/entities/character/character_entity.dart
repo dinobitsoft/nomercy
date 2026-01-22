@@ -1,10 +1,12 @@
 import 'package:flame/components.dart';
 
-import '../../action_game.dart';
 import '../../character_stats.dart';
+import '../../components/animation_component.dart';
 import '../../components/health_component.dart';
 import '../../config/game_config.dart';
 import '../../core/event_bus.dart';
+import '../../core/game_event.dart';
+import '../../game/action_game.dart';
 import '../../game/bot_tactic.dart';
 import '../../managers/resource_manager.dart' hide Vector2;
 import '../../player_type.dart';
@@ -201,7 +203,7 @@ class CharacterEntity extends SpriteAnimationComponent
     EventBus().emit(CharacterKilledEvent(
       victimId: stats.name,
       killerId: 'unknown',
-      bounty: 20,
+      bountyGold: 20, deathPosition: position,
     ));
   }
 }

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flame/components.dart';
 
-import 'action_game.dart';
+import 'game/action_game.dart';
 import 'game/bot_tactic.dart';
 import 'game/character/knight.dart';
 import 'game/character/thief.dart';
