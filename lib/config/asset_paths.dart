@@ -84,7 +84,7 @@ class AssetPaths {
   /// Audio files
   static const Map<String, String> audioFiles = {
     'music_menu': '${audio}menu_theme.mp3',
-    'music_battle': '${audio}battle_theme.mp3',
+    'music_battle': '${audio}battle_theme.wav',
     'sfx_attack': '${audio}sword_slash.wav',
     'sfx_jump': '${audio}jump.wav',
     'sfx_land': '${audio}land.wav',

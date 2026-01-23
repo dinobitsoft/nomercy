@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nomercy/managers/localization_manager.dart';
 import '../game_mode.dart';
 import '../game_screen.dart';
 import 'map_generator_config.dart';
@@ -37,20 +38,22 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Header
+              // Header - Reduced padding
               Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, size: 32, color: Colors.white),
+                      icon: const Icon(Icons.arrow_back, size: 28, color: Colors.white),
                       onPressed: () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
                     const SizedBox(width: 20),
-                    const Text(
-                      'Select Map',
-                      style: TextStyle(
-                        fontSize: 32,
+                    Text(
+                      context.translate('select_map'),
+                      style: const TextStyle(
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -59,14 +62,14 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                 ),
               ),
 
-              // Map Type Toggle
+              // Map Type Toggle - Reduced height and padding
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 5),
                 child: Row(
                   children: [
                     Expanded(
                       child: _buildTypeButton(
-                        'Procedural Maps',
+                        context.translate('procedural_maps'),
                         Icons.auto_awesome,
                         useProceduralMap,
                             () => setState(() => useProceduralMap = true),
@@ -75,7 +78,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                     const SizedBox(width: 20),
                     Expanded(
                       child: _buildTypeButton(
-                        'Pre-made Maps',
+                        context.translate('premade_maps'),
                         Icons.map,
                         !useProceduralMap,
                             () => setState(() => useProceduralMap = false),
@@ -85,7 +88,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
 
               // Content based on selection
               Expanded(
@@ -104,7 +107,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 15),
+        padding: const EdgeInsets.symmetric(vertical: 10), // Reduced
         decoration: BoxDecoration(
           color: isSelected ? Colors.blue : Colors.grey[800],
           borderRadius: BorderRadius.circular(10),
@@ -116,13 +119,13 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white),
+            Icon(icon, color: Colors.white, size: 20),
             const SizedBox(width: 10),
             Text(
               label,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 18,
+                fontSize: 14, // Reduced
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -134,42 +137,40 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
 
   Widget _buildProceduralOptions() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(40),
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 0),
+      physics: const NeverScrollableScrollPhysics(), // Force fit if possible
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Map Style',
-            style: TextStyle(
+          const SizedBox(height: 8),
+
+          // Style selection - Compact grid
+          SizedBox(
+            height: 120, // Fixed height for style cards
+            child: GridView.count(
+              crossAxisCount: 6,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 0,
+              physics: const NeverScrollableScrollPhysics(),
+              children: MapStyle.values.map((style) {
+                return _buildStyleCard(style);
+              }).toList(),
+            ),
+          ),
+
+          const SizedBox(height: 15),
+
+          Text(
+            context.translate('difficulty'),
+            style: const TextStyle(
               color: Colors.white,
-              fontSize: 24,
+              fontSize: 18, // Reduced
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 8),
 
-          // Style selection
-          Wrap(
-            spacing: 15,
-            runSpacing: 15,
-            children: MapStyle.values.map((style) {
-              return _buildStyleCard(style);
-            }).toList(),
-          ),
-
-          const SizedBox(height: 30),
-
-          const Text(
-            'Difficulty',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 15),
-
-          // Difficulty selection
+          // Difficulty selection - Compact
           Row(
             children: MapDifficulty.values.map((diff) {
               return Expanded(
@@ -181,64 +182,72 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
             }).toList(),
           ),
 
-          const SizedBox(height: 30),
+          const SizedBox(height: 15),
 
-          // Custom seed option
+          // Custom seed and Generate button - Side by side
           Row(
             children: [
-              const Text(
-                'Custom Seed (optional):',
-                style: TextStyle(color: Colors.white, fontSize: 16),
+              Expanded(
+                flex: 2,
+                child: Row(
+                  children: [
+                    Text(
+                      context.translate('custom_seed'),
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                    ),
+                    const SizedBox(width: 10),
+                    SizedBox(
+                      width: 100,
+                      height: 35,
+                      child: TextField(
+                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                        decoration: InputDecoration(
+                          hintText: context.translate('random_hint'),
+                          hintStyle: TextStyle(color: Colors.grey[500], fontSize: 12),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.grey[600]!),
+                          ),
+                          focusedBorder: const OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.blue),
+                          ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          customSeed = int.tryParse(value);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(width: 20),
-              SizedBox(
-                width: 150,
-                child: TextField(
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Random',
-                    hintStyle: TextStyle(color: Colors.grey[500]),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.grey[600]!),
-                    ),
-                    focusedBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.blue),
+              // Generate button
+              Expanded(
+                flex: 1,
+                child: ElevatedButton(
+                  onPressed: _startWithProceduralMap,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  keyboardType: TextInputType.number,
-                  onChanged: (value) {
-                    customSeed = int.tryParse(value);
-                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.play_arrow, size: 20, color: Colors.white),
+                      const SizedBox(width: 5),
+                      Text(
+                        context.translate('generate_play'),
+                        style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
-          ),
-
-          const SizedBox(height: 40),
-
-          // Generate button
-          Center(
-            child: ElevatedButton(
-              onPressed: _startWithProceduralMap,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 20),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.play_arrow, size: 32, color: Colors.white),
-                  SizedBox(width: 10),
-                  Text(
-                    'GENERATE & PLAY',
-                    style: TextStyle(fontSize: 24, color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
           ),
         ],
       ),
@@ -252,9 +261,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
     return GestureDetector(
       onTap: () => setState(() => selectedStyle = style),
       child: Container(
-        width: 180,
-        height: 160,
-        padding: const EdgeInsets.all(15),
+        padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -263,33 +270,38 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                 ? [Colors.blue[700]!, Colors.blue[900]!]
                 : [Colors.grey[800]!, Colors.grey[900]!],
           ),
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected ? Colors.blue : Colors.grey[600]!,
-            width: isSelected ? 3 : 2,
+            width: isSelected ? 2 : 1,
           ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(info['icon'] as IconData, size: 50, color: Colors.white),
-            const SizedBox(height: 10),
-            Text(
-              info['name'] as String,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            Icon(info['icon'] as IconData, size: 24, color: Colors.white),
             const SizedBox(height: 5),
             Text(
-              info['desc'] as String,
+              context.translate(info['name'].toString().toLowerCase()),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              context.translate('${info['name'].toString().toLowerCase()}_desc'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.grey[400],
-                fontSize: 12,
+                fontSize: 8,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -309,21 +321,21 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
     return GestureDetector(
       onTap: () => setState(() => selectedDifficulty = difficulty),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 15),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: isSelected ? colors[difficulty] : Colors.grey[800],
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected ? colors[difficulty]! : Colors.grey[600]!,
-            width: 2,
+            width: 1.5,
           ),
         ),
         child: Text(
-          difficulty.name.toUpperCase(),
+          context.translate(difficulty.name.toLowerCase()),
           textAlign: TextAlign.center,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 14,
+            fontSize: 12,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -335,14 +347,15 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
     final levels = ['level_1', 'level_2', 'level_3'];
 
     return GridView.builder(
-      padding: const EdgeInsets.all(40),
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        crossAxisSpacing: 20,
-        mainAxisSpacing: 20,
-        childAspectRatio: 1.5,
+        crossAxisSpacing: 15,
+        mainAxisSpacing: 15,
+        childAspectRatio: 2.2,
       ),
       itemCount: levels.length,
+      physics: const NeverScrollableScrollPhysics(),
       itemBuilder: (context, index) {
         return _buildLevelCard(levels[index], index + 1);
       },
@@ -359,26 +372,26 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
             end: Alignment.bottomRight,
             colors: [Colors.blue[700]!, Colors.blue[900]!],
           ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white30, width: 3),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white30, width: 2),
           boxShadow: [
             BoxShadow(
-              color: Colors.blue.withOpacity(0.3),
-              blurRadius: 15,
-              spreadRadius: 2,
+              color: Colors.blue.withOpacity(0.2),
+              blurRadius: 10,
+              spreadRadius: 1,
             ),
           ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.map, size: 60, color: Colors.white),
-            const SizedBox(height: 10),
+            const Icon(Icons.map, size: 40, color: Colors.white),
+            const SizedBox(height: 5),
             Text(
-              'Level $levelNum',
+              '${context.translate('level')} $levelNum',
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 28,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -386,7 +399,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
               mapName,
               style: const TextStyle(
                 color: Colors.white70,
-                fontSize: 14,
+                fontSize: 12,
               ),
             ),
           ],
@@ -400,37 +413,37 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
       case MapStyle.arena:
         return {
           'name': 'Arena',
-          'desc': 'Open combat\nzone',
+          'desc': 'Open combat zone',
           'icon': Icons.sports_mma,
         };
       case MapStyle.platformer:
         return {
           'name': 'Platformer',
-          'desc': 'Vertical\nchallenge',
+          'desc': 'Vertical challenge',
           'icon': Icons.stairs,
         };
       case MapStyle.dungeon:
         return {
           'name': 'Dungeon',
-          'desc': 'Rooms &\ncorridors',
+          'desc': 'Rooms & corridors',
           'icon': Icons.domain,
         };
       case MapStyle.towers:
         return {
           'name': 'Towers',
-          'desc': 'Sky-high\nbattle',
+          'desc': 'Sky-high battle',
           'icon': Icons.apartment,
         };
       case MapStyle.chaos:
         return {
           'name': 'Chaos',
-          'desc': 'Random\nmadness',
+          'desc': 'Random madness',
           'icon': Icons.shuffle,
         };
       case MapStyle.balanced:
         return {
           'name': 'Balanced',
-          'desc': 'Mixed\nlayout',
+          'desc': 'Mixed layout',
           'icon': Icons.balance,
         };
     }

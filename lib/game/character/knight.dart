@@ -1,7 +1,6 @@
 import 'package:flame/components.dart';
 
 import '../../core/event_bus.dart';
-import '../../core/game_event.dart';
 import '../../player_type.dart';
 import '../bot_tactic.dart';
 import '../game_character.dart';
@@ -14,6 +13,7 @@ class Knight extends GameCharacter {
     required super.position,
     required super.playerType,
     BotTactic? botTactic,
+    super.customId,
   }) : super(
     botTactic: botTactic ?? AggressiveTactic(),
     stats: KnightStats(),

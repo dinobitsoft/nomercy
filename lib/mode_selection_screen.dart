@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nomercy/managers/localization_manager.dart';
 
 import 'game_mode.dart';
 import 'map/map_selection_screen.dart';
@@ -25,20 +26,22 @@ class ModeSelectionScreen extends StatelessWidget {
         child: SafeArea(
           child: Column(
             children: [
-              // Header
+              // Header - Reduced padding
               Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, size: 32, color: Colors.white),
+                      icon: const Icon(Icons.arrow_back, size: 28, color: Colors.white),
                       onPressed: () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
                     const SizedBox(width: 20),
-                    const Text(
-                      'Select Game Mode',
-                      style: TextStyle(
-                        fontSize: 32,
+                    Text(
+                      context.translate('select_mode'),
+                      style: const TextStyle(
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -47,42 +50,44 @@ class ModeSelectionScreen extends StatelessWidget {
                 ),
               ),
 
-              // Mode Cards
+              // Mode Cards - Optimized for landscape
               Expanded(
                 child: GridView.count(
                   crossAxisCount: 2,
-                  padding: const EdgeInsets.all(40),
-                  crossAxisSpacing: 20,
-                  mainAxisSpacing: 20,
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
+                  crossAxisSpacing: 15,
+                  mainAxisSpacing: 15,
+                  childAspectRatio: 2.8, // Shorter cards for landscape
+                  physics: const NeverScrollableScrollPhysics(),
                   children: [
                     _buildModeCard(
                       context,
-                      'Survival',
-                      'Endless waves of enemies\nHow long can you survive?',
+                      context.translate('survival'),
+                      context.translate('survival_desc'),
                       Icons.shield,
                       Colors.orange,
                       GameMode.survival,
                     ),
                     _buildModeCard(
                       context,
-                      'Campaign',
-                      'Story mode with boss fights\nComplete all waves!',
+                      context.translate('campaign'),
+                      context.translate('campaign_desc'),
                       Icons.book,
                       Colors.blue,
                       GameMode.campaign,
                     ),
                     _buildModeCard(
                       context,
-                      'Boss Fight',
-                      'Face a powerful boss\nCan you defeat it?',
+                      context.translate('boss_fight'),
+                      context.translate('boss_fight_desc'),
                       Icons.dangerous,
                       Colors.red,
                       GameMode.bossFight,
                     ),
                     _buildModeCard(
                       context,
-                      'Training',
-                      'Practice mode\nPerfect your skills',
+                      context.translate('training'),
+                      context.translate('training_desc'),
                       Icons.fitness_center,
                       Colors.green,
                       GameMode.training,
@@ -107,7 +112,6 @@ class ModeSelectionScreen extends StatelessWidget {
       ) {
     return GestureDetector(
       onTap: () {
-        // Navigate to map selection instead
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -128,73 +132,52 @@ class ModeSelectionScreen extends StatelessWidget {
               color.withOpacity(0.6),
             ],
           ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white30, width: 3),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white30, width: 2),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.4),
-              blurRadius: 15,
-              spreadRadius: 2,
+              color: color.withOpacity(0.3),
+              blurRadius: 10,
+              spreadRadius: 1,
             ),
           ],
         ),
-        child: Column(
+        child: Row( // Using Row instead of Column to save vertical space
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 80, color: Colors.white),
-            const SizedBox(height: 20),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+            const SizedBox(width: 15),
+            Icon(icon, size: 40, color: Colors.white),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                description,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
-              ),
-            ),
+            const SizedBox(width: 10),
           ],
         ),
       ),
     );
   }
 }
-
-// Update your GameScreen to accept gameMode parameter:
-/*
-class GameScreen extends StatelessWidget {
-  final String selectedCharacterClass;
-  final String mapName;
-  final GameMode gameMode; // NEW
-
-  const GameScreen({
-    super.key,
-    required this.selectedCharacterClass,
-    this.mapName = 'level_1',
-    this.gameMode = GameMode.survival, // NEW
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: GameWidget(
-        game: ActionGame(
-          selectedCharacterClass: selectedCharacterClass,
-          mapName: mapName,
-          gameMode: gameMode, // NEW - Pass mode to game
-        ),
-      ),
-    );
-  }
-}
-*/

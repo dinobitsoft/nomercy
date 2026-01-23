@@ -9,17 +9,32 @@ import '../bot_tactic.dart';
 import '../game_character.dart';
 import '../stat/stats.dart';
 import '../tactic/defensive_tactic.dart';
-class Wizard extends GameCharacter {
+// lib/game/character/wizard.dart - FIXED VERSION
 
+import 'package:flame/components.dart';
+import 'package:flutter/material.dart';
+
+import '../../core/event_bus.dart';
+import '../../core/game_event.dart';
+import '../../entities/projectile/projectile.dart';
+import '../../player_type.dart';
+import '../bot_tactic.dart';
+import '../game_character.dart';
+import '../stat/stats.dart';
+import '../tactic/defensive_tactic.dart';
+
+class Wizard extends GameCharacter {
   final EventBus _eventBus = EventBus();
 
   Wizard({
     required super.position,
     required super.playerType,
     BotTactic? botTactic,
+    String? customId,
   }) : super(
     botTactic: botTactic ?? DefensiveTactic(),
     stats: WizardStats(),
+    customId: customId,
   );
 
   @override
@@ -128,21 +143,30 @@ class Wizard extends GameCharacter {
 
     // Charged fireball on high combo
     final damageMultiplier = 1.0 + (comboCount - 1) * 0.25;
+    final isPowerShot = comboCount >= 3;
 
     final direction = facingRight ? Vector2(1, 0) : Vector2(-1, 0);
 
+    // FIX 1: Create projectile with explicit priority and proper owner detection
     final projectile = Projectile(
       position: position.clone(),
       direction: direction,
       damage: stats.attackDamage * damageMultiplier,
-      owner: playerType == PlayerType.human ? this as Player : null,
-      enemyOwner: playerType == PlayerType.bot ? this as Enemy : null,
-      color: comboCount >= 3 ? Colors.blue : Colors.orange,
+      owner: playerType == PlayerType.human ? this : null,
+      enemyOwner: playerType == PlayerType.bot ? this : null,
+      color: isPowerShot ? Colors.blue : Colors.orange,
       type: 'fireball',
     );
+
+    // FIX 2: Set explicit priority to ensure visibility
+    projectile.priority = 75; // Between platforms (10) and characters (90-100)
+
+    // FIX 3: Add to game in correct order
     game.add(projectile);
     game.world.add(projectile);
     game.projectiles.add(projectile);
+
+    print('🔮 Wizard created fireball at ${position.x.toInt()}, ${position.y.toInt()} facing ${facingRight ? "right" : "left"}');
 
     _eventBus.emit(ProjectileFiredEvent(
       shooterId: stats.name,
@@ -158,5 +182,9 @@ class Wizard extends GameCharacter {
     }
 
     _eventBus.emit(PlaySFXEvent(soundId: 'fireball_shot', volume: 0.8));
+
+    if (isPowerShot) {
+      print('${stats.name}: POWER FIREBALL!');
+    }
   }
 }

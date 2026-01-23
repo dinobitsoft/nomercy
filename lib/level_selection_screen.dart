@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nomercy/managers/localization_manager.dart';
 
 import 'game_mode.dart';
 import 'game_screen.dart';
@@ -31,44 +32,58 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Header
+              // Header - Reduced padding
               Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, size: 32),
+                      icon: const Icon(Icons.arrow_back, size: 28),
                       onPressed: () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
-                    const SizedBox(width: 20),
-                    const Text(
-                      'Select Level',
-                      style: TextStyle(
-                        fontSize: 32,
+                    const SizedBox(width: 15),
+                    Text(
+                      context.translate('select_map'),
+                      style: const TextStyle(
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
                     const Spacer(),
-                    // Multiplayer toggle
-                    _buildMultiplayerToggle(),
+                    // Multiplayer toggle - Scaled down
+                    Transform.scale(
+                      scale: 0.85,
+                      child: _buildMultiplayerToggle(),
+                    ),
                   ],
                 ),
               ),
 
-              // Level grid
+              // Level grid - Optimized spacing
               Expanded(
-                child: GridView.builder(
-                  padding: const EdgeInsets.all(40),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 20,
-                    mainAxisSpacing: 20,
-                    childAspectRatio: 1.8,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return GridView.builder(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        physics: const NeverScrollableScrollPhysics(), // Prevent scrolling if it fits
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 15,
+                          mainAxisSpacing: 15,
+                          childAspectRatio: 2.2, // Increased ratio to make cards shorter
+                        ),
+                        itemCount: levels.length,
+                        itemBuilder: (context, index) {
+                          return _buildLevelCard(context, levels[index], index + 1);
+                        },
+                      );
+                    },
                   ),
-                  itemCount: levels.length,
-                  itemBuilder: (context, index) {
-                    return _buildLevelCard(context, levels[index], index + 1);
-                  },
                 ),
               ),
             ],
@@ -80,13 +95,13 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
 
   Widget _buildMultiplayerToggle() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.3),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: enableMultiplayer ? Colors.green : Colors.grey,
-          width: 2,
+          width: 1.5,
         ),
       ),
       child: Row(
@@ -95,27 +110,30 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
           Icon(
             Icons.people,
             color: enableMultiplayer ? Colors.green : Colors.grey,
-            size: 24,
+            size: 20,
           ),
           const SizedBox(width: 8),
           Text(
-            'MULTIPLAYER',
+            context.translate('multiplayer'),
             style: TextStyle(
               color: enableMultiplayer ? Colors.green : Colors.grey,
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(width: 8),
-          Switch(
-            value: enableMultiplayer,
-            onChanged: (value) {
-              setState(() {
-                enableMultiplayer = value;
-              });
-            },
-            activeColor: Colors.green,
-            inactiveThumbColor: Colors.grey,
+          const SizedBox(width: 4),
+          SizedBox(
+            height: 30,
+            child: Switch(
+              value: enableMultiplayer,
+              onChanged: (value) {
+                setState(() {
+                  enableMultiplayer = value;
+                });
+              },
+              activeColor: Colors.green,
+              inactiveThumbColor: Colors.grey,
+            ),
           ),
         ],
       ),
@@ -132,7 +150,7 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
               selectedCharacterClass: widget.selectedCharacterClass,
               mapName: mapName,
               enableMultiplayer: enableMultiplayer,
-              gameMode: GameMode.survival, //TODO: fix by passing as parameter
+              gameMode: GameMode.survival,
             ),
           ),
         );
@@ -144,26 +162,26 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
             end: Alignment.bottomRight,
             colors: [Colors.blue[700]!, Colors.blue[900]!],
           ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white30, width: 3),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white30, width: 2),
           boxShadow: [
             BoxShadow(
-              color: Colors.blue.withOpacity(0.3),
-              blurRadius: 15,
-              spreadRadius: 2,
+              color: Colors.blue.withOpacity(0.2),
+              blurRadius: 10,
+              spreadRadius: 1,
             ),
           ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.map, size: 60, color: Colors.white),
-            const SizedBox(height: 10),
+            const Icon(Icons.map, size: 40, color: Colors.white),
+            const SizedBox(height: 5),
             Text(
-              'Level $levelNum',
+              '${context.translate('level')} $levelNum',
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 28,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -171,28 +189,28 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
               mapName,
               style: const TextStyle(
                 color: Colors.white70,
-                fontSize: 14,
+                fontSize: 12,
               ),
             ),
             if (enableMultiplayer)
               Container(
-                margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.green.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.green, width: 1),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.wifi, color: Colors.green, size: 14),
+                    Icon(Icons.wifi, color: Colors.green, size: 10),
                     SizedBox(width: 4),
                     Text(
                       'ONLINE',
                       style: TextStyle(
                         color: Colors.green,
-                        fontSize: 10,
+                        fontSize: 8,
                         fontWeight: FontWeight.bold,
                       ),
                     ),

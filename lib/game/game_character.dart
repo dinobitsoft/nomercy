@@ -14,6 +14,9 @@ typedef Player = GameCharacter;
 typedef Enemy = GameCharacter;
 
 abstract class GameCharacter extends SpriteAnimationComponent with HasGameReference<ActionGame> {
+
+  final String uniqueId;
+
   final CharacterStats stats;
   final PlayerType playerType;
   BotTactic? botTactic;
@@ -97,10 +100,23 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     required this.stats,
     required this.playerType,
     this.botTactic,
-  }) : super(position: position) {
+    String? customId,
+  }) : uniqueId = customId ?? _generateUniqueId(), super(position: position) {
     size = Vector2(baseWidth, baseHeight);
     anchor = Anchor.center;
   }
+
+  static String _generateUniqueId() {
+    return 'char_${DateTime.now().millisecondsSinceEpoch}_${_idCounter++}';
+  }
+
+  static int _idCounter = 0;
+
+  // Helper method to check if this is the player
+  bool get isPlayer => playerType == PlayerType.human;
+
+  // Helper method to check if this is a bot
+  bool get isBot => playerType == PlayerType.bot;
 
   @override
   Future<void> onLoad() async {

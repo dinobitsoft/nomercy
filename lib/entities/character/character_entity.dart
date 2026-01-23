@@ -8,7 +8,7 @@ import '../../core/event_bus.dart';
 import '../../core/game_event.dart';
 import '../../game/action_game.dart';
 import '../../game/bot_tactic.dart';
-import '../../managers/resource_manager.dart' hide Vector2;
+import '../../managers/resource_manager.dart';
 import '../../player_type.dart';
 import '../../tiled_platform.dart';
 

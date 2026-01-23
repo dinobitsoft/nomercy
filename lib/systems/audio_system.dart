@@ -92,14 +92,14 @@ class AudioSystem {
       // Preload SFX
       await FlameAudio.audioCache.loadAll([
         'hit.wav',
+        'death.wav',
+        'jump.wav',
         'critical_hit.wav',
         'block.wav',
-        'death.wav',
         'item_pickup.wav',
         'chest_open.wav',
         'level_up.wav',
         'combo.wav',
-        'jump.wav',
         'land.wav',
         'sword_slash.wav',
         'arrow_shot.wav',
@@ -221,7 +221,7 @@ class AudioSystem {
 
     try {
       FlameAudio.bgm.play(
-        '$musicId.mp3',
+        '$musicId.wav',
         volume: volume * _musicVolume * GameConfig.masterVolume,
       );
       _currentMusic = musicId;
@@ -361,7 +361,7 @@ class AudioPaths {
 
   static const Map<String, String> music = {
     'menu_theme': 'menu_theme.mp3',
-    'battle_theme': 'battle_theme.mp3',
+    'battle_theme': 'battle_theme.wav',
     'boss_theme': 'boss_theme.mp3',
     'victory_theme': 'victory_theme.mp3',
   };
