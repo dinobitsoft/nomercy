@@ -99,9 +99,11 @@ class ItemSystem {
       item: item,
     );
 
+    // FIX: Set proper priority and add to world
+    itemDrop.priority = 50; // Between platforms and characters
     game.add(itemDrop);
     game.world.add(itemDrop);
-    _activeDrops.add(itemDrop);
+    game.itemDrops.add(itemDrop); // Add to tracking list
 
     _totalDrops++;
     _itemsDropped[event.itemType] = (_itemsDropped[event.itemType] ?? 0) + 1;
@@ -111,26 +113,31 @@ class ItemSystem {
 
   void _onItemPickedUp(ItemPickedUpEvent event) {
     // Find and remove item drop
-    final drop = _activeDrops.firstWhere(
-          (d) => d.item.id == event.itemId,
-      orElse: () => null as ItemDrop,
-    );
+    ItemDrop? dropToRemove;
 
-    if (drop != null) {
-      _activeDrops.remove(drop);
-      drop.removeFromParent();
+    for (final drop in game.itemDrops) {
+      if (drop.item.id == event.itemId) {
+        dropToRemove = drop;
+        break;
+      }
     }
 
-    // Add to inventory
-    game.inventory.add(drop!.item);
+    if (dropToRemove != null) {
+      game.itemDrops.remove(dropToRemove);
+      dropToRemove.removeFromParent();
+      // game.world.children.remove(dropToRemove);
+      game.world.remove(dropToRemove);
+      // Add to inventory
+      game.inventory.add(dropToRemove.item);
 
-    // Apply item effect
-    _applyItemEffect(event.characterId, drop.item);
+      // Apply item effect
+      _applyItemEffect(event.characterId, dropToRemove.item);
 
-    _totalPickups++;
-    _itemsPickedUp[event.itemType] = (_itemsPickedUp[event.itemType] ?? 0) + 1;
+      _totalPickups++;
+      _itemsPickedUp[event.itemType] = (_itemsPickedUp[event.itemType] ?? 0) + 1;
 
-    print('✅ ${event.characterId} picked up ${event.itemName}');
+      print('✅ ${event.characterId} picked up ${event.itemName}');
+    }
   }
 
   void _onWeaponEquipped(WeaponEquippedEvent event) {
@@ -161,18 +168,19 @@ class ItemSystem {
     // Determine what to drop based on probabilities
     final roll = _random.nextDouble();
 
-    if (roll < 0.4) {
-      // 40% - Health potion
+    if (roll < 0.5) {
+      // 50% - Health potion
+      final itemId = 'health_potion_${DateTime.now().millisecondsSinceEpoch}';
       _eventBus.emit(ItemDroppedEvent(
-        itemId: 'health_potion_${DateTime.now().millisecondsSinceEpoch}',
+        itemId: itemId,
         itemType: 'healthPotion',
-        dropPosition: position,
+        dropPosition: position.clone(),
       ));
-    } else if (roll < 0.6) {
-      // 20% - Random weapon
+    } else if (roll < 0.75) {
+      // 25% - Random weapon
       _dropRandomWeapon(position);
     }
-    // 40% - Nothing
+    // 25% - Nothing
   }
 
   /// Drop random weapon

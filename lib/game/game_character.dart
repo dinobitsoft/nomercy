@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'dart:math' as math;
 
+import '../core/action_events.dart';
+import '../core/event_bus.dart';
 import 'action_game.dart';
 import '../character_stats.dart';
 import '../player_type.dart';
@@ -15,6 +17,16 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
   final CharacterStats stats;
   final PlayerType playerType;
   BotTactic? botTactic;
+
+  // Event bus for actions
+  final EventBus _eventBus = EventBus();
+
+  // Animation tracking
+  String _currentAnimationState = 'idle';
+  String _previousAnimationState = 'idle';
+
+  // Block tracking
+  DateTime? _blockStartTime;
 
   // Character dimensions
   static const double baseWidth = 160.0;
@@ -96,7 +108,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     await _loadSprites();
   }
 
-  /// ✅ IMPROVED: Separate idle and walk sprites with sprite sheet support
   Future<void> _loadSprites() async {
     final characterName = stats.name.toLowerCase();
     print('Loading sprites for: $characterName');
@@ -256,29 +267,67 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
   void update(double dt) {
     super.update(dt);
 
-    // Update timers
+    // Update timers (existing code)
     if (attackCooldown > 0) attackCooldown -= dt;
     if (dodgeCooldown > 0) dodgeCooldown -= dt;
     if (comboTimer > 0) {
       comboTimer -= dt;
-      if (comboTimer <= 0) comboCount = 0;
+      if (comboTimer <= 0) {
+        // Emit combo broken event
+        if (comboCount > 1) {
+          _eventBus.emit(CharacterComboBrokenEvent(
+            characterId: stats.name,
+            position: position.clone(),
+            maxComboReached: comboCount,
+            reason: 'timeout',
+          ));
+        }
+        comboCount = 0;
+      }
     }
 
-    // Track animation timers
     if (landingAnimationTimer > 0) landingAnimationTimer -= dt;
     if (jumpAnimationTimer > 0) jumpAnimationTimer -= dt;
-
-    // Track attack animation timer
     if (attackAnimationTimer > 0) {
       attackAnimationTimer -= dt;
       if (attackAnimationTimer <= 0) {
         isAttacking = false;
+
+        // Emit attack completed event
+        _eventBus.emit(CharacterAttackCompletedEvent(
+          characterId: stats.name,
+          position: position.clone(),
+          attackType: stats.attackRange > 5 ? 'ranged' : 'melee',
+          targetsHit: 0, // Will be filled by combat system
+          totalDamage: 0, // Will be filled by combat system
+        ));
       }
     }
 
     // Stamina regeneration
     if (stamina < maxStamina && !isBlocking && !isDodging && !isAttacking) {
+      final oldStamina = stamina;
       stamina = math.min(maxStamina, stamina + 15 * dt);
+
+      // Emit stamina regen event periodically
+      if (stamina - oldStamina > 5) {
+        _eventBus.emit(CharacterStaminaRegenEvent(
+          characterId: stats.name,
+          position: position.clone(),
+          amount: stamina - oldStamina,
+          currentStamina: stamina,
+          maxStamina: maxStamina,
+        ));
+      }
+    }
+
+    // Block stamina drain
+    if (isBlocking) {
+      stamina -= 15 * dt;
+      if (stamina <= 0) {
+        stamina = 0;
+        breakGuard();
+      }
     }
 
     // Attack commit system
@@ -295,6 +344,13 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       if (dodgeDuration <= 0) {
         isDodging = false;
         velocity.x *= 0.3;
+
+        // Emit dodge completed event
+        _eventBus.emit(CharacterDodgeCompletedEvent(
+          characterId: stats.name,
+          position: position.clone(),
+          avoidedDamage: false, // Will be set by combat system
+        ));
       } else {
         velocity.x = dodgeDirection.x * stats.dexterity * 15;
       }
@@ -305,9 +361,9 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       stunDuration -= dt;
       velocity.x = 0;
       if (stunDuration <= 0) {
-        isStunned = false;
+        recoverFromStun();
       }
-      return;
+      return; // Skip other updates when stunned
     }
 
     // Handle landing recovery
@@ -318,16 +374,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
         isLanding = false;
       }
     }
-
-/*    // Check if dying //TODO: fix and think about this
-    if (health <= 0) {
-      if (playerType == PlayerType.bot) {
-        game.removeEnemy(this);
-      } else {
-        game.gameOver();
-      }
-      return;
-    }*/
 
     // Store ground state BEFORE physics
     wasGrounded = groundPlatform != null;
@@ -347,17 +393,25 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     // Check landing AFTER physics
     final isGroundedNow = groundPlatform != null;
 
+    // Emit landing event
     if (!wasGrounded && isGroundedNow) {
-      _handleLanding();
+      handleLandingWithEvent();
       landingAnimationTimer = 0.25;
       isLanding = true;
     }
 
+    // Emit airborne event
     if (wasGrounded && !isGroundedNow) {
       jumpAnimationTimer = 0.3;
       isAirborne = true;
       isJumping = true;
       airborneTime = 0;
+
+      _eventBus.emit(CharacterAirborneEvent(
+        characterId: stats.name,
+        position: position.clone(),
+        velocity: velocity.clone(),
+      ));
     }
 
     if (isGroundedNow) {
@@ -369,13 +423,25 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       airborneTime += dt;
     }
 
-    // Update animation
-    updateAnimation();
+    // Update animation (will emit animation events)
+    updateAnimationWithEvents();
 
     // Update size
     size.y = isCrouching ? baseHeight / 2 : baseHeight;
+
+    // Emit idle event if idle
+    if (velocity.x.abs() < 5 && !isAttacking && !isBlocking &&
+        !isDodging && !isJumping && !isAirborne) {
+      if (_currentAnimationState != 'idle') {
+        _eventBus.emit(CharacterIdleEvent(
+          characterId: stats.name,
+          position: position.clone(),
+        ));
+      }
+    }
   }
 
+  @override
   void dodge(Vector2 direction) {
     if (dodgeCooldown > 0 || isDodging || stamina < 20) return;
 
@@ -385,16 +451,56 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     stamina -= 20;
     dodgeDirection = direction.normalized();
 
-    print('${stats.name}: Dodge roll!');
+    _eventBus.emit(CharacterDodgeStartedEvent(
+      characterId: stats.name,
+      position: position.clone(),
+      dodgeDirection: dodgeDirection,
+      duration: 0.3,
+      staminaCost: 20,
+    ));
   }
 
+  /// Start blocking with event emission
+  @override
   void startBlock() {
     if (stamina < 10 || isDodging || isAttacking) return;
+    if (isBlocking) return; // Already blocking
+
     isBlocking = true;
+    _blockStartTime = DateTime.now();
+
+    _eventBus.emit(CharacterBlockStartedEvent(
+      characterId: stats.name,
+      position: position.clone(),
+      staminaPerSecond: 15.0,
+    ));
   }
 
+  @override
   void stopBlock() {
+    if (!isBlocking) return;
+
+    final duration = _blockStartTime != null
+        ? DateTime.now().difference(_blockStartTime!).inMilliseconds / 1000.0
+        : 0.0;
+
     isBlocking = false;
+
+    String reason = 'manual';
+    if (stamina <= 0) {
+      reason = 'stamina_depleted';
+    } else if (isStunned) {
+      reason = 'interrupted';
+    }
+
+    _eventBus.emit(CharacterBlockStoppedEvent(
+      characterId: stats.name,
+      position: position.clone(),
+      reason: reason,
+      duration: duration,
+    ));
+
+    _blockStartTime = null;
   }
 
   void updateHumanControl(double dt);
@@ -676,4 +782,239 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     textPainter.layout();
     textPainter.paint(canvas, Offset(-textPainter.width / 2, -size.y / 2 - 40));
   }
+
+  // ==========================================
+  // REFACTORED ACTION METHODS
+  // ==========================================
+
+  /// Jump with event emission
+  void performJump({double? customPower, bool isDoubleJump = false}) {
+    if (groundPlatform == null || stamina < 20) return;
+
+    final jumpPower = customPower ?? -300.0;
+
+    // Apply physics
+    velocity.y = jumpPower;
+    groundPlatform = null;
+    stamina -= 20;
+    isJumping = true;
+    isAirborne = true;
+    airborneTime = 0;
+
+    // Emit jump event
+    _eventBus.emit(CharacterJumpedEvent(
+      characterId: stats.name,
+      position: position.clone(),
+      jumpPower: jumpPower.abs(),
+      staminaCost: 20,
+      isDoubleJump: isDoubleJump,
+    ));
+  }
+
+  /// Walk with event emission
+  void performWalk(Vector2 direction, double speed) {
+    // Check if started walking
+    if (velocity.x.abs() < 5 && direction.x.abs() > 0) {
+      _eventBus.emit(CharacterWalkStartedEvent(
+        characterId: stats.name,
+        position: position.clone(),
+        direction: direction,
+        speed: speed,
+      ));
+    }
+
+    // Apply movement
+    velocity.x = direction.x * speed;
+    facingRight = direction.x > 0;
+
+    // Emit turn event if direction changed
+    if ((direction.x > 0 && !facingRight) || (direction.x < 0 && facingRight)) {
+      _eventBus.emit(CharacterTurnedEvent(
+        characterId: stats.name,
+        position: position.clone(),
+        nowFacingRight: direction.x > 0,
+      ));
+    }
+  }
+
+  /// Stop walking with event emission
+  void performStopWalk() {
+    if (velocity.x.abs() > 5) {
+      _eventBus.emit(CharacterWalkStoppedEvent(
+        characterId: stats.name,
+        position: position.clone(),
+      ));
+    }
+
+    velocity.x *= 0.7;
+  }
+
+  bool prepareAttackWithEvent() {
+    if (isLanding || isStunned || isDodging || attackCooldown > 0 || stamina < 15) {
+      return false;
+    }
+
+    // Apply cooldown and stamina cost
+    if (isAirborne) {
+      attackCooldown = 1.0;
+      stamina -= 20;
+    } else {
+      attackCooldown = 0.5;
+      stamina -= 15;
+    }
+
+    isAttacking = true;
+    isAttackCommitted = true;
+    attackCommitTime = 0.3;
+    attackAnimationTimer = 0.3;
+
+    // Combo system
+    if (comboTimer > 0) {
+      comboCount++;
+      comboTimer = comboWindow;
+    } else {
+      comboCount = 1;
+      comboTimer = comboWindow;
+
+      // Emit combo started event
+      _eventBus.emit(CharacterComboStartedEvent(
+        characterId: stats.name,
+        position: position.clone(),
+      ));
+    }
+
+    // Attack momentum
+    lastAttackDirection = facingRight ? 1 : -1;
+    if (!isAirborne) {
+      velocity.x += lastAttackDirection * 50;
+    }
+
+    // Determine attack type
+    String attackType = 'melee';
+    if (stats.attackRange > 5) {
+      attackType = 'ranged';
+    }
+
+    // Emit attack started event
+    _eventBus.emit(CharacterAttackStartedEvent(
+      characterId: stats.name,
+      position: position.clone(),
+      attackType: attackType,
+      comboCount: comboCount,
+      staminaCost: isAirborne ? 20 : 15,
+    ));
+
+    return true;
+  }
+
+  void handleLandingWithEvent() {
+    final fallSpeed = velocity.y;
+    final isHard = fallSpeed > hardLandingThreshold;
+    double damage = 0;
+
+    if (isHard) {
+      final stunTime = math.min(1.0, (fallSpeed - hardLandingThreshold) / 200);
+      isStunned = true;
+      stunDuration = stunTime;
+
+      damage = (fallSpeed - hardLandingThreshold) / 50;
+      takeDamage(damage);
+
+      // Emit stun event
+      _eventBus.emit(CharacterStunnedEvent(
+        characterId: stats.name,
+        position: position.clone(),
+        duration: stunTime,
+        source: 'hard_landing',
+      ));
+    } else if (fallSpeed > 200) {
+      isLanding = true;
+      landingRecoveryTime = 0.25;
+    }
+
+    velocity.y = 0;
+
+    // Emit landed event
+    _eventBus.emit(CharacterLandedEvent(
+      characterId: stats.name,
+      position: position.clone(),
+      fallSpeed: fallSpeed,
+      isHardLanding: isHard,
+      damage: damage,
+    ));
+  }
+
+  void recoverFromStun() {
+    if (!isStunned) return;
+
+    isStunned = false;
+    stunDuration = 0;
+
+    _eventBus.emit(CharacterStunRecoveredEvent(
+      characterId: stats.name,
+      position: position.clone(),
+    ));
+  }
+
+  void breakGuard() {
+    if (!isBlocking) return;
+
+    stopBlock();
+    isStunned = true;
+    stunDuration = 0.5;
+
+    _eventBus.emit(CharacterGuardBrokenEvent(
+      characterId: stats.name,
+      position: position.clone(),
+      stunDuration: 0.5,
+    ));
+  }
+
+
+  void updateAnimationWithEvents() {
+    if (!spritesLoaded) return;
+
+    String newState = 'idle';
+
+    // Determine animation state
+    if (isStunned) {
+      newState = 'idle';
+    } else if (isAttacking && attackAnimation != null && attackAnimationTimer > 0) {
+      newState = 'attack';
+      animation = attackAnimation;
+    } else if (isLanding && landingAnimation != null && landingAnimationTimer > 0) {
+      newState = 'landing';
+      animation = landingAnimation;
+    } else if (isDodging) {
+      newState = 'dodge';
+      animation = walkAnimation;
+    } else if ((isAirborne || isJumping || jumpAnimationTimer > 0) && jumpAnimation != null) {
+      newState = 'jump';
+      animation = jumpAnimation;
+    } else if (velocity.x.abs() > 5) {
+      newState = 'walk';
+      animation = walkAnimation;
+    } else {
+      newState = 'idle';
+      animation = idleAnimation;
+    }
+
+    // Emit animation changed event if state changed
+    if (newState != _currentAnimationState) {
+      _eventBus.emit(CharacterAnimationChangedEvent(
+        characterId: stats.name,
+        position: position.clone(),
+        previousAnimation: _currentAnimationState,
+        newAnimation: newState,
+        isLooping: newState == 'idle' || newState == 'walk',
+      ));
+
+      _previousAnimationState = _currentAnimationState;
+      _currentAnimationState = newState;
+    }
+
+    // Apply facing direction
+    scale.x = facingRight ? 1 : -1;
+  }
+
 }

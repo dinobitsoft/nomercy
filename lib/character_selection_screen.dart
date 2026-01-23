@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:nomercy/managers/localization_manager.dart';
 
 import 'character_stats.dart';
 import 'game/stat/stats.dart';
@@ -99,7 +100,6 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                             label: 'UPGRADE',
                             color: Colors.greenAccent,
                             onTap: () {
-                              // TODO: Implement Upgrade Screen
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('Upgrade screen coming soon!'),
@@ -156,6 +156,13 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                 ],
               ),
 
+              // Settings / Language Toggle
+              Positioned(
+                top: 20,
+                left: 20,
+                child: _buildLanguageToggle(),
+              ),
+
               // Gamepad Connection Indicator
               Positioned(
                 top: 20,
@@ -200,6 +207,50 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLanguageToggle() {
+    return AnimatedBuilder(
+      animation: LocalizationManager(),
+      builder: (context, child) {
+        final currentLocale = LocalizationManager().locale;
+        return PopupMenuButton<Locale>(
+          initialValue: currentLocale,
+          onSelected: (Locale locale) {
+            LocalizationManager().setLocale(locale);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white24),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.language, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  currentLocale.languageCode.toUpperCase(),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          itemBuilder: (BuildContext context) => <PopupMenuEntry<Locale>>[
+            const PopupMenuItem<Locale>(
+              value: Locale('en'),
+              child: Text('English'),
+            ),
+            const PopupMenuItem<Locale>(
+              value: Locale('tr'),
+              child: Text('Türkçe'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -287,7 +338,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
           ),
           const SizedBox(height: 20),
           Text(
-            stats.name.toUpperCase(),
+            context.translate(stats.name.toLowerCase()).toUpperCase(),
             style: const TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
@@ -346,7 +397,6 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
     );
   }
 
-  // Single Player - Goes to mode selection
   void _startSinglePlayer(BuildContext context) {
     if (selectedCharacterClass == null) return;
 
@@ -360,11 +410,9 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
     );
   }
 
-  // Multiplayer - Goes to level selection with multiplayer enabled
   void _startMultiplayer(BuildContext context) {
     if (selectedCharacterClass == null) return;
 
-    // Show multiplayer info dialog first
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

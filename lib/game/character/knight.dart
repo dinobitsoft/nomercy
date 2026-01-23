@@ -7,7 +7,6 @@ import '../bot_tactic.dart';
 import '../game_character.dart';
 import '../stat/stats.dart';
 import '../tactic/aggressive_tactic.dart';
-
 class Knight extends GameCharacter {
   final EventBus _eventBus = EventBus();
 
@@ -28,22 +27,23 @@ class Knight extends GameCharacter {
     final moveSpeed = stats.dexterity / 2;
     final moveMultiplier = isAttackCommitted ? 0.3 : 1.0;
 
+    // REFACTORED: Use event-driven walk
     if (joystickDelta.x != 0 && !isBlocking) {
-      velocity.x = joystickDelta.x * moveSpeed * 100 * moveMultiplier;
-      facingRight = joystickDelta.x > 0;
+      final direction = Vector2(joystickDelta.x, 0);
+      performWalk(direction, moveSpeed * 100 * moveMultiplier);
     } else if (!isAttackCommitted && !isBlocking) {
-      velocity.x *= 0.7;
+      performStopWalk();
     }
 
     // Block with down input
     if (joystickDelta.y > 0.5 && groundPlatform != null) {
-      startBlock();
+      startBlock(); // Now emits event
       velocity.x = 0;
     } else {
-      stopBlock();
+      stopBlock(); // Now emits event
     }
 
-    // Jump
+    // REFACTORED: Use event-driven jump
     final joystickDirection = game.joystick.direction;
     if (joystickDirection == JoystickDirection.up &&
         groundPlatform != null &&
@@ -51,20 +51,15 @@ class Knight extends GameCharacter {
         !isAttackCommitted &&
         !isAirborne &&
         stamina >= 20) {
-      velocity.y = -500;
-      groundPlatform = null;
-      stamina -= 20;
-      isJumping = true;
-
-      _eventBus.emit(PlaySFXEvent(soundId: 'jump', volume: 0.7));
+      performJump(customPower: -500); // Knight has high jump
     }
 
-    // Dodge roll
+    // REFACTORED: Use event-driven dodge
     if (joystickDelta.length > 0.5 &&
         joystickDelta.y < -0.5 &&
         groundPlatform != null &&
         !isBlocking) {
-      dodge(Vector2(joystickDelta.x, 0));
+      dodge(Vector2(joystickDelta.x, 0)); // Now emits event
     }
   }
 
@@ -90,7 +85,7 @@ class Knight extends GameCharacter {
         projectile.direction.x > 0 ? -1 : 1,
         0,
       );
-      dodge(dodgeDir);
+      dodge(dodgeDir); // Now emits event
     }
 
     // Block when player attacking nearby
@@ -99,20 +94,25 @@ class Knight extends GameCharacter {
         game.player.isAttacking &&
         !isDodging &&
         stamina > 30) {
-      startBlock();
+      startBlock(); // Now emits event
     } else if (isBlocking &&
         (!game.player.isAttacking || distanceToPlayer > 150)) {
-      stopBlock();
+      stopBlock(); // Now emits event
     }
   }
 
   @override
   void attack() {
     if (isBlocking) return;
-    if (!prepareAttack()) return;
+
+    // REFACTORED: Use event-driven attack preparation
+    if (!prepareAttackWithEvent()) return;
 
     // Use combat system for attack processing
     final targets = playerType == PlayerType.human ? game.enemies : [game.player];
+
+    int targetsHit = 0;
+    double totalDamage = 0;
 
     for (final target in targets) {
       final distance = position.distanceTo(target.position);
@@ -125,6 +125,7 @@ class Knight extends GameCharacter {
 
         if (facingTarget || distance < 50) {
           // Process attack through combat system
+          final damage = stats.attackDamage * (1.0 + (comboCount - 1) * 0.2);
           game.combatSystem.processAttack(
             attacker: this,
             target: target,
@@ -138,8 +139,17 @@ class Knight extends GameCharacter {
           if (comboCount >= 3) {
             target.velocity.y = -100;
           }
+
+          targetsHit++;
+          totalDamage += damage;
         }
       }
+    }
+
+    // Emit attack completed event with results
+    // (This is normally done in update() but we can update it here)
+    if (targetsHit > 0) {
+      print('Knight hit $targetsHit targets for ${totalDamage.toInt()} damage');
     }
   }
 }
