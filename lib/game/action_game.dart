@@ -66,6 +66,8 @@ class ActionGame extends FlameGame
 
   late GameCharacter player;
   final List<GameCharacter> enemies = [];
+  final Map<String, GameCharacter> _characterRegistry = {};
+
   final List<Projectile> projectiles = [];
   final List<TiledPlatform> platforms = [];
   final List<Chest> chests = [];
@@ -178,27 +180,37 @@ class ActionGame extends FlameGame
       selectedCharacterClass,
       Vector2(gameMap.playerSpawn.x, gameMap.playerSpawn.y),
       PlayerType.human,
+      customId: 'player_main', // Explicit player ID
     );
     player.priority = 100;
     world.add(player);
+
+    // Register player
+    _registerCharacter(player);
 
     // Create BOT enemies
     final botConfigs = [
       {'class': 'knight', 'x': 600.0, 'tactic': AggressiveTactic()},
       {'class': 'thief', 'x': 1000.0, 'tactic': BalancedTactic()},
+      {'class': 'trader', 'x': 1000.0, 'tactic': BalancedTactic()},
       {'class': 'wizard', 'x': 1400.0, 'tactic': DefensiveTactic()},
     ];
 
-    for (final config in botConfigs) {
+    for (int i = 0; i < botConfigs.length; i++) {
+      final config = botConfigs[i];
       final bot = _createCharacter(
         config['class'] as String,
         Vector2(config['x'] as double, gameMap.playerSpawn.y),
         PlayerType.bot,
         botTactic: config['tactic'] as BotTactic,
+        customId: 'bot_${config['class']}_$i', // Unique bot ID
       );
       bot.priority = 90;
       world.add(bot);
       enemies.add(bot);
+
+      // Register bot
+      _registerCharacter(bot);
     }
 
     // Setup camera
@@ -247,12 +259,54 @@ class ActionGame extends FlameGame
     print('✅ ActionGame: Fully initialized');
   }
 
+  // NEW: Register character in registry
+  void _registerCharacter(GameCharacter character) {
+    _characterRegistry[character.uniqueId] = character;
+    print('✅ Registered character: ${character.uniqueId} (${character.stats.name}, ${character.playerType})');
+  }
+
+  // NEW: Unregister character from registry
+  void _unregisterCharacter(GameCharacter character) {
+    _characterRegistry.remove(character.uniqueId);
+    print('❌ Unregistered character: ${character.uniqueId}');
+  }
+
+  // NEW: Find character by unique ID
+  GameCharacter? findCharacterById(String uniqueId) {
+    return _characterRegistry[uniqueId];
+  }
+
+  // NEW: Check if character is the player
+  bool isPlayerCharacter(GameCharacter character) {
+    return character.uniqueId == player.uniqueId;
+  }
+
+  // NEW: Check if character is a bot
+  bool isBotCharacter(GameCharacter character) {
+    return enemies.any((e) => e.uniqueId == character.uniqueId);
+  }
+
   void _setupEventListeners() {
-    _subscriptions.add(eventBus.on<CharacterKilledEvent>(_onCharacterKilled, priority: ListenerPriority.highest));
-    _subscriptions.add(eventBus.on<EnemySpawnedEvent>(_onEnemySpawned, priority: ListenerPriority.high));
-    _subscriptions.add(eventBus.on<GameOverEvent>(_onGameOver, priority: ListenerPriority.highest));
-    _subscriptions.add(eventBus.on<GamePausedEvent>(_onGamePaused, priority: ListenerPriority.high));
-    _subscriptions.add(eventBus.on<GameResumedEvent>(_onGameResumed, priority: ListenerPriority.high));
+    _subscriptions.add(eventBus.on<CharacterKilledEvent>(
+        _onCharacterKilled,
+        priority: ListenerPriority.highest
+    ));
+    _subscriptions.add(eventBus.on<EnemySpawnedEvent>(
+        _onEnemySpawned,
+        priority: ListenerPriority.high
+    ));
+    _subscriptions.add(eventBus.on<GameOverEvent>(
+        _onGameOver,
+        priority: ListenerPriority.highest
+    ));
+    _subscriptions.add(eventBus.on<GamePausedEvent>(
+        _onGamePaused,
+        priority: ListenerPriority.high
+    ));
+    _subscriptions.add(eventBus.on<GameResumedEvent>(
+        _onGameResumed,
+        priority: ListenerPriority.high
+    ));
   }
 
   @override
@@ -327,24 +381,39 @@ class ActionGame extends FlameGame
   }
 
   void _onCharacterKilled(CharacterKilledEvent event) {
-    if (event.victimId == player.stats.name) {
+    print('💀 Character killed event: victimId=${event.victimId}');
+
+    // Try to find the character by the victimId (which should be uniqueId)
+    final victim = findCharacterById(event.victimId);
+
+    if (victim == null) {
+      print('⚠️ Warning: Could not find victim with ID: ${event.victimId}');
+      return;
+    }
+
+    // Check if it's the player using unique ID comparison
+    if (isPlayerCharacter(victim)) {
+      print('💀 PLAYER DIED: ${victim.stats.name}');
       _handlePlayerDeath();
       return;
     }
 
-    final enemy = enemies.firstWhere(
-          (e) => e.stats.name == event.victimId,
-      orElse: () => null as GameCharacter,
-    );
-
-    if (enemy != null) {
-      _handleEnemyDeath(enemy, event);
+    // Check if it's a bot using unique ID comparison
+    if (isBotCharacter(victim)) {
+      print('💀 BOT DIED: ${victim.stats.name} (${victim.uniqueId})');
+      _handleEnemyDeath(victim, event);
+      return;
     }
+
+    print('⚠️ Warning: Character ${event.victimId} is neither player nor registered bot');
   }
 
   void _handlePlayerDeath() {
     isGameOver = true;
     final playTime = DateTime.now().difference(gameStartTime!);
+
+    print('☠️ GAME OVER - Player died');
+
     eventBus.emit(GameOverEvent(
       reason: 'death',
       finalScore: player.stats.money,
@@ -356,14 +425,51 @@ class ActionGame extends FlameGame
   }
 
   void _handleEnemyDeath(GameCharacter enemy, CharacterKilledEvent event) {
+    print('💀 Handling bot death: ${enemy.stats.name} (${enemy.uniqueId})');
+
     player.stats.money += event.bountyGold;
     enemiesDefeated++;
-    enemies.remove(enemy);
+
+    // Remove from tracking list FIRST
+    final wasRemoved = enemies.remove(enemy);
+    print('  - Removed from enemies list: $wasRemoved');
+
+    // Unregister from character registry
+    _unregisterCharacter(enemy);
+
+    // Stop all animations and clear state
+    enemy.health = 0;
+    enemy.velocity = Vector2.zero();
+    enemy.animation = null;
+
+    // Remove from component tree
     enemy.removeFromParent();
-    world.remove(enemy);
+
+    // Remove from world explicitly
+    if (world.children.contains(enemy)) {
+      world.remove(enemy);
+      print('  - Removed from world');
+    } else {
+      world.remove(enemy);
+
+    }
+
+    // Additional cleanup
+    if (enemy.isMounted) {
+      // enemy.removed(); //TODO: implement this method
+      print('  - Called removed() lifecycle');
+    }
+
+    print('✅ Bot fully removed: ${enemy.stats.name} (${enemy.uniqueId})');
+    print('  - Remaining enemies: ${enemies.length}');
+    print('  - Registered characters: ${_characterRegistry.length}');
+
+    // Drop loot
     if (event.shouldDropLoot) {
       itemSystem.dropLoot(event.deathPosition);
     }
+
+    // Update HUD
     eventBus.emit(UpdateHUDEvent(element: 'kills', value: enemiesDefeated));
     eventBus.emit(UpdateHUDEvent(element: 'gold', value: player.stats.money));
   }
@@ -374,6 +480,7 @@ class ActionGame extends FlameGame
       enemy.priority = 90;
       world.add(enemy);
       enemies.add(enemy);
+      print('✅ Spawned enemy: ${enemy.uniqueId}');
     }
   }
 
@@ -450,20 +557,79 @@ class ActionGame extends FlameGame
     ));
   }
 
-  GameCharacter _createCharacter(String characterClass, Vector2 position, PlayerType playerType, {BotTactic? botTactic}) {
+  GameCharacter _createCharacter(
+      String characterClass,
+      Vector2 position,
+      PlayerType playerType, {
+        BotTactic? botTactic,
+        String? customId,
+      }) {
     switch (characterClass.toLowerCase()) {
-      case 'knight': return Knight(position: position, playerType: playerType, botTactic: botTactic);
-      case 'thief': return Thief(position: position, playerType: playerType, botTactic: botTactic);
-      case 'wizard': return Wizard(position: position, playerType: playerType, botTactic: botTactic);
-      case 'trader': return Trader(position: position, playerType: playerType, botTactic: botTactic);
-      default: return Knight(position: position, playerType: playerType, botTactic: botTactic);
+      case 'knight':
+        return Knight(
+          position: position,
+          playerType: playerType,
+          botTactic: botTactic,
+          customId: customId,
+        );
+      case 'thief':
+        return Thief(
+          position: position,
+          playerType: playerType,
+          botTactic: botTactic,
+          customId: customId,
+        );
+      case 'wizard':
+        return Wizard(
+          position: position,
+          playerType: playerType,
+          botTactic: botTactic,
+          customId: customId,
+        );
+      case 'trader':
+        return Trader(
+          position: position,
+          playerType: playerType,
+          botTactic: botTactic,
+          customId: customId,
+        );
+      default:
+        return Knight(
+          position: position,
+          playerType: playerType,
+          botTactic: botTactic,
+          customId: customId,
+        );
     }
   }
 
+
   GameCharacter? _createEnemy(String enemyType, Vector2 position) {
-    final tactics = [AggressiveTactic(), BalancedTactic(), DefensiveTactic(), TacticalTactic()];
+    final tactics = [
+      AggressiveTactic(),
+      BalancedTactic(),
+      DefensiveTactic(),
+      TacticalTactic()
+    ];
     final randomTactic = tactics[math.Random().nextInt(tactics.length)];
-    return _createCharacter(enemyType, position, PlayerType.bot, botTactic: randomTactic);
+
+    // Generate unique ID for spawned enemy
+    final enemyId = 'spawned_${enemyType}_${DateTime.now().millisecondsSinceEpoch}';
+
+    final enemy = _createCharacter(
+      enemyType,
+      position,
+      PlayerType.bot,
+      botTactic: randomTactic,
+      customId: enemyId,
+    );
+
+    // Register the new enemy
+    if (enemy != null) {
+      _registerCharacter(enemy);
+    }
+
+    return enemy;
   }
 
   void addToInventory(Item item) => inventory.add(item);
@@ -510,6 +676,9 @@ class ActionGame extends FlameGame
 
   @override
   void onRemove() {
+    // Clear character registry
+    _characterRegistry.clear();
+
     for (final sub in _subscriptions) sub.cancel();
     _subscriptions.clear();
     combatSystem.dispose();

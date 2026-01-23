@@ -330,7 +330,7 @@ class WaveSystem {
     enemiesDefeatedThisWave++;
     totalEnemiesDefeated++;
 
-    print('💀 Enemy defeated: ${enemiesDefeatedThisWave}/$enemiesInWave');
+    print('💀 Enemy defeated: $enemiesDefeatedThisWave/$enemiesInWave');
   }
 
   void _onGameStarted(GameStartedEvent event) {

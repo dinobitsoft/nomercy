@@ -61,6 +61,14 @@ flutter:
     - assets/images/dower_chest.png
     - assets/images/dower_chest_opened.png
     - assets/images/health_potion.png
+    - assets/audio/hit.wav
+    - assets/audio/death.wav
+    - assets/audio/jump.wav
+    - assets/audio/block.wav
+    - assets/audio/combo.wav
+    - assets/audio/dagger_shot.wav
+    - assets/audio/arrow_shot.wav
+    - assets/audio/battle_theme.wav
     - assets/maps/
     - assets/maps/level_1.json
     - assets/maps/level_2.json

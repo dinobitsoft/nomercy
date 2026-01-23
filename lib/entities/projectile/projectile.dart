@@ -40,6 +40,17 @@ class Projectile extends PositionComponent with HasGameReference<ActionGame> {
   }
 
   @override
+  void onLoad() async {
+    super.onLoad();
+
+    // FIX: Ensure projectile is always visible by setting explicit render priority
+    // This prevents it from being hidden behind other components
+    priority = 75; // Between platforms (10) and characters (90-100)
+
+    print('🎯 Projectile loaded: type=$type, position=$position, color=$color, priority=$priority');
+  }
+
+  @override
   void update(double dt) {
     super.update(dt);
 
@@ -170,6 +181,9 @@ class Projectile extends PositionComponent with HasGameReference<ActionGame> {
       default:
         _renderDefault(canvas);
     }
+
+    // Uncomment this line to debug projectile visibility issues:
+    // _renderDebugInfo(canvas);
   }
 
   void _renderTrail(Canvas canvas) {
@@ -196,48 +210,55 @@ class Projectile extends PositionComponent with HasGameReference<ActionGame> {
   }
 
   void _renderFireball(Canvas canvas) {
-    // Outer glow
+    // FIX: Make fireball more visible with enhanced effects
+
+    // Outer glow - make it bigger and brighter
     final glowPaint = Paint()
-      ..color = Colors.orange.withOpacity(0.4)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-    canvas.drawCircle(Offset.zero, 15, glowPaint);
+      ..color = Colors.orange.withOpacity(0.6) // Increased from 0.4
+      ..maskFilter = const MaskFilter.blur(
+          BlurStyle.normal, 12); // Increased from 8
+    canvas.drawCircle(Offset.zero, 20, glowPaint); // Increased from 15
 
     // Pulsing effect
     final pulseScale = 1.0 + math.sin(pulseTimer * 10) * 0.2;
 
-    // Main fireball
+    // Main fireball - make it larger
     final gradient = RadialGradient(
       colors: [
         Colors.yellow,
         Colors.orange,
-        Colors.red.withOpacity(0.8),
+        Colors.red.withOpacity(0.9), // Increased opacity
       ],
       stops: const [0.0, 0.5, 1.0],
     );
 
-    final rect = Rect.fromCircle(center: Offset.zero, radius: 10 * pulseScale);
-    final paint = Paint()..shader = gradient.createShader(rect);
-    canvas.drawCircle(Offset.zero, 10 * pulseScale, paint);
+    final rect = Rect.fromCircle(
+        center: Offset.zero, radius: 12 * pulseScale); // Increased from 10
+    final paint = Paint()
+      ..shader = gradient.createShader(rect);
+    canvas.drawCircle(Offset.zero, 12 * pulseScale, paint);
 
-    // Inner core
+    // Inner core - brighter
     canvas.drawCircle(
       Offset.zero,
-      5 * pulseScale,
-      Paint()..color = Colors.white.withOpacity(0.8),
+      6 * pulseScale, // Increased from 5
+      Paint()
+        ..color = Colors.white.withOpacity(0.9), // Increased opacity
     );
 
-    // Flame particles
+    // Flame particles - more visible
     final random = math.Random(position.x.toInt());
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 8; i++) { // Increased from 5
       final angle = random.nextDouble() * math.pi * 2;
-      final distance = random.nextDouble() * 8;
+      final distance = random.nextDouble() * 10; // Increased from 8
       final x = math.cos(angle) * distance;
       final y = math.sin(angle) * distance;
 
       canvas.drawCircle(
         Offset(x, y),
-        random.nextDouble() * 2 + 1,
-        Paint()..color = Colors.yellow.withOpacity(0.6),
+        random.nextDouble() * 3 + 1, // Increased size
+        Paint()
+          ..color = Colors.yellow.withOpacity(0.8), // Increased opacity
       );
     }
   }
@@ -378,5 +399,26 @@ class Projectile extends PositionComponent with HasGameReference<ActionGame> {
       color: color,
     );
     game.add(impact);
+  }
+
+  void _renderDebugInfo(Canvas canvas) {
+    // Only in debug mode - you can disable this later
+    final debugPaint = Paint()
+      ..color = Colors.yellow
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    // Draw bounding box
+    canvas.drawCircle(Offset.zero, 15, debugPaint);
+
+    // Draw direction indicator
+    final dirLine = direction * 20;
+    canvas.drawLine(
+      Offset.zero,
+      Offset(dirLine.x, dirLine.y),
+      Paint()
+        ..color = Colors.red
+        ..strokeWidth = 3,
+    );
   }
 }

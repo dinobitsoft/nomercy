@@ -17,6 +17,7 @@ class Thief extends GameCharacter {
     required super.position,
     required super.playerType,
     BotTactic? botTactic,
+    super.customId,
   }) : super(
     botTactic: botTactic ?? BalancedTactic(),
     stats: ThiefStats(),
