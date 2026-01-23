@@ -87,13 +87,13 @@ class Weapon extends Item {
   final double intelligenceBonus;
 
   Weapon({
-    required String id,
-    required String name,
-    required String description,
+    required super.id,
+    required super.name,
+    required super.description,
     required this.weaponType,
     required this.damage,
     required this.range,
-    required int value,
+    required super.value,
     this.attackSpeed = 1.0,
     this.projectileType = 'projectile',
     this.projectileColor = Colors.grey,
@@ -102,11 +102,7 @@ class Weapon extends Item {
     this.dexterityBonus = 0,
     this.intelligenceBonus = 0,
   }) : super(
-    id: id,
-    name: name,
-    description: description,
     type: ItemType.weapon,
-    value: value,
     iconAsset: '${weaponType.name}_icon.png',
   );
 

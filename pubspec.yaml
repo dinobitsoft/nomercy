@@ -10,6 +10,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
   flame: ^1.17.0
   flame_forge2d: ^0.17.0
   flame_audio: ^2.11.12
@@ -24,19 +27,33 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
+  generate: true
   uses-material-design: true
   assets:
     - assets/images/knight.png
     - assets/images/knight_attack.png
     - assets/images/knight_jump.png
     - assets/images/knight_walk.png
+    - assets/images/knight_idle.png
     - assets/images/knight_landing.png
     - assets/images/thief.png
     - assets/images/thief_attack.png
+    - assets/images/thief_jump.png
+    - assets/images/thief_walk.png
+    - assets/images/thief_idle.png
+    - assets/images/thief_landing.png
     - assets/images/wizard.png
-    - assets/images/trader.png
     - assets/images/wizard_attack.png
+    - assets/images/wizard_jump.png
+    - assets/images/wizard_walk.png
+    - assets/images/wizard_idle.png
+    - assets/images/wizard_landing.png
+    - assets/images/trader.png
     - assets/images/trader_attack.png
+    - assets/images/trader_jump.png
+    - assets/images/trader_walk.png
+    - assets/images/trader_idle.png
+    - assets/images/trader_landing.png
     - assets/images/brick.png
     - assets/images/ground.png
     - assets/images/brick_tile.png

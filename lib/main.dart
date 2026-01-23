@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nomercy/managers/localization_manager.dart';
 
 import 'character_selection_screen.dart';
 
@@ -25,11 +26,17 @@ class GameApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '2D Action Game',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(),
-      home: const CharacterSelectionScreen(),
+    return AnimatedBuilder(
+      animation: LocalizationManager(),
+      builder: (context, child) {
+        return MaterialApp(
+          title: LocalizationManager().translate('game_title'),
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData.dark(),
+          locale: LocalizationManager().locale,
+          home: const CharacterSelectionScreen(),
+        );
+      },
     );
   }
 }

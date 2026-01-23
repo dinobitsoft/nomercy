@@ -18,6 +18,7 @@ import '../game_mode.dart';
 import '../gamepad_manager.dart';
 import '../hud.dart';
 import '../item/item.dart';
+import '../item/item_drop.dart';
 import '../managers/network_manager.dart';
 import '../map/map_generator_config.dart';
 import '../map/map_loader.dart';
@@ -67,6 +68,7 @@ class ActionGame extends FlameGame
   final List<TiledPlatform> platforms = [];
   final List<Chest> chests = [];
   final List<Item> inventory = [];
+  final List<ItemDrop> itemDrops = []; // FIX: Added itemDrops list
   Weapon? equippedWeapon;
 
   late JoystickComponent joystick;
@@ -146,16 +148,27 @@ class ActionGame extends FlameGame
       platforms.add(platform);
     }
 
-    // Create chests
+    // FIX: Create chests from map data
     for (final chestData in gameMap.chests) {
       final chest = Chest(
         position: Vector2(chestData.x, chestData.y),
         data: chestData,
       );
       chest.priority = 50;
-      add(chest);
       world.add(chest);
       chests.add(chest);
+    }
+
+    // FIX: Create items from map data
+    for (final itemData in gameMap.items) {
+      final item = itemData.toItem();
+      final itemDrop = ItemDrop(
+        position: Vector2(itemData.x, itemData.y),
+        item: item,
+      );
+      itemDrop.priority = 50;
+      world.add(itemDrop);
+      itemDrops.add(itemDrop);
     }
 
     // Create player
@@ -170,7 +183,7 @@ class ActionGame extends FlameGame
 
     // Create BOT enemies with different tactics
     final botConfigs = [
-      {'class': 'knight', 'x': 600.0, 'tactic': AggressiveTactic()},  //TODO: fix hardcoded spawn points
+      {'class': 'knight', 'x': 600.0, 'tactic': AggressiveTactic()},
       {'class': 'thief', 'x': 1000.0, 'tactic': BalancedTactic()},
       {'class': 'wizard', 'x': 1400.0, 'tactic': DefensiveTactic()},
     ];
@@ -182,6 +195,7 @@ class ActionGame extends FlameGame
         PlayerType.bot,
         botTactic: config['tactic'] as BotTactic,
       );
+      bot.priority = 100; // Higher than terrain (10), slightly lower than player (100)
       add(bot);
       world.add(bot);
       enemies.add(bot);
@@ -373,10 +387,8 @@ class ActionGame extends FlameGame
       orElse: () => null as GameCharacter,
     );
 
-    if (enemy != null) {
-      _handleEnemyDeath(enemy, event);
+    _handleEnemyDeath(enemy, event);
     }
-  }
 
   void _handlePlayerDeath() {
     isGameOver = true;
@@ -397,8 +409,15 @@ class ActionGame extends FlameGame
     player.stats.money += event.bountyGold;
     enemiesDefeated++;
 
+    // FIX: Properly remove enemy from both list and game world
     enemies.remove(enemy);
-    enemy.removeFromParent();
+    enemy.removeFromParent(); // This removes from parent component
+    // world.children.remove(enemy); // Ensure it's removed from world
+    world.remove(enemy);
+    // FIX: Drop loot when enemy dies
+    if (event.shouldDropLoot) {
+      itemSystem.dropLoot(event.deathPosition);
+    }
 
     // Update HUD
     eventBus.emit(UpdateHUDEvent(element: 'kills', value: enemiesDefeated));
@@ -408,6 +427,7 @@ class ActionGame extends FlameGame
   void _onEnemySpawned(EnemySpawnedEvent event) {
     final enemy = _createEnemy(event.enemyType, event.spawnPosition);
     if (enemy != null) {
+      enemy.priority = 100; // Ensure spawned enemies also have higher priority than terrain
       add(enemy);
       world.add(enemy);
       enemies.add(enemy);
@@ -493,6 +513,8 @@ class ActionGame extends FlameGame
       type: _getProjectileType(shooter),
     );
 
+    // FIX: Ensure projectile is added with proper priority
+    projectile.priority = 75; // Between characters (100) and platforms (10)
     add(projectile);
     world.add(projectile);
     projectiles.add(projectile);
@@ -519,7 +541,7 @@ class ActionGame extends FlameGame
 
     eventBus.emit(ChestOpenedEvent(
       chestId: chest.data.id.toString(),
-      reward: 'Health Potion', // Based on chest.reward
+      reward: 'Health Potion',
       position: chest.position,
     ));
   }
@@ -648,7 +670,6 @@ class ActionGame extends FlameGame
 
   void openInventory() {
     pauseEngine();
-    // This will be called from game_screen.dart
   }
 
   // ==========================================
@@ -657,25 +678,21 @@ class ActionGame extends FlameGame
 
   @override
   void onRemove() {
-    // Cancel subscriptions
     for (final sub in _subscriptions) {
       sub.cancel();
     }
     _subscriptions.clear();
 
-    // Dispose systems
     combatSystem.dispose();
     waveSystem.dispose();
     audioSystem.dispose();
     itemSystem.dispose();
     uiSystem.dispose();
 
-    // Disconnect multiplayer
     if (enableMultiplayer) {
       NetworkManager().disconnect();
     }
 
-    // Print final stats
     print('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     print('GAME SESSION ENDED');
     print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -686,9 +703,6 @@ class ActionGame extends FlameGame
     super.onRemove();
   }
 }
-
-
-
 
 class UIGradient {
   static Paint linear(Offset from, Offset to, List<Color> colors) {

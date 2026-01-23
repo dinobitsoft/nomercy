@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
+import '../core/game_event.dart';
 import '../game/action_game.dart';
 import '../game/game_character.dart';
 import 'item.dart';
@@ -48,8 +49,8 @@ class ItemDrop extends PositionComponent with HasGameReference<ActionGame> {
     final distance = position.distanceTo(player.position);
     isPlayerNear = distance < 80;
 
-    // Auto-pickup if very close
-    if (distance < 50) {
+    // FIX: Auto-pickup if very close (increased range)
+    if (distance < 60) {
       pickup(player);
     }
   }
@@ -59,15 +60,31 @@ class ItemDrop extends PositionComponent with HasGameReference<ActionGame> {
       final potion = item as HealthPotion;
       player.health = math.min(100, player.health + potion.healAmount);
       _showPickupText('+${potion.healAmount.toInt()} HP', Colors.green);
+
+      // Emit pickup event for ItemSystem
+      game.eventBus.emit(ItemPickedUpEvent(
+        characterId: player.stats.name,
+        itemId: item.id,
+        itemType: item.type,
+        itemName: item.name,
+      ));
     } else if (item is Weapon) {
       final weapon = item as Weapon;
       game.addToInventory(item);
       _showPickupText('${weapon.name}', Colors.orange);
+
+      // Emit pickup event for ItemSystem
+      game.eventBus.emit(ItemPickedUpEvent(
+        characterId: player.stats.name,
+        itemId: item.id,
+        itemType: item.type,
+        itemName: item.name,
+      ));
     }
 
-    // Remove from game
+    // FIX: The event handler in ItemSystem will handle removal
+    // Just mark for removal here
     removeFromParent();
-    // game.itemDrops.remove(this); // TODO: think about this
   }
 
   void _showPickupText(String text, Color color) {
@@ -110,14 +127,14 @@ class ItemDrop extends PositionComponent with HasGameReference<ActionGame> {
 
     // Item background circle
     final bgColor = item is HealthPotion
-        ? Colors.green.withOpacity(0.8)
+        ? Colors.red.withOpacity(0.0)
         : Colors.orange.withOpacity(0.8);
 
-    canvas.drawCircle(
-      Offset.zero,
-      30,
-      Paint()..color = bgColor,
-    );
+    // canvas.drawCircle(
+    //   Offset.zero,
+    //   100,
+    //   Paint()..color = bgColor,
+    // );
 
     // Item sprite or icon
     if (sprite != null) {
@@ -132,14 +149,14 @@ class ItemDrop extends PositionComponent with HasGameReference<ActionGame> {
     }
 
     // Border
-    canvas.drawCircle(
-      Offset.zero,
-      30,
-      Paint()
-        ..color = Colors.white.withOpacity(0.8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
-    );
+    // canvas.drawCircle(
+    //   Offset.zero,
+    //   30,
+    //   Paint()
+    //     ..color = Colors.white.withOpacity(0.8)
+    //     ..style = PaintingStyle.stroke
+    //     ..strokeWidth = 3,
+    // );
 
     // Pickup hint
     if (isPlayerNear) {
