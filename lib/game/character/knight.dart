@@ -23,29 +23,44 @@ class Knight extends GameCharacter {
   void updateHumanControl(double dt) {
     if (isStunned || isLanding || isDodging) return;
 
-    final joystickDelta = game.joystick.relativeDelta;
+    // ==========================================
+    // UNIFIED INPUT: Touch Joystick + Gamepad
+    // ==========================================
+    final gamepad = game.gamepadManager;
+
+    // Combine touch joystick and gamepad joystick
+    Vector2 inputDelta = game.joystick.relativeDelta;
+
+    // If gamepad is connected and has input, use gamepad instead
+    if (gamepad.isGamepadConnected && gamepad.hasMovementInput()) {
+      inputDelta = gamepad.getJoystickDirection();
+    }
+
     final moveSpeed = stats.dexterity / 2;
     final moveMultiplier = isAttackCommitted ? 0.3 : 1.0;
 
-    // REFACTORED: Use event-driven walk
-    if (joystickDelta.x != 0 && !isBlocking) {
-      final direction = Vector2(joystickDelta.x, 0);
+    // MOVEMENT
+    if (inputDelta.x != 0 && !isBlocking) {
+      final direction = Vector2(inputDelta.x, 0);
       performWalk(direction, moveSpeed * 100 * moveMultiplier);
     } else if (!isAttackCommitted && !isBlocking) {
       performStopWalk();
     }
 
-    // Block with down input
-    if (joystickDelta.y > 0.5 && groundPlatform != null) {
-      startBlock(); // Now emits event
+    // BLOCK (Down on joystick or Y button on gamepad)
+    bool blockInput = inputDelta.y > 0.5 || gamepad.isBlockPressed;
+    if (blockInput && groundPlatform != null) {
+      startBlock();
       velocity.x = 0;
     } else {
-      stopBlock(); // Now emits event
+      stopBlock();
     }
 
-    // REFACTORED: Use event-driven jump
-    final joystickDirection = game.joystick.direction;
-    if (joystickDirection == JoystickDirection.up &&
+    // JUMP (Up on joystick or A button on gamepad)
+    bool jumpInput = (game.joystick.direction == JoystickDirection.up) ||
+        gamepad.isJumpPressed;
+
+    if (jumpInput &&
         groundPlatform != null &&
         !isBlocking &&
         !isAttackCommitted &&
@@ -54,12 +69,17 @@ class Knight extends GameCharacter {
       performJump(customPower: -500); // Knight has high jump
     }
 
-    // REFACTORED: Use event-driven dodge
-    if (joystickDelta.length > 0.5 &&
-        joystickDelta.y < -0.5 &&
+    // DODGE (Diagonal down or B button on gamepad)
+    bool dodgeInput = (inputDelta.length > 0.5 && inputDelta.y < -0.5) ||
+        gamepad.isDodgePressed;
+
+    if (dodgeInput &&
         groundPlatform != null &&
         !isBlocking) {
-      dodge(Vector2(joystickDelta.x, 0)); // Now emits event
+      final dodgeDirection = inputDelta.x != 0
+          ? Vector2(inputDelta.x, 0)
+          : Vector2(facingRight ? 1 : -1, 0);
+      dodge(dodgeDirection);
     }
   }
 

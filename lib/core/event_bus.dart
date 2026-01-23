@@ -32,9 +32,9 @@ enum ListenerPriority {
 }
 
 /// Event listener wrapper
-class _EventListener<T extends GameEvent> {
+class _EventListener {
   final String id;
-  final EventCallback<T> callback;
+  final void Function(GameEvent) callback;
   final ListenerPriority priority;
   final bool once; // Auto-unsubscribe after first trigger
 
@@ -85,10 +85,14 @@ class EventBus {
     final type = T;
     final listenerId = '${type}_${DateTime.now().millisecondsSinceEpoch}';
 
-    // Create listener
-    final listener = _EventListener<T>(
+    // Create listener with a wrapped callback to avoid type mismatch
+    final listener = _EventListener(
       id: listenerId,
-      callback: callback,
+      callback: (GameEvent event) {
+        if (event is T) {
+          callback(event);
+        }
+      },
       priority: priority,
       once: once,
     );

@@ -26,56 +26,69 @@ class Thief extends GameCharacter {
   void updateHumanControl(double dt) {
     if (isStunned || isLanding || isDodging) return;
 
-    final joystickDelta = game.joystick.relativeDelta;
+    // Unified input: Touch + Gamepad
+    final gamepad = game.gamepadManager;
+    Vector2 inputDelta = game.joystick.relativeDelta;
+
+    if (gamepad.isGamepadConnected && gamepad.hasMovementInput()) {
+      inputDelta = gamepad.getJoystickDirection();
+    }
+
     final moveSpeed = stats.dexterity / 2;
     final moveMultiplier = isAttackCommitted ? 0.5 : 1.0;
 
-    if (joystickDelta.x != 0 && !isBlocking) {
-      velocity.x = joystickDelta.x * moveSpeed * 100 * moveMultiplier;
-      facingRight = joystickDelta.x > 0;
+    // MOVEMENT
+    if (inputDelta.x != 0 && !isBlocking) {
+      final direction = Vector2(inputDelta.x, 0);
+      performWalk(direction, moveSpeed * 100 * moveMultiplier);
     } else if (!isAttackCommitted && !isBlocking) {
-      velocity.x *= 0.7;
+      performStopWalk();
     }
 
-    if (joystickDelta.y > 0.5 && groundPlatform != null) {
+    // BLOCK
+    bool blockInput = inputDelta.y > 0.5 || gamepad.isBlockPressed;
+    if (blockInput && groundPlatform != null) {
       startBlock();
       velocity.x = 0;
     } else {
       stopBlock();
     }
 
-    final joystickDirection = game.joystick.direction;
-    if (joystickDirection == JoystickDirection.up &&
+    // JUMP (Thief has high jump)
+    bool jumpInput = (game.joystick.direction == JoystickDirection.up) ||
+        gamepad.isJumpPressed;
+
+    if (jumpInput &&
         groundPlatform != null &&
         !isBlocking &&
         !isAttackCommitted &&
         !isAirborne &&
         stamina >= 15) {
-      velocity.y = -320;
-      groundPlatform = null;
-      stamina -= 15;
-      isJumping = true;
-
-      _eventBus.emit(PlaySFXEvent(soundId: 'jump', volume: 0.7));
+      performJump(customPower: -320);
     }
 
-    if (joystickDelta.length > 0.5 &&
-        joystickDelta.y < -0.5 &&
-        groundPlatform != null &&
-        !isBlocking) {
-      dodge(Vector2(joystickDelta.x, 0));
+    // DODGE
+    bool dodgeInput = (inputDelta.length > 0.5 && inputDelta.y < -0.5) ||
+        gamepad.isDodgePressed;
+
+    if (dodgeInput && groundPlatform != null && !isBlocking) {
+      final dodgeDirection = inputDelta.x != 0
+          ? Vector2(inputDelta.x, 0)
+          : Vector2(facingRight ? 1 : -1, 0);
+      dodge(dodgeDirection);
     }
   }
 
   @override
   void updateBotControl(double dt) {
-    if (botTactic != null && !isStunned && !isLanding) {
+    if (botTactic != null && !isStunned && !isLanding && health > 0) {
       botTactic!.execute(this, game.player, dt);
       _botAdvancedMechanics(dt);
     }
   }
 
   void _botAdvancedMechanics(double dt) {
+    // Thief prefers dodging over blocking
     final nearbyProjectiles = game.projectiles.where((p) {
       return p.owner != null &&
           position.distanceTo(p.position) < 200 &&
@@ -94,8 +107,10 @@ class Thief extends GameCharacter {
 
   @override
   void attack() {
-    if (isBlocking) return;
-    if (!prepareAttack()) return;
+    if (isBlocking || health <= 0) return;
+
+    // REFACTORED: Use event-driven attack preparation
+    if (!prepareAttackWithEvent()) return;
 
     // Throwing knives - multiple projectiles on combo
     final knifeCount = comboCount >= 3 ? 3 : 1;
@@ -120,7 +135,6 @@ class Thief extends GameCharacter {
       game.world.add(projectile);
       game.projectiles.add(projectile);
 
-      // Emit projectile fired event
       _eventBus.emit(ProjectileFiredEvent(
         shooterId: stats.name,
         projectileType: 'knife',
@@ -130,7 +144,7 @@ class Thief extends GameCharacter {
       ));
     }
 
-    // Play sound
     _eventBus.emit(PlaySFXEvent(soundId: 'dagger_shot', volume: 0.8));
   }
+
 }
