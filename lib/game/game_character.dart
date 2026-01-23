@@ -267,119 +267,23 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
   void update(double dt) {
     super.update(dt);
 
-    // Update timers (existing code)
-    if (attackCooldown > 0) attackCooldown -= dt;
-    if (dodgeCooldown > 0) dodgeCooldown -= dt;
-    if (comboTimer > 0) {
-      comboTimer -= dt;
-      if (comboTimer <= 0) {
-        // Emit combo broken event
-        if (comboCount > 1) {
-          _eventBus.emit(CharacterComboBrokenEvent(
-            characterId: stats.name,
-            position: position.clone(),
-            maxComboReached: comboCount,
-            reason: 'timeout',
-          ));
-        }
-        comboCount = 0;
-      }
+    // Skip all updates if dead
+    if (health <= 0) {
+      velocity = Vector2.zero();
+      return;
     }
 
-    if (landingAnimationTimer > 0) landingAnimationTimer -= dt;
-    if (jumpAnimationTimer > 0) jumpAnimationTimer -= dt;
-    if (attackAnimationTimer > 0) {
-      attackAnimationTimer -= dt;
-      if (attackAnimationTimer <= 0) {
-        isAttacking = false;
+    // Update timers
+    _updateTimers(dt);
 
-        // Emit attack completed event
-        _eventBus.emit(CharacterAttackCompletedEvent(
-          characterId: stats.name,
-          position: position.clone(),
-          attackType: stats.attackRange > 5 ? 'ranged' : 'melee',
-          targetsHit: 0, // Will be filled by combat system
-          totalDamage: 0, // Will be filled by combat system
-        ));
-      }
-    }
-
-    // Stamina regeneration
-    if (stamina < maxStamina && !isBlocking && !isDodging && !isAttacking) {
-      final oldStamina = stamina;
-      stamina = math.min(maxStamina, stamina + 15 * dt);
-
-      // Emit stamina regen event periodically
-      if (stamina - oldStamina > 5) {
-        _eventBus.emit(CharacterStaminaRegenEvent(
-          characterId: stats.name,
-          position: position.clone(),
-          amount: stamina - oldStamina,
-          currentStamina: stamina,
-          maxStamina: maxStamina,
-        ));
-      }
-    }
-
-    // Block stamina drain
-    if (isBlocking) {
-      stamina -= 15 * dt;
-      if (stamina <= 0) {
-        stamina = 0;
-        breakGuard();
-      }
-    }
-
-    // Attack commit system
-    if (attackCommitTime > 0) {
-      attackCommitTime -= dt;
-      if (attackCommitTime <= 0) {
-        isAttackCommitted = false;
-      }
-    }
-
-    // Handle dodge roll
-    if (isDodging) {
-      dodgeDuration -= dt;
-      if (dodgeDuration <= 0) {
-        isDodging = false;
-        velocity.x *= 0.3;
-
-        // Emit dodge completed event
-        _eventBus.emit(CharacterDodgeCompletedEvent(
-          characterId: stats.name,
-          position: position.clone(),
-          avoidedDamage: false, // Will be set by combat system
-        ));
-      } else {
-        velocity.x = dodgeDirection.x * stats.dexterity * 15;
-      }
-    }
-
-    // Handle stun
-    if (isStunned) {
-      stunDuration -= dt;
-      velocity.x = 0;
-      if (stunDuration <= 0) {
-        recoverFromStun();
-      }
-      return; // Skip other updates when stunned
-    }
-
-    // Handle landing recovery
-    if (isLanding) {
-      landingRecoveryTime -= dt;
-      velocity.x *= 0.5;
-      if (landingRecoveryTime <= 0) {
-        isLanding = false;
-      }
-    }
+    // Handle state-specific updates
+    _handleStates(dt);
 
     // Store ground state BEFORE physics
     wasGrounded = groundPlatform != null;
 
-    // Update based on type
-    if (!isStunned && !isLanding) {
+    // Update based on type (skip if stunned or landing)
+    if (!isStunned && !isLanding && health > 0) {
       if (playerType == PlayerType.human) {
         updateHumanControl(dt);
       } else {
@@ -393,14 +297,14 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     // Check landing AFTER physics
     final isGroundedNow = groundPlatform != null;
 
-    // Emit landing event
-    if (!wasGrounded && isGroundedNow) {
+    // Handle landing transition
+    if (!wasGrounded && isGroundedNow && velocity.y > 50) {
       handleLandingWithEvent();
       landingAnimationTimer = 0.25;
       isLanding = true;
     }
 
-    // Emit airborne event
+    // Handle airborne transition
     if (wasGrounded && !isGroundedNow) {
       jumpAnimationTimer = 0.3;
       isAirborne = true;
@@ -414,6 +318,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       ));
     }
 
+    // Update airborne state
     if (isGroundedNow) {
       isAirborne = false;
       airborneTime = 0;
@@ -437,6 +342,116 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
           characterId: stats.name,
           position: position.clone(),
         ));
+      }
+    }
+  }
+
+  /// Update all timers
+  void _updateTimers(double dt) {
+    if (attackCooldown > 0) attackCooldown -= dt;
+    if (dodgeCooldown > 0) dodgeCooldown -= dt;
+    if (landingAnimationTimer > 0) landingAnimationTimer -= dt;
+    if (jumpAnimationTimer > 0) jumpAnimationTimer -= dt;
+
+    // Combo timer
+    if (comboTimer > 0) {
+      comboTimer -= dt;
+      if (comboTimer <= 0) {
+        if (comboCount > 1) {
+          _eventBus.emit(CharacterComboBrokenEvent(
+            characterId: stats.name,
+            position: position.clone(),
+            maxComboReached: comboCount,
+            reason: 'timeout',
+          ));
+        }
+        comboCount = 0;
+      }
+    }
+
+    // Attack animation timer
+    if (attackAnimationTimer > 0) {
+      attackAnimationTimer -= dt;
+      if (attackAnimationTimer <= 0) {
+        isAttacking = false;
+        _eventBus.emit(CharacterAttackCompletedEvent(
+          characterId: stats.name,
+          position: position.clone(),
+          attackType: stats.attackRange > 5 ? 'ranged' : 'melee',
+          targetsHit: 0,
+          totalDamage: 0,
+        ));
+      }
+    }
+
+    // Attack commit timer
+    if (attackCommitTime > 0) {
+      attackCommitTime -= dt;
+      if (attackCommitTime <= 0) {
+        isAttackCommitted = false;
+      }
+    }
+  }
+
+  /// Handle state-specific updates
+  void _handleStates(double dt) {
+    // Stamina regeneration
+    if (stamina < maxStamina && !isBlocking && !isDodging && !isAttacking) {
+      final oldStamina = stamina;
+      stamina = math.min(maxStamina, stamina + 15 * dt);
+
+      if (stamina - oldStamina > 5) {
+        _eventBus.emit(CharacterStaminaRegenEvent(
+          characterId: stats.name,
+          position: position.clone(),
+          amount: stamina - oldStamina,
+          currentStamina: stamina,
+          maxStamina: maxStamina,
+        ));
+      }
+    }
+
+    // Block stamina drain
+    if (isBlocking) {
+      stamina -= 15 * dt;
+      if (stamina <= 0) {
+        stamina = 0;
+        breakGuard();
+      }
+    }
+
+    // Handle dodge roll
+    if (isDodging) {
+      dodgeDuration -= dt;
+      if (dodgeDuration <= 0) {
+        isDodging = false;
+        velocity.x *= 0.3;
+        _eventBus.emit(CharacterDodgeCompletedEvent(
+          characterId: stats.name,
+          position: position.clone(),
+          avoidedDamage: false,
+        ));
+      } else {
+        velocity.x = dodgeDirection.x * stats.dexterity * 15;
+      }
+    }
+
+    // Handle stun
+    if (isStunned) {
+      stunDuration -= dt;
+      velocity.x = 0;
+      if (stunDuration <= 0) {
+        recoverFromStun();
+      }
+      return; // Skip other states
+    }
+
+    // Handle landing recovery
+    if (isLanding) {
+      landingRecoveryTime -= dt;
+      velocity.x *= 0.5;
+      if (landingRecoveryTime <= 0) {
+        isLanding = false;
       }
     }
   }
@@ -680,6 +695,30 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
 
   @override
   void render(Canvas canvas) {
+    // Don't render if dead (fading out)
+    if (health <= 0) {
+      // Death fade-out effect
+      final deathOpacity = 0.3;
+      canvas.saveLayer(
+        Rect.fromCenter(center: Offset.zero, width: size.x, height: size.y),
+        Paint()..color = Colors.white.withOpacity(deathOpacity),
+      );
+      super.render(canvas);
+      canvas.restore();
+
+      // Death indicator
+      final textPainter = TextPainter(
+        text: const TextSpan(
+          text: '💀',
+          style: TextStyle(fontSize: 40),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(-textPainter.width / 2, -size.y / 2 - 50));
+      return;
+    }
+
     super.render(canvas);
 
     if (!spritesLoaded) {
@@ -703,7 +742,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     }
 
     // Health bar for bots
-    if (playerType == PlayerType.bot) {
+    if (playerType == PlayerType.bot && health > 0) {
       final healthBarWidth = size.x;
       final healthPercent = (health / 100).clamp(0.0, 1.0);
       canvas.drawRect(

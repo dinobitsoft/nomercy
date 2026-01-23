@@ -30,13 +30,15 @@ class Thief extends GameCharacter {
     final moveSpeed = stats.dexterity / 2;
     final moveMultiplier = isAttackCommitted ? 0.5 : 1.0;
 
+    // REFACTORED: Use event-driven walk
     if (joystickDelta.x != 0 && !isBlocking) {
-      velocity.x = joystickDelta.x * moveSpeed * 100 * moveMultiplier;
-      facingRight = joystickDelta.x > 0;
+      final direction = Vector2(joystickDelta.x, 0);
+      performWalk(direction, moveSpeed * 100 * moveMultiplier);
     } else if (!isAttackCommitted && !isBlocking) {
-      velocity.x *= 0.7;
+      performStopWalk();
     }
 
+    // Block with down input
     if (joystickDelta.y > 0.5 && groundPlatform != null) {
       startBlock();
       velocity.x = 0;
@@ -44,6 +46,7 @@ class Thief extends GameCharacter {
       stopBlock();
     }
 
+    // REFACTORED: Use event-driven jump (Thief has high jump)
     final joystickDirection = game.joystick.direction;
     if (joystickDirection == JoystickDirection.up &&
         groundPlatform != null &&
@@ -51,14 +54,10 @@ class Thief extends GameCharacter {
         !isAttackCommitted &&
         !isAirborne &&
         stamina >= 15) {
-      velocity.y = -320;
-      groundPlatform = null;
-      stamina -= 15;
-      isJumping = true;
-
-      _eventBus.emit(PlaySFXEvent(soundId: 'jump', volume: 0.7));
+      performJump(customPower: -320); // Thief has high jump
     }
 
+    // REFACTORED: Use event-driven dodge
     if (joystickDelta.length > 0.5 &&
         joystickDelta.y < -0.5 &&
         groundPlatform != null &&
@@ -69,13 +68,14 @@ class Thief extends GameCharacter {
 
   @override
   void updateBotControl(double dt) {
-    if (botTactic != null && !isStunned && !isLanding) {
+    if (botTactic != null && !isStunned && !isLanding && health > 0) {
       botTactic!.execute(this, game.player, dt);
       _botAdvancedMechanics(dt);
     }
   }
 
   void _botAdvancedMechanics(double dt) {
+    // Thief prefers dodging over blocking
     final nearbyProjectiles = game.projectiles.where((p) {
       return p.owner != null &&
           position.distanceTo(p.position) < 200 &&
@@ -94,8 +94,10 @@ class Thief extends GameCharacter {
 
   @override
   void attack() {
-    if (isBlocking) return;
-    if (!prepareAttack()) return;
+    if (isBlocking || health <= 0) return;
+
+    // REFACTORED: Use event-driven attack preparation
+    if (!prepareAttackWithEvent()) return;
 
     // Throwing knives - multiple projectiles on combo
     final knifeCount = comboCount >= 3 ? 3 : 1;
@@ -120,7 +122,6 @@ class Thief extends GameCharacter {
       game.world.add(projectile);
       game.projectiles.add(projectile);
 
-      // Emit projectile fired event
       _eventBus.emit(ProjectileFiredEvent(
         shooterId: stats.name,
         projectileType: 'knife',
@@ -130,7 +131,7 @@ class Thief extends GameCharacter {
       ));
     }
 
-    // Play sound
     _eventBus.emit(PlaySFXEvent(soundId: 'dagger_shot', volume: 0.8));
   }
+
 }

@@ -24,20 +24,18 @@ class Wizard extends GameCharacter {
 
   @override
   void updateHumanControl(double dt) {
-    // Skip if stunned, landing recovery, or dodge rolling
     if (isStunned || isLanding || isDodging) return;
 
     final joystickDelta = game.joystick.relativeDelta;
     final moveSpeed = stats.dexterity / 2;
-
-    // Wizard has poor mobility during attack commit
     final moveMultiplier = isAttackCommitted ? 0.2 : 1.0;
 
+    // REFACTORED: Use event-driven walk
     if (joystickDelta.x != 0 && !isBlocking) {
-      velocity.x = joystickDelta.x * moveSpeed * 100 * moveMultiplier;
-      facingRight = joystickDelta.x > 0;
+      final direction = Vector2(joystickDelta.x, 0);
+      performWalk(direction, moveSpeed * 100 * moveMultiplier);
     } else if (!isAttackCommitted && !isBlocking) {
-      velocity.x *= 0.7;
+      performStopWalk();
     }
 
     // Block with down input
@@ -48,7 +46,7 @@ class Wizard extends GameCharacter {
       stopBlock();
     }
 
-    // Jump - Wizard has standard jump
+    // REFACTORED: Use event-driven jump (Wizard has standard jump)
     final joystickDirection = game.joystick.direction;
     if (joystickDirection == JoystickDirection.up &&
         groundPlatform != null &&
@@ -56,15 +54,10 @@ class Wizard extends GameCharacter {
         !isAttackCommitted &&
         !isAirborne &&
         stamina >= 20) {
-      velocity.y = -280; // Lower jump height
-      groundPlatform = null;
-      stamina -= 20;
-      isJumping = true;
+      performJump(customPower: -280); // Wizard has lower jump
     }
 
-    _eventBus.emit(PlaySFXEvent(soundId: 'jump', volume: 0.7));
-
-    // Dodge roll
+    // REFACTORED: Use event-driven dodge
     if (joystickDelta.length > 0.5 &&
         joystickDelta.y < -0.5 &&
         groundPlatform != null &&
@@ -75,7 +68,7 @@ class Wizard extends GameCharacter {
 
   @override
   void updateBotControl(double dt) {
-    if (botTactic != null && !isStunned && !isLanding) {
+    if (botTactic != null && !isStunned && !isLanding && health > 0) {
       botTactic!.execute(this, game.player, dt);
       _botAdvancedMechanics(dt);
     }
@@ -112,17 +105,16 @@ class Wizard extends GameCharacter {
 
   @override
   void attack() {
-    if (isBlocking) return;
+    if (isBlocking || health <= 0) return;
 
-    // Prepare attack with common logic
-    if (!prepareAttack()) return;
+    // REFACTORED: Use event-driven attack preparation
+    if (!prepareAttackWithEvent()) return;
 
-    // Wizard-specific ranged attack - powerful fireball
-    // Higher stamina cost for powerful magic
-    stamina -= 5; // Extra stamina cost
+    // Extra stamina cost for powerful magic
+    stamina -= 5;
 
     // Charged fireball on high combo
-    final damageMultiplier = 1.0 + (comboCount - 1) * 0.25; // +25% per combo
+    final damageMultiplier = 1.0 + (comboCount - 1) * 0.25;
 
     final direction = facingRight ? Vector2(1, 0) : Vector2(-1, 0);
 
@@ -132,23 +124,22 @@ class Wizard extends GameCharacter {
       damage: stats.attackDamage * damageMultiplier,
       owner: playerType == PlayerType.human ? this as Player : null,
       enemyOwner: playerType == PlayerType.bot ? this as Enemy : null,
-      color: comboCount >= 3 ? Colors.blue : Colors.orange, // Blue for charged
+      color: comboCount >= 3 ? Colors.blue : Colors.orange,
       type: 'fireball',
     );
     game.add(projectile);
     game.world.add(projectile);
     game.projectiles.add(projectile);
 
-    // Emit projectile fired event
     _eventBus.emit(ProjectileFiredEvent(
       shooterId: stats.name,
-      projectileType: 'arrow',
+      projectileType: 'fireball',
       position: position.clone(),
       direction: direction,
       damage: projectile.damage,
     ));
 
-    // Recoil effect - wizard gets pushed back slightly
+    // Recoil effect
     if (!isAirborne) {
       velocity.x -= (facingRight ? 30 : -30);
     }

@@ -87,6 +87,19 @@ class SmartBotAI implements IntelligentBotAI {
 
   @override
   void executeAI(GameCharacter bot, GameCharacter target, double dt) {
+    // CRITICAL: Don't execute AI if bot is dead
+    if (bot.health <= 0) {
+      bot.velocity = Vector2.zero();
+      return;
+    }
+
+    // Also check if target is dead
+    if (target.health <= 0) {
+      bot.velocity.x *= 0.7; // Slow down
+      currentState = BotState.idle;
+      return;
+    }
+
     stateTimer += dt;
     lastDecisionTime += dt;
 

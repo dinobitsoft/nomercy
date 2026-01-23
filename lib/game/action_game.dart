@@ -406,15 +406,26 @@ class ActionGame extends FlameGame
   }
 
   void _handleEnemyDeath(GameCharacter enemy, CharacterKilledEvent event) {
+    // Award player
     player.stats.money += event.bountyGold;
     enemiesDefeated++;
 
-    // FIX: Properly remove enemy from both list and game world
+    // CRITICAL FIX: Properly remove enemy from all collections and game world
+    print('🗑️ Removing enemy: ${enemy.stats.name}');
+
+    // 1. Remove from enemies list
     enemies.remove(enemy);
-    enemy.removeFromParent(); // This removes from parent component
-    // world.children.remove(enemy); // Ensure it's removed from world
+
+    // 2. Remove from parent (Component tree)
+    enemy.removeFromParent();
+
+    // 3. Remove from world explicitly
     world.remove(enemy);
-    // FIX: Drop loot when enemy dies
+
+    // 4. Mark as dead to prevent any further updates
+    enemy.health = 0;
+
+    // 5. Drop loot if enabled
     if (event.shouldDropLoot) {
       itemSystem.dropLoot(event.deathPosition);
     }
@@ -422,6 +433,8 @@ class ActionGame extends FlameGame
     // Update HUD
     eventBus.emit(UpdateHUDEvent(element: 'kills', value: enemiesDefeated));
     eventBus.emit(UpdateHUDEvent(element: 'gold', value: player.stats.money));
+
+    print('✅ Enemy removed successfully. Remaining enemies: ${enemies.length}');
   }
 
   void _onEnemySpawned(EnemySpawnedEvent event) {

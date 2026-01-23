@@ -58,6 +58,13 @@ class ItemDrop extends PositionComponent with HasGameReference<ActionGame> {
   void pickup(GameCharacter player) {
     if (item is HealthPotion) {
       final potion = item as HealthPotion;
+
+      // FIX: Only consume potion if health is below 100%
+      if (player.health >= 100) {
+        _showPickupText('Health Full!', Colors.grey);
+        return; // Don't consume the potion
+      }
+
       player.health = math.min(100, player.health + potion.healAmount);
       _showPickupText('+${potion.healAmount.toInt()} HP', Colors.green);
 
@@ -68,6 +75,9 @@ class ItemDrop extends PositionComponent with HasGameReference<ActionGame> {
         itemType: item.type,
         itemName: item.name,
       ));
+
+      // Remove potion after consumption
+      removeFromParent();
     } else if (item is Weapon) {
       final weapon = item as Weapon;
       game.addToInventory(item);
@@ -80,11 +90,10 @@ class ItemDrop extends PositionComponent with HasGameReference<ActionGame> {
         itemType: item.type,
         itemName: item.name,
       ));
-    }
 
-    // FIX: The event handler in ItemSystem will handle removal
-    // Just mark for removal here
-    removeFromParent();
+      // Remove weapon after pickup
+      removeFromParent();
+    }
   }
 
   void _showPickupText(String text, Color color) {

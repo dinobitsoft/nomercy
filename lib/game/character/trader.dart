@@ -25,20 +25,18 @@ class Trader extends GameCharacter {
 
   @override
   void updateHumanControl(double dt) {
-    // Skip if stunned, landing recovery, or dodge rolling
     if (isStunned || isLanding || isDodging) return;
 
     final joystickDelta = game.joystick.relativeDelta;
     final moveSpeed = stats.dexterity / 2;
-
-    // Trader has balanced mobility during attack commit
     final moveMultiplier = isAttackCommitted ? 0.4 : 1.0;
 
+    // REFACTORED: Use event-driven walk
     if (joystickDelta.x != 0 && !isBlocking) {
-      velocity.x = joystickDelta.x * moveSpeed * 100 * moveMultiplier;
-      facingRight = joystickDelta.x > 0;
+      final direction = Vector2(joystickDelta.x, 0);
+      performWalk(direction, moveSpeed * 100 * moveMultiplier);
     } else if (!isAttackCommitted && !isBlocking) {
-      velocity.x *= 0.7;
+      performStopWalk();
     }
 
     // Block with down input
@@ -49,7 +47,7 @@ class Trader extends GameCharacter {
       stopBlock();
     }
 
-    // Jump - Trader has balanced jump
+    // REFACTORED: Use event-driven jump (Trader has balanced jump)
     final joystickDirection = game.joystick.direction;
     if (joystickDirection == JoystickDirection.up &&
         groundPlatform != null &&
@@ -57,15 +55,10 @@ class Trader extends GameCharacter {
         !isAttackCommitted &&
         !isAirborne &&
         stamina >= 18) {
-      velocity.y = -300;
-      groundPlatform = null;
-      stamina -= 18;
-      isJumping = true;
+      performJump(customPower: -300); // Trader has balanced jump
     }
 
-    _eventBus.emit(PlaySFXEvent(soundId: 'jump', volume: 0.7));
-
-    // Dodge roll
+    // REFACTORED: Use event-driven dodge
     if (joystickDelta.length > 0.5 &&
         joystickDelta.y < -0.5 &&
         groundPlatform != null &&
@@ -76,7 +69,7 @@ class Trader extends GameCharacter {
 
   @override
   void updateBotControl(double dt) {
-    if (botTactic != null && !isStunned && !isLanding) {
+    if (botTactic != null && !isStunned && !isLanding && health > 0) {
       botTactic!.execute(this, game.player, dt);
       _botAdvancedMechanics(dt);
     }
@@ -115,16 +108,13 @@ class Trader extends GameCharacter {
 
   @override
   void attack() {
-    if (isBlocking) return;
+    if (isBlocking || health <= 0) return;
 
-    // Prepare attack with common logic
-    if (!prepareAttack()) return;
+    // REFACTORED: Use event-driven attack preparation
+    if (!prepareAttackWithEvent()) return;
 
     // Trader-specific ranged attack - bow & arrow
-    // Arrows are fast and precise, power increases with combo
-    final damageMultiplier = 1.0 + (comboCount - 1) * 0.18; // +18% per combo
-
-    // High combo = power shot (slightly slower but more damage)
+    final damageMultiplier = 1.0 + (comboCount - 1) * 0.18;
     final isPowerShot = comboCount >= 4;
 
     final direction = facingRight ? Vector2(1, 0) : Vector2(-1, 0);
@@ -142,7 +132,6 @@ class Trader extends GameCharacter {
     game.world.add(projectile);
     game.projectiles.add(projectile);
 
-    // Emit projectile fired event
     _eventBus.emit(ProjectileFiredEvent(
       shooterId: stats.name,
       projectileType: 'arrow',
@@ -151,7 +140,7 @@ class Trader extends GameCharacter {
       damage: projectile.damage,
     ));
 
-    // Drawing bow - slight backward movement for realism
+    // Drawing bow - slight backward movement
     if (!isAirborne) {
       velocity.x -= (facingRight ? 20 : -20);
     }
