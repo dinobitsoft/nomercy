@@ -1,3 +1,5 @@
+// lib/game/action_game.dart - FIXED VERSION
+
 import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
@@ -68,7 +70,7 @@ class ActionGame extends FlameGame
   final List<TiledPlatform> platforms = [];
   final List<Chest> chests = [];
   final List<Item> inventory = [];
-  final List<ItemDrop> itemDrops = []; // FIX: Added itemDrops list
+  final List<ItemDrop> itemDrops = [];
   Weapon? equippedWeapon;
 
   late JoystickComponent joystick;
@@ -103,7 +105,7 @@ class ActionGame extends FlameGame
     // Setup event listeners
     _setupEventListeners();
 
-    // Add gamepad manager
+    // Add gamepad manager to game components
     add(gamepadManager);
 
     // Setup camera
@@ -148,7 +150,7 @@ class ActionGame extends FlameGame
       platforms.add(platform);
     }
 
-    // FIX: Create chests from map data
+    // Create chests
     for (final chestData in gameMap.chests) {
       final chest = Chest(
         position: Vector2(chestData.x, chestData.y),
@@ -159,7 +161,7 @@ class ActionGame extends FlameGame
       chests.add(chest);
     }
 
-    // FIX: Create items from map data
+    // Create items
     for (final itemData in gameMap.items) {
       final item = itemData.toItem();
       final itemDrop = ItemDrop(
@@ -178,10 +180,9 @@ class ActionGame extends FlameGame
       PlayerType.human,
     );
     player.priority = 100;
-    add(player);
     world.add(player);
 
-    // Create BOT enemies with different tactics
+    // Create BOT enemies
     final botConfigs = [
       {'class': 'knight', 'x': 600.0, 'tactic': AggressiveTactic()},
       {'class': 'thief', 'x': 1000.0, 'tactic': BalancedTactic()},
@@ -195,8 +196,7 @@ class ActionGame extends FlameGame
         PlayerType.bot,
         botTactic: config['tactic'] as BotTactic,
       );
-      bot.priority = 100; // Higher than terrain (10), slightly lower than player (100)
-      add(bot);
+      bot.priority = 90;
       world.add(bot);
       enemies.add(bot);
     }
@@ -222,7 +222,7 @@ class ActionGame extends FlameGame
     // Add HUD
     camera.viewport.add(HUD(player: player, game: this));
 
-    // Initialize multiplayer if enabled
+    // Initialize multiplayer
     if (enableMultiplayer) {
       NetworkManager().connect(
         selectedCharacterClass,
@@ -235,77 +235,30 @@ class ActionGame extends FlameGame
     waveSystem.initialize();
     waveSystem.startFirstWave();
 
-    // Emit game started event
+    // Emit events
     eventBus.emit(GameStartedEvent(
       gameMode: gameMode.toString(),
       characterClass: selectedCharacterClass,
       mapName: mapName,
     ));
 
-    // Play music
     eventBus.emit(PlayMusicEvent(musicId: 'battle_theme'));
 
-    print('✅ ActionGame: Fully initialized with event systems');
+    print('✅ ActionGame: Fully initialized');
   }
 
-  /// Setup all event listeners
   void _setupEventListeners() {
-    // Character death
-    _subscriptions.add(
-      eventBus.on<CharacterKilledEvent>(
-        _onCharacterKilled,
-        priority: ListenerPriority.highest,
-      ),
-    );
-
-    // Enemy spawned
-    _subscriptions.add(
-      eventBus.on<EnemySpawnedEvent>(
-        _onEnemySpawned,
-        priority: ListenerPriority.high,
-      ),
-    );
-
-    // Projectile fired
-    _subscriptions.add(
-      eventBus.on<ProjectileFiredEvent>(
-        _onProjectileFired,
-        priority: ListenerPriority.normal,
-      ),
-    );
-
-    // Game over
-    _subscriptions.add(
-      eventBus.on<GameOverEvent>(
-        _onGameOver,
-        priority: ListenerPriority.highest,
-      ),
-    );
-
-    // Game paused
-    _subscriptions.add(
-      eventBus.on<GamePausedEvent>(
-        _onGamePaused,
-        priority: ListenerPriority.high,
-      ),
-    );
-
-    // Game resumed
-    _subscriptions.add(
-      eventBus.on<GameResumedEvent>(
-        _onGameResumed,
-        priority: ListenerPriority.high,
-      ),
-    );
-
-    print('✅ ActionGame: Event listeners registered');
+    _subscriptions.add(eventBus.on<CharacterKilledEvent>(_onCharacterKilled, priority: ListenerPriority.highest));
+    _subscriptions.add(eventBus.on<EnemySpawnedEvent>(_onEnemySpawned, priority: ListenerPriority.high));
+    _subscriptions.add(eventBus.on<GameOverEvent>(_onGameOver, priority: ListenerPriority.highest));
+    _subscriptions.add(eventBus.on<GamePausedEvent>(_onGamePaused, priority: ListenerPriority.high));
+    _subscriptions.add(eventBus.on<GameResumedEvent>(_onGameResumed, priority: ListenerPriority.high));
   }
 
   @override
   void update(double dt) {
     super.update(dt);
 
-    // Update all systems
     waveSystem.update(dt);
     combatSystem.updateCombos(dt);
     itemSystem.update(dt);
@@ -315,11 +268,15 @@ class ActionGame extends FlameGame
       NetworkManager().update(dt);
     }
 
+    // Check attack from gamepad
+    if (gamepadManager.isAttackJustPressed()) {
+      _playerAttack();
+    }
+
     // Check chest interactions
     for (final chest in chests) {
       if (!chest.isOpened && chest.isPlayerNear) {
-        final joystickDirection = joystick.direction;
-        if (joystickDirection == JoystickDirection.down) {
+        if (joystick.direction == JoystickDirection.down || gamepadManager.joystickDelta.y > 0.5) {
           _openChest(chest);
         }
       }
@@ -331,8 +288,9 @@ class ActionGame extends FlameGame
       KeyEvent event,
       Set<LogicalKeyboardKey> keysPressed,
       ) {
+    // Explicitly forward to gamepad manager if not automatically handled
     gamepadManager.onKeyEvent(event, keysPressed);
-    return KeyEventResult.handled;
+    return KeyEventResult.ignored; // Let Flame dispatch to other components
   }
 
   @override
@@ -346,14 +304,12 @@ class ActionGame extends FlameGame
     super.onTapDown(info);
     final tapPos = info.eventPosition.global;
 
-    // Attack button
     final attackButtonPos = Vector2(size.x - 80, size.y - 80);
     if (tapPos.distanceTo(attackButtonPos) < 50) {
       _playerAttack();
       return;
     }
 
-    // Dodge button
     final dodgeButtonPos = Vector2(size.x - 170, size.y - 80);
     if (tapPos.distanceTo(dodgeButtonPos) < 40) {
       final direction = joystick.relativeDelta.length > 0.1
@@ -363,7 +319,6 @@ class ActionGame extends FlameGame
       return;
     }
 
-    // Block button
     final blockButtonPos = Vector2(size.x - 80, size.y - 170);
     if (tapPos.distanceTo(blockButtonPos) < 40) {
       player.startBlock();
@@ -371,30 +326,25 @@ class ActionGame extends FlameGame
     }
   }
 
-  // ==========================================
-  // EVENT HANDLERS
-  // ==========================================
-
   void _onCharacterKilled(CharacterKilledEvent event) {
     if (event.victimId == player.stats.name) {
       _handlePlayerDeath();
       return;
     }
 
-    // Remove enemy
     final enemy = enemies.firstWhere(
           (e) => e.stats.name == event.victimId,
       orElse: () => null as GameCharacter,
     );
 
-    _handleEnemyDeath(enemy, event);
+    if (enemy != null) {
+      _handleEnemyDeath(enemy, event);
     }
+  }
 
   void _handlePlayerDeath() {
     isGameOver = true;
-
     final playTime = DateTime.now().difference(gameStartTime!);
-
     eventBus.emit(GameOverEvent(
       reason: 'death',
       finalScore: player.stats.money,
@@ -406,94 +356,45 @@ class ActionGame extends FlameGame
   }
 
   void _handleEnemyDeath(GameCharacter enemy, CharacterKilledEvent event) {
-    // Award player
     player.stats.money += event.bountyGold;
     enemiesDefeated++;
-
-    // CRITICAL FIX: Properly remove enemy from all collections and game world
-    print('🗑️ Removing enemy: ${enemy.stats.name}');
-
-    // 1. Remove from enemies list
     enemies.remove(enemy);
-
-    // 2. Remove from parent (Component tree)
     enemy.removeFromParent();
-
-    // 3. Remove from world explicitly
     world.remove(enemy);
-
-    // 4. Mark as dead to prevent any further updates
-    enemy.health = 0;
-
-    // 5. Drop loot if enabled
     if (event.shouldDropLoot) {
       itemSystem.dropLoot(event.deathPosition);
     }
-
-    // Update HUD
     eventBus.emit(UpdateHUDEvent(element: 'kills', value: enemiesDefeated));
     eventBus.emit(UpdateHUDEvent(element: 'gold', value: player.stats.money));
-
-    print('✅ Enemy removed successfully. Remaining enemies: ${enemies.length}');
   }
 
   void _onEnemySpawned(EnemySpawnedEvent event) {
     final enemy = _createEnemy(event.enemyType, event.spawnPosition);
     if (enemy != null) {
-      enemy.priority = 100; // Ensure spawned enemies also have higher priority than terrain
-      add(enemy);
+      enemy.priority = 90;
       world.add(enemy);
       enemies.add(enemy);
     }
   }
 
-  void _onProjectileFired(ProjectileFiredEvent event) {
-    // Projectile already created by character
-    // This is for tracking only
-  }
-
   void _onGameOver(GameOverEvent event) {
     pauseEngine();
-
-    print('\n╔════════════════════════════════════╗');
-    print('║          GAME OVER!                ║');
-    print('╚════════════════════════════════════╝');
-    print('Reason: ${event.reason}');
-    print('Score: ${event.finalScore}');
-    print('Waves: ${event.wavesCompleted}');
-    print('Kills: ${event.enemiesKilled}');
-    print('Time: ${event.playTime.inMinutes}m ${event.playTime.inSeconds % 60}s\n');
-
-    // Print all statistics
-    combatSystem.printStats();
-    itemSystem.printStats();
-    eventBus.printStats();
-
-    // Stop music
     eventBus.emit(StopMusicEvent());
   }
 
   void _onGamePaused(GamePausedEvent event) {
     pauseEngine();
     audioSystem.pauseMusic();
-    print('⏸️  Game paused: ${event.reason}');
   }
 
   void _onGameResumed(GameResumedEvent event) {
     resumeEngine();
     audioSystem.resumeMusic();
-    print('▶️  Game resumed');
   }
 
-  // ==========================================
-  // GAME ACTIONS
-  // ==========================================
-
   void _playerAttack() {
-    // Find targets in range
     for (final enemy in enemies) {
       final distance = player.position.distanceTo(enemy.position);
-
       if (distance < player.stats.attackRange * 30) {
         combatSystem.processAttack(
           attacker: player,
@@ -503,13 +404,15 @@ class ActionGame extends FlameGame
       }
     }
 
-    // For ranged attacks, create projectile
     if (player.stats.attackRange > 5 && player.attackCooldown <= 0) {
       _createProjectile(
         shooter: player,
         direction: player.facingRight ? Vector2(1, 0) : Vector2(-1, 0),
       );
     }
+    
+    // Trigger animation
+    player.attack();
   }
 
   void _createProjectile({
@@ -525,20 +428,9 @@ class ActionGame extends FlameGame
       color: shooter.stats.color,
       type: _getProjectileType(shooter),
     );
-
-    // FIX: Ensure projectile is added with proper priority
-    projectile.priority = 75; // Between characters (100) and platforms (10)
-    add(projectile);
+    projectile.priority = 75;
     world.add(projectile);
     projectiles.add(projectile);
-
-    eventBus.emit(ProjectileFiredEvent(
-      shooterId: shooter.stats.name,
-      projectileType: _getProjectileType(shooter),
-      position: shooter.position.clone(),
-      direction: direction,
-      damage: shooter.stats.attackDamage,
-    ));
   }
 
   String _getProjectileType(GameCharacter character) {
@@ -551,7 +443,6 @@ class ActionGame extends FlameGame
 
   void _openChest(Chest chest) {
     chest.open(player);
-
     eventBus.emit(ChestOpenedEvent(
       chestId: chest.data.id.toString(),
       reward: 'Health Potion',
@@ -559,85 +450,25 @@ class ActionGame extends FlameGame
     ));
   }
 
-  // ==========================================
-  // CHARACTER CREATION
-  // ==========================================
-
-  GameCharacter _createCharacter(
-      String characterClass,
-      Vector2 position,
-      PlayerType playerType, {
-        BotTactic? botTactic,
-      }) {
+  GameCharacter _createCharacter(String characterClass, Vector2 position, PlayerType playerType, {BotTactic? botTactic}) {
     switch (characterClass.toLowerCase()) {
-      case 'knight':
-        return Knight(
-          position: position,
-          playerType: playerType,
-          botTactic: botTactic,
-        );
-      case 'thief':
-        return Thief(
-          position: position,
-          playerType: playerType,
-          botTactic: botTactic,
-        );
-      case 'wizard':
-        return Wizard(
-          position: position,
-          playerType: playerType,
-          botTactic: botTactic,
-        );
-      case 'trader':
-        return Trader(
-          position: position,
-          playerType: playerType,
-          botTactic: botTactic,
-        );
-      default:
-        return Knight(
-          position: position,
-          playerType: playerType,
-          botTactic: botTactic,
-        );
+      case 'knight': return Knight(position: position, playerType: playerType, botTactic: botTactic);
+      case 'thief': return Thief(position: position, playerType: playerType, botTactic: botTactic);
+      case 'wizard': return Wizard(position: position, playerType: playerType, botTactic: botTactic);
+      case 'trader': return Trader(position: position, playerType: playerType, botTactic: botTactic);
+      default: return Knight(position: position, playerType: playerType, botTactic: botTactic);
     }
   }
 
   GameCharacter? _createEnemy(String enemyType, Vector2 position) {
-    final tactics = [
-      AggressiveTactic(),
-      BalancedTactic(),
-      DefensiveTactic(),
-      TacticalTactic(),
-    ];
-
+    final tactics = [AggressiveTactic(), BalancedTactic(), DefensiveTactic(), TacticalTactic()];
     final randomTactic = tactics[math.Random().nextInt(tactics.length)];
-
-    return _createCharacter(
-      enemyType,
-      position,
-      PlayerType.bot,
-      botTactic: randomTactic,
-    );
+    return _createCharacter(enemyType, position, PlayerType.bot, botTactic: randomTactic);
   }
 
-  // ==========================================
-  // INVENTORY MANAGEMENT
-  // ==========================================
-
-  void addToInventory(Item item) {
-    inventory.add(item);
-
-    eventBus.emit(ItemPickedUpEvent(
-      characterId: player.stats.name,
-      itemId: item.id,
-      itemType: item.type,
-      itemName: item.name,
-    ));
-  }
+  void addToInventory(Item item) => inventory.add(item);
 
   void equipWeapon(Weapon? weapon) {
-    // Unapply old weapon
     if (equippedWeapon != null) {
       player.stats.power -= equippedWeapon!.powerBonus;
       player.stats.magic -= equippedWeapon!.magicBonus;
@@ -645,10 +476,7 @@ class ActionGame extends FlameGame
       player.stats.intelligence -= equippedWeapon!.intelligenceBonus;
       player.stats.attackDamage -= equippedWeapon!.damage;
     }
-
     equippedWeapon = weapon;
-
-    // Apply new weapon
     if (weapon != null) {
       player.stats.power += weapon.powerBonus;
       player.stats.magic += weapon.magicBonus;
@@ -669,8 +497,7 @@ class ActionGame extends FlameGame
   }
 
   void sellItem(Item item) {
-    final sellPrice = item.value ~/ 2;
-    player.stats.money += sellPrice;
+    player.stats.money += item.value ~/ 2;
     inventory.remove(item);
   }
 
@@ -681,49 +508,22 @@ class ActionGame extends FlameGame
     }
   }
 
-  void openInventory() {
-    pauseEngine();
-  }
-
-  // ==========================================
-  // CLEANUP
-  // ==========================================
-
   @override
   void onRemove() {
-    for (final sub in _subscriptions) {
-      sub.cancel();
-    }
+    for (final sub in _subscriptions) sub.cancel();
     _subscriptions.clear();
-
     combatSystem.dispose();
     waveSystem.dispose();
     audioSystem.dispose();
     itemSystem.dispose();
     uiSystem.dispose();
-
-    if (enableMultiplayer) {
-      NetworkManager().disconnect();
-    }
-
-    print('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    print('GAME SESSION ENDED');
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    combatSystem.printStats();
-    itemSystem.printStats();
-    eventBus.printStats();
-
+    if (enableMultiplayer) NetworkManager().disconnect();
     super.onRemove();
   }
 }
 
 class UIGradient {
   static Paint linear(Offset from, Offset to, List<Color> colors) {
-    return Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: colors,
-      ).createShader(Rect.fromPoints(from, to));
+    return Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: colors).createShader(Rect.fromPoints(from, to));
   }
 }

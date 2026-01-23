@@ -27,43 +27,56 @@ class Trader extends GameCharacter {
   void updateHumanControl(double dt) {
     if (isStunned || isLanding || isDodging) return;
 
-    final joystickDelta = game.joystick.relativeDelta;
+    // Unified input: Touch + Gamepad
+    final gamepad = game.gamepadManager;
+    Vector2 inputDelta = game.joystick.relativeDelta;
+
+    if (gamepad.isGamepadConnected && gamepad.hasMovementInput()) {
+      inputDelta = gamepad.getJoystickDirection();
+    }
+
     final moveSpeed = stats.dexterity / 2;
     final moveMultiplier = isAttackCommitted ? 0.4 : 1.0;
 
-    // REFACTORED: Use event-driven walk
-    if (joystickDelta.x != 0 && !isBlocking) {
-      final direction = Vector2(joystickDelta.x, 0);
+    // MOVEMENT
+    if (inputDelta.x != 0 && !isBlocking) {
+      final direction = Vector2(inputDelta.x, 0);
       performWalk(direction, moveSpeed * 100 * moveMultiplier);
     } else if (!isAttackCommitted && !isBlocking) {
       performStopWalk();
     }
 
-    // Block with down input
-    if (joystickDelta.y > 0.5 && groundPlatform != null) {
+    // BLOCK
+    bool blockInput = inputDelta.y > 0.5 || gamepad.isBlockPressed;
+    if (blockInput && groundPlatform != null) {
       startBlock();
       velocity.x = 0;
     } else {
       stopBlock();
     }
 
-    // REFACTORED: Use event-driven jump (Trader has balanced jump)
-    final joystickDirection = game.joystick.direction;
-    if (joystickDirection == JoystickDirection.up &&
+    // JUMP (Trader has balanced jump)
+    bool jumpInput = (game.joystick.direction == JoystickDirection.up) ||
+        gamepad.isJumpPressed;
+
+    if (jumpInput &&
         groundPlatform != null &&
         !isBlocking &&
         !isAttackCommitted &&
         !isAirborne &&
         stamina >= 18) {
-      performJump(customPower: -300); // Trader has balanced jump
+      performJump(customPower: -300);
     }
 
-    // REFACTORED: Use event-driven dodge
-    if (joystickDelta.length > 0.5 &&
-        joystickDelta.y < -0.5 &&
-        groundPlatform != null &&
-        !isBlocking) {
-      dodge(Vector2(joystickDelta.x, 0));
+    // DODGE
+    bool dodgeInput = (inputDelta.length > 0.5 && inputDelta.y < -0.5) ||
+        gamepad.isDodgePressed;
+
+    if (dodgeInput && groundPlatform != null && !isBlocking) {
+      final dodgeDirection = inputDelta.x != 0
+          ? Vector2(inputDelta.x, 0)
+          : Vector2(facingRight ? 1 : -1, 0);
+      dodge(dodgeDirection);
     }
   }
 
