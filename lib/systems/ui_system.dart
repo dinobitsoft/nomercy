@@ -202,14 +202,14 @@ class UISystem {
   }
 
   void _onHealthLow(HealthLowEvent event) {
-    // Only show warning for player
-    if (event.characterId == game.player.stats.name) {
+    // Only show warning for player TODO: refactor to show only in special notification mode
+/*    if (event.characterId == game.player.stats.name) {
       _eventBus.emit(ShowNotificationEvent(
         message: '⚠️ LOW HEALTH!',
         color: Colors.red,
         duration: const Duration(seconds: 2),
       ));
-    }
+    }*/
   }
 
   // ==========================================

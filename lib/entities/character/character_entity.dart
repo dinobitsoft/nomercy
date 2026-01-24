@@ -40,8 +40,8 @@ class CharacterEntity extends SpriteAnimationComponent
   // Combat
   int comboCount = 0;
   double comboTimer = 0;
-  double attackCooldown = 0;
-  double dodgeCooldown = 0;
+  double attackCooldown = GameConfig.attackCooldown;
+  double dodgeCooldown = GameConfig.dodgeCooldown;
 
   CharacterEntity({
     required Vector2 position,

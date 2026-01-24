@@ -161,9 +161,10 @@ class ActionGame extends FlameGame
         position: Vector2(chestData.x, chestData.y),
         data: chestData,
       );
-      chest.priority = 50;
+      chest.priority = 50; // HIGHER than platforms
       world.add(chest);
       chests.add(chest);
+      print('✅ Added chest at ${chestData.x}, ${chestData.y}');
     }
 
     // Create items
@@ -430,44 +431,28 @@ class ActionGame extends FlameGame
   void _handleEnemyDeath(GameCharacter enemy, CharacterKilledEvent event) {
     print('💀 Handling bot death: ${enemy.stats.name} (${enemy.uniqueId})');
 
+    // Award gold and update stats
     player.stats.money += event.bountyGold;
     enemiesDefeated++;
 
-    // Remove from tracking list FIRST
+    // Remove from tracking list FIRST (prevents further attacks)
     final wasRemoved = enemies.remove(enemy);
     print('  - Removed from enemies list: $wasRemoved');
 
-    // Unregister from character registry
+    // Unregister from registry
     _unregisterCharacter(enemy);
 
-    // Stop all animations and clear state
-    enemy.health = 0;
-    enemy.velocity = Vector2.zero();
-    enemy.animation = null;
-
-    // Remove from component tree
+    // IMMEDIATE removal from game world
+    // Don't mark as dead - just remove completely
     enemy.removeFromParent();
+    remove(enemy);
+    world.remove(enemy);
 
-    // Remove from world explicitly
-    if (world.children.contains(enemy)) {
-      world.remove(enemy);
-      print('  - Removed from world');
-    } else {
-      world.remove(enemy);
 
-    }
-
-    // Additional cleanup
-    if (enemy.isMounted) {
-      // enemy.removed(); //TODO: implement this method
-      print('  - Called removed() lifecycle');
-    }
-
-    print('✅ Bot fully removed: ${enemy.stats.name} (${enemy.uniqueId})');
+    print('✅ Bot fully removed');
     print('  - Remaining enemies: ${enemies.length}');
-    print('  - Registered characters: ${_characterRegistry.length}');
 
-    // Drop loot
+    // Drop loot at death position
     if (event.shouldDropLoot) {
       itemSystem.dropLoot(event.deathPosition);
     }
@@ -503,7 +488,10 @@ class ActionGame extends FlameGame
   }
 
   void _playerAttack() {
-    for (final enemy in enemies) {
+    // CRITICAL: Only attack enemies that are alive AND in the enemies list
+    final aliveEnemies = enemies.where((e) => e.health > 0 && e.isMounted).toList();
+
+    for (final enemy in aliveEnemies) {
       final distance = player.position.distanceTo(enemy.position);
       if (distance < player.stats.attackRange * 30) {
         combatSystem.processAttack(
@@ -520,7 +508,7 @@ class ActionGame extends FlameGame
         direction: player.facingRight ? Vector2(1, 0) : Vector2(-1, 0),
       );
     }
-    
+
     // Trigger animation
     player.attack();
   }

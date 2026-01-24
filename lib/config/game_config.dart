@@ -11,7 +11,7 @@ class GameConfig {
   static const double airResistance = 0.98;
 
   // === CHARACTER ===
-  static const double characterWidth = 160.0;
+  static const double characterWidth = 240.0;
   static const double characterHeight = 240.0;
   static const double characterBaseHealth = 100.0;
   static const double characterBaseStamina = 100.0;
