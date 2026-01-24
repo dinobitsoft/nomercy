@@ -30,18 +30,16 @@ class Wizard extends GameCharacter {
     required super.position,
     required super.playerType,
     BotTactic? botTactic,
-    String? customId,
+    super.customId,
   }) : super(
     botTactic: botTactic ?? DefensiveTactic(),
     stats: WizardStats(),
-    customId: customId,
   );
 
   @override
   void updateHumanControl(double dt) {
     if (isStunned || isLanding || isDodging) return;
 
-    // Unified input: Touch + Gamepad
     final gamepad = game.gamepadManager;
     Vector2 inputDelta = game.joystick.relativeDelta;
 
@@ -52,7 +50,6 @@ class Wizard extends GameCharacter {
     final moveSpeed = stats.dexterity / 2;
     final moveMultiplier = isAttackCommitted ? 0.2 : 1.0;
 
-    // MOVEMENT
     if (inputDelta.x != 0 && !isBlocking) {
       final direction = Vector2(inputDelta.x, 0);
       performWalk(direction, moveSpeed * 100 * moveMultiplier);
@@ -60,7 +57,6 @@ class Wizard extends GameCharacter {
       performStopWalk();
     }
 
-    // BLOCK
     bool blockInput = inputDelta.y > 0.5 || gamepad.isBlockPressed;
     if (blockInput && groundPlatform != null) {
       startBlock();
@@ -69,20 +65,14 @@ class Wizard extends GameCharacter {
       stopBlock();
     }
 
-    // JUMP (Wizard has lower jump)
     bool jumpInput = (game.joystick.direction == JoystickDirection.up) ||
         gamepad.isJumpPressed;
 
-    if (jumpInput &&
-        groundPlatform != null &&
-        !isBlocking &&
-        !isAttackCommitted &&
-        !isAirborne &&
-        stamina >= 20) {
+    if (jumpInput && groundPlatform != null && !isBlocking &&
+        !isAttackCommitted && !isAirborne && stamina >= 20) {
       performJump(customPower: -280);
     }
 
-    // DODGE
     bool dodgeInput = (inputDelta.length > 0.5 && inputDelta.y < -0.5) ||
         gamepad.isDodgePressed;
 
@@ -103,18 +93,14 @@ class Wizard extends GameCharacter {
   }
 
   void _botAdvancedMechanics(double dt) {
-    // Wizard prefers blocking over dodging
     final distanceToPlayer = position.distanceTo(game.player.position);
-    if (distanceToPlayer < 200 &&
-        game.player.isAttacking &&
-        !isDodging &&
-        stamina > 30) {
+    if (distanceToPlayer < 200 && game.player.isAttacking &&
+        !isDodging && stamina > 30) {
       startBlock();
     } else if (isBlocking && (!game.player.isAttacking || distanceToPlayer > 200)) {
       stopBlock();
     }
 
-    // Only dodge if really necessary
     final nearbyProjectiles = game.projectiles.where((p) {
       return p.owner != null &&
           position.distanceTo(p.position) < 100 &&
@@ -135,21 +121,20 @@ class Wizard extends GameCharacter {
   void attack() {
     if (isBlocking || health <= 0) return;
 
-    // REFACTORED: Use event-driven attack preparation
     if (!prepareAttackWithEvent()) return;
 
-    // Extra stamina cost for powerful magic
     stamina -= 5;
 
-    // Charged fireball on high combo
     final damageMultiplier = 1.0 + (comboCount - 1) * 0.25;
     final isPowerShot = comboCount >= 3;
-
     final direction = facingRight ? Vector2(1, 0) : Vector2(-1, 0);
 
-    // FIX 1: Create projectile with explicit priority and proper owner detection
+    // CRITICAL FIX: Ensure projectile spawns at visible position
+    final spawnOffset = facingRight ? Vector2(40, 0) : Vector2(-40, 0);
+    final spawnPos = position + spawnOffset;
+
     final projectile = Projectile(
-      position: position.clone(),
+      position: spawnPos,
       direction: direction,
       damage: stats.attackDamage * damageMultiplier,
       owner: playerType == PlayerType.human ? this : null,
@@ -158,25 +143,24 @@ class Wizard extends GameCharacter {
       type: 'fireball',
     );
 
-    // FIX 2: Set explicit priority to ensure visibility
-    projectile.priority = 75; // Between platforms (10) and characters (90-100)
+    // CRITICAL: Set correct priority
+    projectile.priority = 75;
 
-    // FIX 3: Add to game in correct order
+    // CRITICAL: Add in correct order
     game.add(projectile);
     game.world.add(projectile);
     game.projectiles.add(projectile);
 
-    print('🔮 Wizard created fireball at ${position.x.toInt()}, ${position.y.toInt()} facing ${facingRight ? "right" : "left"}');
+    print('🔮 Wizard ${playerType == PlayerType.bot ? "BOT" : "PLAYER"} created fireball at ${spawnPos.x.toInt()}, ${spawnPos.y.toInt()}');
 
     _eventBus.emit(ProjectileFiredEvent(
       shooterId: stats.name,
       projectileType: 'fireball',
-      position: position.clone(),
+      position: spawnPos,
       direction: direction,
       damage: projectile.damage,
     ));
 
-    // Recoil effect
     if (!isAirborne) {
       velocity.x -= (facingRight ? 30 : -30);
     }

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'dart:math' as math;
 
+import '../config/game_config.dart';
 import '../core/action_events.dart';
 import '../core/event_bus.dart';
+import '../state/character_animation_state.dart';
+import '../state/character_state_machine.dart';
 import 'action_game.dart';
 import '../character_stats.dart';
 import '../player_type.dart';
@@ -27,13 +30,14 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
   // Animation tracking
   String _currentAnimationState = 'idle';
   String _previousAnimationState = 'idle';
+  late final CharacterStateMachine _stateMachine = CharacterStateMachine();
 
   // Block tracking
   DateTime? _blockStartTime;
 
   // Character dimensions
-  static const double baseWidth = 160.0;
-  static const double baseHeight = 160.0;
+  static const double baseWidth = GameConfig.characterWidth;
+  static const double baseHeight = GameConfig.characterHeight;
 
   // Physics
   Vector2 velocity = Vector2.zero();
@@ -41,8 +45,8 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
   bool facingRight = true;
 
   // State
-  double health = 100;
-  double stamina = 100;
+  double health = GameConfig.characterBaseHealth;
+  double stamina = GameConfig.characterBaseStamina;
   double maxStamina = 100;
   bool isCrouching = false;
   bool isClimbing = false;
@@ -50,24 +54,24 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
   bool isJumping = false;
   bool isAirborne = false;
   double airborneTime = 0;
-  double attackCooldown = 0;
+  double attackCooldown = GameConfig.attackCooldown;
 
   // Landing and recovery mechanics
   bool isLanding = false;
-  double landingRecoveryTime = 0;
-  double hardLandingThreshold = 400;
+  double landingRecoveryTime = GameConfig.landingRecoveryTime;
+  double hardLandingThreshold = GameConfig.hardLandingThreshold;
   bool isStunned = false;
   double stunDuration = 0;
 
   // Attack momentum and commit
   bool isAttackCommitted = false;
-  double attackCommitTime = 0;
+  double attackCommitTime = GameConfig.attackCommitTime;
   double lastAttackDirection = 0;
 
   // Dodge/Roll mechanic
   bool isDodging = false;
-  double dodgeDuration = 0;
-  double dodgeCooldown = 0;
+  double dodgeDuration = GameConfig.dodgeDuration;
+  double dodgeCooldown = GameConfig.dodgeCooldown;
   Vector2 dodgeDirection = Vector2.zero();
 
   // Parry/Block mechanic
@@ -289,14 +293,14 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       return;
     }
 
+    // Store ground state BEFORE any updates
+    wasGrounded = groundPlatform != null;
+
     // Update timers
     _updateTimers(dt);
 
     // Handle state-specific updates
     _handleStates(dt);
-
-    // Store ground state BEFORE physics
-    wasGrounded = groundPlatform != null;
 
     // Update based on type (skip if stunned or landing)
     if (!isStunned && !isLanding && health > 0) {
@@ -307,21 +311,14 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       }
     }
 
-    // Apply physics
+    // Apply physics BEFORE checking ground state
     applyPhysics(dt);
 
-    // Check landing AFTER physics
+    // NOW check ground state changes AFTER physics
     final isGroundedNow = groundPlatform != null;
 
-    // Handle landing transition
-    if (!wasGrounded && isGroundedNow && velocity.y > 50) {
-      handleLandingWithEvent();
-      landingAnimationTimer = 0.25;
-      isLanding = true;
-    }
-
-    // Handle airborne transition
-    if (wasGrounded && !isGroundedNow) {
+    // Detect takeoff (was grounded, now airborne)
+    if (wasGrounded && !isGroundedNow && velocity.y < -10) {
       jumpAnimationTimer = 0.3;
       isAirborne = true;
       isJumping = true;
@@ -334,6 +331,15 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       ));
     }
 
+    // Detect landing (was airborne, now grounded)
+    if (!wasGrounded && isGroundedNow && velocity.y > 50) {
+      handleLandingWithEvent();
+      landingAnimationTimer = 0.25;
+      isLanding = true;
+      isAirborne = false;
+      isJumping = false;
+    }
+
     // Update airborne state
     if (isGroundedNow) {
       isAirborne = false;
@@ -344,15 +350,15 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       airborneTime += dt;
     }
 
-    // Update animation (will emit animation events)
+    // Update animation LAST (after all state changes)
     updateAnimationWithEvents();
 
     // Update size
     size.y = isCrouching ? baseHeight / 2 : baseHeight;
 
-    // Emit idle event if idle
-    if (velocity.x.abs() < 5 && !isAttacking && !isBlocking &&
-        !isDodging && !isJumping && !isAirborne) {
+    // Emit idle event if truly idle
+    if (isGroundedNow && velocity.x.abs() < 5 && !isAttacking &&
+        !isBlocking && !isDodging && !isJumping && !isAirborne) {
       if (_currentAnimationState != 'idle') {
         _eventBus.emit(CharacterIdleEvent(
           characterId: stats.name,
@@ -598,19 +604,45 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     // Move character
     position += velocity * dt;
 
-    // Platform collision detection
+    // Platform collision detection - FIXED VERSION
     TiledPlatform? newGroundPlatform;
+    double closestPlatformY = double.infinity;
 
     for (final platform in game.platforms) {
-      if (_checkPlatformCollision(platform)) {
-        if (velocity.y > 0 && position.y < platform.position.y) {
-          position.y = platform.position.y - platform.size.y / 2 - size.y / 2;
+      // Calculate platform bounds (Anchor.center)
+      final platformLeft = platform.position.x - platform.size.x / 2;
+      final platformRight = platform.position.x + platform.size.x / 2;
+      final platformTop = platform.position.y - platform.size.y / 2;
+
+      // Calculate character bounds (Anchor.center)
+      final charLeft = position.x - size.x / 2;
+      final charRight = position.x + size.x / 2;
+      final charBottom = position.y + size.y / 2;
+
+      // Check horizontal overlap
+      final horizontalOverlap = charRight > platformLeft && charLeft < platformRight;
+
+      if (!horizontalOverlap) continue;
+
+      // Check if character is falling onto platform (velocity.y > 0)
+      // and character's bottom is near or past platform's top
+      final distanceToPlatform = charBottom - platformTop;
+
+      if (velocity.y >= 0 && distanceToPlatform >= 0 && distanceToPlatform < 20) {
+        // Character is landing on this platform
+        if (platformTop < closestPlatformY) {
+          closestPlatformY = platformTop;
           newGroundPlatform = platform;
-          velocity.y = 0;
-          isJumping = false;
-          break;
         }
       }
+    }
+
+    // Apply platform collision
+    if (newGroundPlatform != null) {
+      // Snap character to platform surface
+      position.y = closestPlatformY - size.y / 2;
+      velocity.y = 0;
+      isJumping = false;
     }
 
     groundPlatform = newGroundPlatform;
@@ -711,28 +743,9 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
 
   @override
   void render(Canvas canvas) {
-    // Don't render if dead (fading out)
+    // Don't render if dead - component should be removed instead
     if (health <= 0) {
-      // Death fade-out effect
-      final deathOpacity = 0.3;
-      canvas.saveLayer(
-        Rect.fromCenter(center: Offset.zero, width: size.x, height: size.y),
-        Paint()..color = Colors.white.withOpacity(deathOpacity),
-      );
-      super.render(canvas);
-      canvas.restore();
-
-      // Death indicator
-      final textPainter = TextPainter(
-        text: const TextSpan(
-          text: '💀',
-          style: TextStyle(fontSize: 40),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-      textPainter.paint(canvas, Offset(-textPainter.width / 2, -size.y / 2 - 50));
-      return;
+      return; // Don't render anything for dead characters
     }
 
     super.render(canvas);
@@ -1029,46 +1042,56 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
   void updateAnimationWithEvents() {
     if (!spritesLoaded) return;
 
-    String newState = 'idle';
+    // Evaluate what state we SHOULD be in
+    final desiredState = _stateMachine.evaluateState(this);
 
-    // Determine animation state
-    if (isStunned) {
-      newState = 'idle';
-    } else if (isAttacking && attackAnimation != null && attackAnimationTimer > 0) {
-      newState = 'attack';
-      animation = attackAnimation;
-    } else if (isLanding && landingAnimation != null && landingAnimationTimer > 0) {
-      newState = 'landing';
-      animation = landingAnimation;
-    } else if (isDodging) {
-      newState = 'dodge';
-      animation = walkAnimation;
-    } else if ((isAirborne || isJumping || jumpAnimationTimer > 0) && jumpAnimation != null) {
-      newState = 'jump';
-      animation = jumpAnimation;
-    } else if (velocity.x.abs() > 5) {
-      newState = 'walk';
-      animation = walkAnimation;
-    } else {
-      newState = 'idle';
-      animation = idleAnimation;
+    // Try to change state
+    if (_stateMachine.requestStateChange(desiredState)) {
+      final newState = _stateMachine.currentState;
+
+      // Map state to animation
+      switch (newState) {
+        case CharacterAnimState.idle:
+          animation = idleAnimation;
+          break;
+        case CharacterAnimState.walking:
+          animation = walkAnimation;
+          break;
+        case CharacterAnimState.jumping:
+        case CharacterAnimState.falling:
+          animation = jumpAnimation;
+          break;
+        case CharacterAnimState.landing:
+          animation = landingAnimation;
+          break;
+        case CharacterAnimState.attacking:
+          animation = attackAnimation;
+          break;
+        case CharacterAnimState.dodging:
+        case CharacterAnimState.blocking:
+        case CharacterAnimState.stunned:
+          animation = idleAnimation; // Fallback
+          break;
+        case CharacterAnimState.dead:
+          animation = null;
+          break;
+      }
+
+      // Emit event if state actually changed
+      if (newState.toString() != _currentAnimationState) {
+        _eventBus.emit(CharacterAnimationChangedEvent(
+          characterId: stats.name,
+          position: position.clone(),
+          previousAnimation: _currentAnimationState,
+          newAnimation: newState.toString(),
+          isLooping: newState == CharacterAnimState.idle ||
+              newState == CharacterAnimState.walking,
+        ));
+
+        _currentAnimationState = newState.toString();
+      }
     }
 
-    // Emit animation changed event if state changed
-    if (newState != _currentAnimationState) {
-      _eventBus.emit(CharacterAnimationChangedEvent(
-        characterId: stats.name,
-        position: position.clone(),
-        previousAnimation: _currentAnimationState,
-        newAnimation: newState,
-        isLooping: newState == 'idle' || newState == 'walk',
-      ));
-
-      _previousAnimationState = _currentAnimationState;
-      _currentAnimationState = newState;
-    }
-
-    // Apply facing direction
     scale.x = facingRight ? 1 : -1;
   }
 

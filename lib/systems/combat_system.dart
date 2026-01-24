@@ -61,12 +61,16 @@ class CombatSystem {
   // ATTACK PROCESSING
   // ==========================================
 
-  /// Process attack from attacker to target
   void processAttack({
     required GameCharacter attacker,
     required GameCharacter target,
     String attackType = 'melee',
   }) {
+    // CRITICAL: Check if target is still valid
+    if (target.health <= 0 || !target.isMounted) {
+      return; // Target is dead or removed, abort attack
+    }
+
     // Calculate base damage
     double damage = attacker.stats.attackDamage;
 
@@ -278,12 +282,12 @@ class CombatSystem {
     // Play death sound
     _eventBus.emit(PlaySFXEvent(soundId: 'death'));
 
-    // Show death notification
-    _eventBus.emit(ShowNotificationEvent(
+    // Show death notification //TODO: make it available if special notification mode activated
+/*    _eventBus.emit(ShowNotificationEvent(
       message: '${event.victimId} was defeated!',
       color: Colors.red,
       duration: const Duration(seconds: 3),
-    ));
+    ));*/
   }
 
   void _handleProjectileHit(ProjectileHitEvent event) {
