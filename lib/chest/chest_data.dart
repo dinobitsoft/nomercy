@@ -22,4 +22,14 @@ class ChestData {
       opened: json['opened'] ?? false,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'type': type,
+      'x': x,
+      'y': y,
+      'opened': opened,
+    };
+  }
 }

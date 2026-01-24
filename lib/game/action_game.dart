@@ -64,6 +64,9 @@ class ActionGame extends FlameGame
   final MapGeneratorConfig? mapConfig;
   final bool enableMultiplayer;
 
+  int availableSpawns = 0;
+  int totalSpawns = 0;
+
   late GameCharacter player;
   final List<GameCharacter> enemies = [];
   final Map<String, GameCharacter> _characterRegistry = {};

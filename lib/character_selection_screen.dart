@@ -4,9 +4,11 @@ import 'package:nomercy/managers/localization_manager.dart';
 
 import 'character_stats.dart';
 import 'game/stat/stats.dart';
+import 'game_screen.dart';
 import 'gamepad_manager.dart';
 import 'level_selection_screen.dart';
 import 'mode_selection_screen.dart';
+import 'multiplayer/multiplayer_lobby_screen.dart';
 
 class CharacterSelectionScreen extends StatefulWidget {
   const CharacterSelectionScreen({super.key});
@@ -410,86 +412,28 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
     );
   }
 
-  void _startMultiplayer(BuildContext context) {
-    if (selectedCharacterClass == null) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: Row(
-          children: [
-            Icon(Icons.wifi, color: Colors.orangeAccent),
-            const SizedBox(width: 10),
-            const Text(
-              'Multiplayer Mode',
-              style: TextStyle(color: Colors.white),
-            ),
-          ],
+  void _startMultiplayer(BuildContext context) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MultiplayerLobbyScreen(
+          selectedCharacterClass: selectedCharacterClass!,
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'You\'re about to enter multiplayer mode!',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const SizedBox(height: 15),
-            Text(
-              '• Fight against real players online\n'
-                  '• Server: localhost:3000\n'
-                  '• Make sure server is running\n'
-                  '• Your character: ${selectedCharacterClass!.toUpperCase()}',
-              style: TextStyle(color: Colors.grey[400], fontSize: 14),
-            ),
-            const SizedBox(height: 15),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.orange),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.orange, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Server must be running at http://10.0.2.2:3000',
-                      style: TextStyle(color: Colors.orange[200], fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => LevelSelectionScreen(
-                    selectedCharacterClass: selectedCharacterClass!,
-                  ),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orangeAccent,
-            ),
-            child: const Text('Connect', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
+
+    if (result != null) {
+      // Start game with room ID
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => GameScreen(
+            selectedCharacterClass: selectedCharacterClass!,
+            enableMultiplayer: true,
+            roomId: result['room_id'],
+          ),
+        ),
+      );
+    }
   }
 }
