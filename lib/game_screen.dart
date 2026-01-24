@@ -13,6 +13,7 @@ class GameScreen extends StatefulWidget {
   final bool procedural;
   final MapGeneratorConfig? mapConfig;
   final bool enableMultiplayer;
+  final String? roomId;
 
   const GameScreen({
     super.key,
@@ -22,6 +23,7 @@ class GameScreen extends StatefulWidget {
     this.procedural = false,
     this.mapConfig,
     this.enableMultiplayer = false,
+    this.roomId,
   });
 
   @override

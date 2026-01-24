@@ -7,6 +7,7 @@ class GameMap {
   final double height;
   final List<PlatformData> platforms;
   final SpawnPoint playerSpawn;
+  final List<SpawnPoint> multiplayerSpawns; // NEW: Multiple spawn points
   final List<ChestData> chests;
   final List<ItemData> items;
 
@@ -16,8 +17,9 @@ class GameMap {
     required this.height,
     required this.platforms,
     required this.playerSpawn,
+    this.multiplayerSpawns = const [], // NEW
     required this.chests,
-    this.items = const [], //TODO: make it required
+    this.items = const [],
   });
 
   factory GameMap.fromJson(Map<String, dynamic> json) {
@@ -29,10 +31,13 @@ class GameMap {
           .map((p) => PlatformData.fromJson(p))
           .toList(),
       playerSpawn: SpawnPoint.fromJson(json['playerSpawn']),
+      multiplayerSpawns: (json['multiplayerSpawns'] as List? ?? []) // NEW
+          .map((s) => SpawnPoint.fromJson(s))
+          .toList(),
       chests: (json['chests'] as List? ?? [])
           .map((c) => ChestData.fromJson(c))
           .toList(),
-      items: (json['items'] as List? ?? []) // ADD THIS
+      items: (json['items'] as List? ?? [])
           .map((i) => ItemData.fromJson(i))
           .toList(),
     );
@@ -45,8 +50,12 @@ class GameMap {
       'height': height,
       'platforms': platforms.map((p) => p.toJson()).toList(),
       'playerSpawn': playerSpawn.toJson(),
+      'multiplayerSpawns': multiplayerSpawns.map((s) => s.toJson()).toList(), // NEW
+      'chests': chests.map((c) => c.toJson()).toList(),
+      'items': items.map((i) => i.toJson()).toList(),
     };
   }
+
 }
 
 class PlatformData {

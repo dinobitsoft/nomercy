@@ -552,19 +552,43 @@ class ProceduralMapGenerator {
   }
 
   void _placePlayerSpawn() {
-    // Spawn on ground level, left side
+    // Generate 2-4 spawn points for multiplayer
+    final spawnCount = 2 + random.nextInt(3); // 2-4 spawns
+    final List<Vector2> spawns = [];
+
     final groundPlatforms = platforms.where((p) => p.layer == 0).toList();
+
     if (groundPlatforms.isNotEmpty) {
-      final spawn = groundPlatforms.first;
-      playerSpawn = Vector2(
-        spawn.position.x - spawn.size.x / 2 + 200,
-        spawn.position.y - spawn.size.y / 2 - playerHeight / 2,
-      );
+      final mainPlatform = groundPlatforms.first;
+      final platformWidth = mainPlatform.size.x;
+
+      // Distribute spawns across the main platform
+      for (int i = 0; i < spawnCount; i++) {
+        final ratio = (i + 1) / (spawnCount + 1);
+        final spawnX = mainPlatform.position.x - platformWidth / 2 + platformWidth * ratio;
+        final spawnY = mainPlatform.position.y - mainPlatform.size.y / 2 - playerHeight / 2;
+
+        spawns.add(Vector2(spawnX, spawnY));
+      }
     } else {
-      playerSpawn = Vector2(200, config.height - 300);
+      // Fallback: evenly distributed spawns
+      for (int i = 0; i < spawnCount; i++) {
+        final x = (config.width / (spawnCount + 1)) * (i + 1);
+        spawns.add(Vector2(x, config.height - 300));
+      }
     }
 
-    print('Player spawn: ${playerSpawn!.x.toInt()}, ${playerSpawn!.y.toInt()}');
+    // Set first spawn as primary (for single player)
+    playerSpawn = spawns.first;
+
+    // Store all spawns for multiplayer
+    chestPositions.clear(); // Reuse for spawn storage temporarily
+    chestPositions.addAll(spawns);
+
+    print('Generated ${spawns.length} spawn points for multiplayer');
+    for (int i = 0; i < spawns.length; i++) {
+      print('  Spawn $i: ${spawns[i].x.toInt()}, ${spawns[i].y.toInt()}');
+    }
   }
 
   void _placeChests() {

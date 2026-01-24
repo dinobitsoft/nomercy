@@ -14,6 +14,7 @@ import '../game/character/trader.dart';
 import '../game/character/wizard.dart';
 import '../game/game_character.dart';
 import '../game/stat/stats.dart';
+import '../map/game_map.dart';
 import '../player_type.dart';
 
 class NetworkManager {
@@ -29,13 +30,10 @@ class NetworkManager {
   double networkUpdateTimer = 0;
   dart_async.Timer? heartbeatTimer;
 
-  void connect(String characterClass, CharacterStats stats, ActionGame gameInstance) {
+  void connect(String characterClass, CharacterStats stats, ActionGame gameInstance, {String? roomId}) {
     game = gameInstance;
 
-    // Update this with your server IP
-    // For local testing on emulator: 'http://10.0.2.2:3000'
-    // For local testing on physical device: 'http://192.168.1.X:3000' (replace X with your IP)
-    // For production: 'https://your-server.com'
+    // Server configuration
     socket = IO.io('http://10.0.2.2:3000',
         IO.OptionBuilder()
             .setTransports(['websocket'])
@@ -51,23 +49,30 @@ class NetworkManager {
       isConnected = true;
       myPlayerId = socket.id;
 
-      socket.emit('join-game', {
-        'characterClass': characterClass,
-        'position': {
-          'x': game!.player.position.x,
-          'y': game!.player.position.y
-        },
-        'stats': {
-          'power': stats.power,
-          'magic': stats.magic,
-          'dexterity': stats.dexterity,
-          'intelligence': stats.intelligence,
-          'attackDamage': stats.attackDamage,
-          'attackRange': stats.attackRange,
-        }
-      });
+      if (roomId != null) {
+        // Join existing room
+        socket.emit('join-room', {
+          'room_id': roomId,
+          'username': 'Player_${socket.id?.substring(0, 8)}',
+          'character_class': characterClass,
+          'stats': {
+            'power': stats.power,
+            'magic': stats.magic,
+            'dexterity': stats.dexterity,
+            'intelligence': stats.intelligence,
+            'attackDamage': stats.attackDamage,
+            'attackRange': stats.attackRange,
+          }
+        });
+      } else {
+        // Create new room
+        socket.emit('create-room', {
+          'map_name': game!.mapName,
+          'game_mode': game!.gameMode.toString(),
+          'max_players': 4
+        });
+      }
 
-      // Start heartbeat to keep connection alive
       _startHeartbeat();
     });
 
@@ -226,6 +231,21 @@ class NetworkManager {
     socket.on('pong', () { //TODO: fix for cast
       // Handle latency measurement if needed
     } as EventHandler<dynamic>);
+  }
+
+  void saveMapWithSpawns(String mapName, List<SpawnPoint> spawns) async {
+    final socket = IO.io('http://10.0.2.2:3000');
+
+    socket.emit('save-spawn-points', {
+      'map_name': mapName,
+      'spawn_points': spawns.map((s) => {
+        'x': s.x,
+        'y': s.y,
+        'occupied': false
+      }).toList(),
+      'width': 1920,
+      'height': 1080,
+    });
   }
 
   void _startHeartbeat() {

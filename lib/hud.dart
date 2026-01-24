@@ -92,6 +92,10 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
     // Stamina icon
     _drawBolt(canvas, const Offset(25, staminaY + 4), 14);
 
+    if (gameRef.enableMultiplayer && gameRef.totalSpawns > 0) {
+      _drawSpawnCounter(canvas);
+    }
+
     // --- Status Indicators ---
     _drawStatusIndicators(canvas);
 
@@ -110,9 +114,36 @@ class HUD extends PositionComponent with HasGameRef<ActionGame> {
     _drawBlockButton(canvas);
   }
 
+  void _drawSpawnCounter(Canvas canvas) {
+    final textStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 16,
+      fontWeight: FontWeight.bold,
+      shadows: const [Shadow(blurRadius: 4, color: Colors.black)],
+    );
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+
+    final spawnText = 'SPAWNS: ${gameRef.availableSpawns} / ${gameRef.totalSpawns}';
+    textPainter.text = TextSpan(text: spawnText, style: textStyle);
+    textPainter.layout();
+
+    // Position it below the health/stamina bars
+    final x = 40.0;
+    final y = 75.0;
+
+    // Draw background for spawn counter
+    final bgRect = Rect.fromLTWH(x - 5, y - 5, textPainter.width + 10, textPainter.height + 10);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(bgRect, const Radius.circular(5)),
+      Paint()..color = Colors.black.withOpacity(0.4),
+    );
+
+    textPainter.paint(canvas, Offset(x, y));
+  }
+
   void _drawStatusIndicators(Canvas canvas) {
     const double statusX = 40;
-    const double statusY = 75;
+    const double statusY = 105; // Moved down to make room for spawn counter
     double xOffset = 0;
 
     final textStyle = TextStyle(
