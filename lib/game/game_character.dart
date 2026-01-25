@@ -283,6 +283,9 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     }
   }
 
+// lib/game/game_character.dart - UPDATE METHOD ENHANCEMENT
+// Replace the existing update() method with this enhanced version
+
   @override
   void update(double dt) {
     super.update(dt);
@@ -293,21 +296,31 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       return;
     }
 
+    // Update state machine timer
+    _stateMachine.update(dt);
+
     // Store ground state BEFORE any updates
     wasGrounded = groundPlatform != null;
 
-    // Update timers
+    // Update timers first
     _updateTimers(dt);
 
-    // Handle state-specific updates
+    // Handle state-specific updates (stamina, dodge, etc.)
     _handleStates(dt);
 
-    // Update based on type (skip if stunned or landing)
-    if (!isStunned && !isLanding && health > 0) {
-      if (playerType == PlayerType.human) {
-        updateHumanControl(dt);
+    // Update based on type (skip if stunned)
+    if (!isStunned && health > 0) {
+      // Landing allows limited control but not full actions
+      if (isLanding && landingAnimationTimer > 0.1) {
+        // Can only apply friction during landing
+        velocity.x *= 0.8;
       } else {
-        updateBotControl(dt);
+        // Full control
+        if (playerType == PlayerType.human) {
+          updateHumanControl(dt);
+        } else {
+          updateBotControl(dt);
+        }
       }
     }
 
@@ -350,7 +363,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       airborneTime += dt;
     }
 
-    // Update animation LAST (after all state changes)
+    // CRITICAL: Update animation using state machine
     updateAnimationWithEvents();
 
     // Update size
@@ -366,6 +379,157 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
         ));
       }
     }
+  }
+
+  /// Enhanced animation update with proper state machine integration
+  void updateAnimationWithEvents() {
+    if (!spritesLoaded) return;
+
+    // Evaluate what state we SHOULD be in
+    final desiredState = _stateMachine.evaluateState(this);
+
+    // Try to change state (respects transition rules)
+    final transitionSucceeded = _stateMachine.requestStateChange(desiredState);
+
+    // Get current state from machine
+    final currentStateEnum = _stateMachine.currentState;
+
+    // Map state to animation
+    SpriteAnimation? newAnimation;
+
+    switch (currentStateEnum) {
+      case CharacterAnimState.idle:
+        newAnimation = idleAnimation;
+        break;
+      case CharacterAnimState.walking:
+        newAnimation = walkAnimation;
+        break;
+      case CharacterAnimState.jumping:
+      case CharacterAnimState.falling:
+        newAnimation = jumpAnimation;
+        break;
+      case CharacterAnimState.landing:
+        newAnimation = landingAnimation;
+        break;
+      case CharacterAnimState.attacking:
+        newAnimation = attackAnimation;
+        break;
+      case CharacterAnimState.dodging:
+      case CharacterAnimState.blocking:
+      case CharacterAnimState.stunned:
+        newAnimation = idleAnimation; // Fallback
+        break;
+      case CharacterAnimState.dead:
+        newAnimation = null;
+        break;
+    }
+
+    // Only emit event if state ACTUALLY changed
+    if (transitionSucceeded) {
+      final stateString = currentStateEnum.toString().split('.').last;
+
+      _eventBus.emit(CharacterAnimationChangedEvent(
+        characterId: stats.name,
+        position: position.clone(),
+        previousAnimation: _currentAnimationState,
+        newAnimation: stateString,
+        isLooping: currentStateEnum == CharacterAnimState.idle ||
+            currentStateEnum == CharacterAnimState.walking,
+      ));
+
+      _currentAnimationState = stateString;
+    }
+
+    // Apply animation if different
+    if (newAnimation != null && animation != newAnimation) {
+      animation = newAnimation;
+    }
+
+    // Apply facing direction
+    scale.x = facingRight ? 1 : -1;
+  }
+
+  /// Enhanced physics with proper friction and air resistance
+  void applyPhysics(double dt) {
+    // Apply gravity (only when not on ground and not climbing)
+    if (groundPlatform == null && !isClimbing && !isDodging) {
+      velocity.y += GameConfig.gravity * dt;
+      velocity.y = math.min(velocity.y, GameConfig.maxFallSpeed);
+    }
+
+    // Ground friction - stronger when not attacking or dodging
+    if (groundPlatform != null && !isAttackCommitted && !isDodging) {
+      // Enhanced friction based on state
+      final frictionMultiplier = isLanding ? 0.7 : 1.0;
+      velocity.x *= GameConfig.groundFriction * frictionMultiplier;
+
+      // Stop completely if very slow
+      if (velocity.x.abs() < 5) {
+        velocity.x = 0;
+      }
+    }
+
+    // Air resistance - apply when airborne
+    if (groundPlatform == null && !isDodging) {
+      velocity.x *= GameConfig.airResistance;
+    }
+
+    // Dodge has its own movement
+    if (isDodging) {
+      // Dodge movement is handled in _handleStates
+      // Don't apply friction during dodge
+    }
+
+    // Move character
+    position += velocity * dt;
+
+    // Platform collision detection - ENHANCED VERSION
+    TiledPlatform? newGroundPlatform;
+    double closestPlatformY = double.infinity;
+
+    for (final platform in game.platforms) {
+      // Calculate platform bounds (Anchor.center)
+      final platformLeft = platform.position.x - platform.size.x / 2;
+      final platformRight = platform.position.x + platform.size.x / 2;
+      final platformTop = platform.position.y - platform.size.y / 2;
+
+      // Calculate character bounds (Anchor.center)
+      final charLeft = position.x - size.x / 2;
+      final charRight = position.x + size.x / 2;
+      final charBottom = position.y + size.y / 2;
+
+      // Check horizontal overlap
+      final horizontalOverlap = charRight > platformLeft && charLeft < platformRight;
+
+      if (!horizontalOverlap) continue;
+
+      // Check if character is falling onto platform (velocity.y >= 0)
+      // and character's bottom is near or past platform's top
+      final distanceToPlatform = charBottom - platformTop;
+
+      // Enhanced landing detection - more forgiving
+      if (velocity.y >= -50 && distanceToPlatform >= 0 && distanceToPlatform < 30) {
+        // Character is landing on this platform
+        if (platformTop < closestPlatformY) {
+          closestPlatformY = platformTop;
+          newGroundPlatform = platform;
+        }
+      }
+    }
+
+    // Apply platform collision
+    if (newGroundPlatform != null) {
+      // Snap character to platform surface
+      position.y = closestPlatformY - size.y / 2;
+
+      // Stop vertical velocity only if falling
+      if (velocity.y > 0) {
+        velocity.y = 0;
+      }
+      isJumping = false;
+    }
+
+    groundPlatform = newGroundPlatform;
   }
 
   /// Update all timers
@@ -582,70 +746,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     }
 
     return true;
-  }
-
-  void applyPhysics(double dt) {
-    // Apply gravity
-    if (groundPlatform == null && !isClimbing && !isDodging) {
-      velocity.y += 1000 * dt;
-      velocity.y = math.min(velocity.y, 800);
-    }
-
-    // Friction when grounded
-    if (groundPlatform != null && !isAttackCommitted) {
-      velocity.x *= 0.85;
-    }
-
-    // Air resistance
-    if (groundPlatform == null && !isDodging) {
-      velocity.x *= 0.98;
-    }
-
-    // Move character
-    position += velocity * dt;
-
-    // Platform collision detection - FIXED VERSION
-    TiledPlatform? newGroundPlatform;
-    double closestPlatformY = double.infinity;
-
-    for (final platform in game.platforms) {
-      // Calculate platform bounds (Anchor.center)
-      final platformLeft = platform.position.x - platform.size.x / 2;
-      final platformRight = platform.position.x + platform.size.x / 2;
-      final platformTop = platform.position.y - platform.size.y / 2;
-
-      // Calculate character bounds (Anchor.center)
-      final charLeft = position.x - size.x / 2;
-      final charRight = position.x + size.x / 2;
-      final charBottom = position.y + size.y / 2;
-
-      // Check horizontal overlap
-      final horizontalOverlap = charRight > platformLeft && charLeft < platformRight;
-
-      if (!horizontalOverlap) continue;
-
-      // Check if character is falling onto platform (velocity.y > 0)
-      // and character's bottom is near or past platform's top
-      final distanceToPlatform = charBottom - platformTop;
-
-      if (velocity.y >= 0 && distanceToPlatform >= 0 && distanceToPlatform < 20) {
-        // Character is landing on this platform
-        if (platformTop < closestPlatformY) {
-          closestPlatformY = platformTop;
-          newGroundPlatform = platform;
-        }
-      }
-    }
-
-    // Apply platform collision
-    if (newGroundPlatform != null) {
-      // Snap character to platform surface
-      position.y = closestPlatformY - size.y / 2;
-      velocity.y = 0;
-      isJumping = false;
-    }
-
-    groundPlatform = newGroundPlatform;
   }
 
   void _handleLanding() {
@@ -1036,63 +1136,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       position: position.clone(),
       stunDuration: 0.5,
     ));
-  }
-
-
-  void updateAnimationWithEvents() {
-    if (!spritesLoaded) return;
-
-    // Evaluate what state we SHOULD be in
-    final desiredState = _stateMachine.evaluateState(this);
-
-    // Try to change state
-    if (_stateMachine.requestStateChange(desiredState)) {
-      final newState = _stateMachine.currentState;
-
-      // Map state to animation
-      switch (newState) {
-        case CharacterAnimState.idle:
-          animation = idleAnimation;
-          break;
-        case CharacterAnimState.walking:
-          animation = walkAnimation;
-          break;
-        case CharacterAnimState.jumping:
-        case CharacterAnimState.falling:
-          animation = jumpAnimation;
-          break;
-        case CharacterAnimState.landing:
-          animation = landingAnimation;
-          break;
-        case CharacterAnimState.attacking:
-          animation = attackAnimation;
-          break;
-        case CharacterAnimState.dodging:
-        case CharacterAnimState.blocking:
-        case CharacterAnimState.stunned:
-          animation = idleAnimation; // Fallback
-          break;
-        case CharacterAnimState.dead:
-          animation = null;
-          break;
-      }
-
-      // Emit event if state actually changed
-      if (newState.toString() != _currentAnimationState) {
-        _eventBus.emit(CharacterAnimationChangedEvent(
-          characterId: stats.name,
-          position: position.clone(),
-          previousAnimation: _currentAnimationState,
-          newAnimation: newState.toString(),
-          isLooping: newState == CharacterAnimState.idle ||
-              newState == CharacterAnimState.walking,
-        ));
-
-        _currentAnimationState = newState.toString();
-      }
-    }
-
-    scale.x = facingRight ? 1 : -1;
   }
 
 }

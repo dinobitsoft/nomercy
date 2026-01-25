@@ -1,4 +1,5 @@
-// lib/config/game_config.dart
+// lib/config/game_config.dart - ENHANCED VERSION
+// Replace the existing GameConfig class with this enhanced version
 
 /// Core game configuration - immutable constants
 class GameConfig {
@@ -7,8 +8,20 @@ class GameConfig {
   // === PHYSICS ===
   static const double gravity = 1000.0;
   static const double maxFallSpeed = 800.0;
-  static const double groundFriction = 0.85;
-  static const double airResistance = 0.98;
+
+  // Enhanced friction parameters
+  static const double groundFriction = 0.85;        // Normal ground friction
+  static const double landingFriction = 0.70;       // Extra friction during landing
+  static const double attackFriction = 0.92;        // Light friction during attack
+
+  // Air resistance
+  static const double airResistance = 0.98;         // Horizontal air resistance
+  static const double dodgeAirResistance = 0.95;    // Less resistance during dodge
+
+  // Movement thresholds
+  static const double walkThreshold = 15.0;         // Min velocity to be "walking"
+  static const double stopThreshold = 5.0;          // Velocity below this = stop
+  static const double airborneThreshold = -100.0;   // Strong upward velocity
 
   // === CHARACTER ===
   static const double characterWidth = 240.0;
@@ -31,6 +44,13 @@ class GameConfig {
   static const double dodgeStaminaCost = 20.0;
   static const double hardLandingThreshold = 400.0;
   static const double landingRecoveryTime = 0.25;
+
+  // === ANIMATION TIMINGS ===
+  static const double attackAnimationDuration = 0.3;
+  static const double landingAnimationDuration = 0.25;
+  static const double dodgeAnimationDuration = 0.3;
+  static const double minimumAttackTime = 0.05;    // Min time before attack can be interrupted
+  static const double minimumLandingTime = 0.05;   // Min time in landing state
 
   // === PROJECTILES ===
   static const double projectileSpeed = 400.0;
@@ -65,12 +85,13 @@ class GameConfig {
   static const double joystickRadius = 50.0;
   static const double buttonRadius = 35.0;
   static const double hudMargin = 40.0;
+
+  // === COLLISION ===
+  static const double platformDetectionRange = 30.0;  // Distance to detect landing
+  static const double platformSnapDistance = 20.0;    // Max snap to platform surface
 }
 
-// lib/config/balance_config.dart
-
-/// Game balance configuration - tunable values
-/// Can be modified without recompilation in production
+/// Balance configuration - tunable values
 class BalanceConfig {
   // Character stats multipliers
   static const Map<String, double> characterMultipliers = {
@@ -158,11 +179,9 @@ class BalanceConfig {
   }
 }
 
-// lib/config/debug_config.dart
-
-/// Debug configuration - only active in debug builds
+/// Debug configuration
 class DebugConfig {
-  static const bool enabled = true; // Set to false in production
+  static const bool enabled = true;
 
   // Visual debugging
   static const bool showCollisionBoxes = false;
@@ -170,11 +189,13 @@ class DebugConfig {
   static const bool showFPS = true;
   static const bool showPoolStats = true;
   static const bool showAIDebug = false;
+  static const bool showStateDebug = false;  // NEW: Show state machine debug
 
   // Performance monitoring
   static const bool logFrameTime = false;
   static const bool logMemoryUsage = false;
   static const bool logNetworkLatency = false;
+  static const bool logStateTransitions = false;  // NEW: Log state changes
 
   // Gameplay cheats (debug only)
   static const bool godMode = false;
@@ -192,6 +213,13 @@ class DebugConfig {
   static void log(String message) {
     if (enabled) {
       print('🐛 [DEBUG] $message');
+    }
+  }
+
+  /// Log state transition
+  static void logStateTransition(String character, String from, String to) {
+    if (enabled && logStateTransitions) {
+      print('🔄 [STATE] $character: $from → $to');
     }
   }
 
