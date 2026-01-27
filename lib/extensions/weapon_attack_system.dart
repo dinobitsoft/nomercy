@@ -1,21 +1,16 @@
-// Add this method to GameCharacter class to use equipped weapons
-
+import 'package:core/core.dart';
+import 'package:engine/engine.dart';
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
-import '../game/action_game.dart';
-import '../entities/projectile/projectile.dart';
-import '../game/game_character.dart';
-import '../player_type.dart';
-import '../item/item.dart';
 
 extension WeaponAttackSystem on GameCharacter {
 
   /// Enhanced attack that uses equipped weapon properties
   void attackWithWeapon() {
-    if (isBlocking) return;
+    if (characterState.isBlocking) return;
 
     // Prepare attack with common logic
-    if (!prepareAttack()) return;
+    if (!prepareAttackWithEvent()) return;
 
     // Get equipped weapon from game
     final equippedWeapon = game.equippedWeapon;
@@ -27,7 +22,7 @@ extension WeaponAttackSystem on GameCharacter {
     }
 
     // Apply weapon-specific attack cooldown
-    attackCooldown *= equippedWeapon.attackSpeed;
+    characterState.attackCooldown *= equippedWeapon.attackSpeed;
 
     // Weapon-based attack logic
     if (equippedWeapon.weaponType == WeaponType.sword ||
@@ -41,15 +36,15 @@ extension WeaponAttackSystem on GameCharacter {
   }
 
   void _performMeleeAttack(Weapon weapon) {
-    final damageMultiplier = 1.0 + (comboCount - 1) * 0.2;
+    final damageMultiplier = 1.0 + (characterState.comboCount - 1) * 0.2;
     final finalDamage = weapon.damage * damageMultiplier;
 
     // Check targets
-    final targets = playerType == PlayerType.human ? game.enemies : [game.player];
+    final targets = playerType == PlayerType.human ? game.enemies : [game.character];
 
     for (final target in targets) {
       final distance = position.distanceTo(target.position);
-      final attackRange = weapon.range * 30 * (1 + comboCount * 0.1);
+      final attackRange = weapon.range * 30 * (1 + characterState.comboCount * 0.1);
 
       if (distance < attackRange) {
         final toTarget = target.position.x - position.x;
@@ -63,7 +58,7 @@ extension WeaponAttackSystem on GameCharacter {
           final knockbackPower = weapon.weaponType == WeaponType.axe ? 200 : 150;
           target.velocity.x += knockbackDir * knockbackPower;
 
-          if (comboCount >= 3) {
+          if (characterState.comboCount >= 3) {
             target.velocity.y = -100;
           }
 
@@ -75,11 +70,11 @@ extension WeaponAttackSystem on GameCharacter {
   }
 
   void _performRangedAttack(Weapon weapon) {
-    final damageMultiplier = 1.0 + (comboCount - 1) * 0.18;
+    final damageMultiplier = 1.0 + (characterState.comboCount - 1) * 0.18;
     final finalDamage = weapon.damage * damageMultiplier;
 
     // Special effects for high combos
-    final isPowerShot = comboCount >= 3;
+    final isPowerShot = characterState.comboCount >= 3;
     final projectileCount = _getProjectileCount(weapon, isPowerShot);
 
     for (int i = 0; i < projectileCount; i++) {
@@ -103,7 +98,7 @@ extension WeaponAttackSystem on GameCharacter {
     }
 
     // Recoil effect
-    if (!isAirborne) {
+    if (!characterState.isAirborne) {
       final recoilPower = weapon.weaponType == WeaponType.crossbow ? 40 : 20;
       velocity.x -= (facingRight ? recoilPower : -recoilPower);
     }
@@ -258,7 +253,7 @@ extension WeaponNotifications on ActionGame {
   void showWeaponEquipped(String weaponName) {
     final notification = WeaponNotification(
       weaponName: weaponName,
-      position: player.position.clone() + Vector2(0, -100),
+      position: character.position.clone() + Vector2(0, -100),
     );
     add(notification);
   }

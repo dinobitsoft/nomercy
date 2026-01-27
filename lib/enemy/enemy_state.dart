@@ -1,1 +1,0 @@
-enum EnemyState { idle, patrol, chase, attack, evade, duck, jump }

@@ -1,8 +1,4 @@
-// Example Usage Scenarios for Procedural Map Generator
-
-import 'package:nomercy/map/map_generator_config.dart';
-import 'package:nomercy/map/map_loader.dart';
-
+import 'package:ui/ui.dart';
 
 class MapGeneratorExamples {
 

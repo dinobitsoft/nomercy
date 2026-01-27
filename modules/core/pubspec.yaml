@@ -1,0 +1,29 @@
+name: core
+description: "core"
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
+  flame: ^1.17.0
+  flame_forge2d: ^0.17.0
+  flame_audio: ^2.11.12
+  socket_io_client: ^2.0.3
+  cupertino_icons: ^1.0.8
+  gamepads: ^0.1.9
+  font_awesome_flutter: ^10.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  generate: true
+  uses-material-design: true

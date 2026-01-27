@@ -51,7 +51,7 @@ END
 //
 
 // Icon with lowest ID value placed first to ensure application icon
-// remains consistent on all systems.
+// remains consistent on all system.
 IDI_APP_ICON            ICON                    "resources\\app_icon.ico"
 
 

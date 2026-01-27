@@ -1,8 +1,7 @@
+import 'package:engine/engine.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:nomercy/managers/localization_manager.dart';
-
-import 'character_selection_screen.dart';
+import 'package:ui/ui.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
