@@ -1,8 +1,6 @@
+import 'package:engine/engine.dart';
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
-
-import '../game/action_game.dart';
-import '../game/game_character.dart';
 
 /// Add this to GameCharacter to visualize state issues
 /// REMOVE AFTER DEBUGGING!
@@ -12,18 +10,18 @@ extension DebugVisualization on GameCharacter {
     // Show current state as text
     final states = <String>[];
 
-    if (isAirborne) states.add('AIRBORNE');
-    if (isJumping) states.add('JUMPING');
-    if (isLanding) states.add('LANDING');
-    if (isStunned) states.add('STUNNED');
-    if (isDodging) states.add('DODGING');
-    if (isAttacking) states.add('ATTACKING');
-    if (isBlocking) states.add('BLOCKING');
-    if (groundPlatform != null) states.add('GROUNDED');
+    if (characterState.isAirborne) states.add('AIRBORNE');
+    if (characterState.isJumping) states.add('JUMPING');
+    if (characterState.isLanding) states.add('LANDING');
+    if (characterState.isStunned) states.add('STUNNED');
+    if (characterState.isDodging) states.add('DODGING');
+    if (characterState.isAttacking) states.add('ATTACKING');
+    if (characterState.isBlocking) states.add('BLOCKING');
+    if (characterState.groundPlatform != null) states.add('GROUNDED');
 
     // Show animation timers
-    if (landingAnimationTimer > 0) states.add('LAND_ANIM:${landingAnimationTimer.toStringAsFixed(2)}');
-    if (jumpAnimationTimer > 0) states.add('JUMP_ANIM:${jumpAnimationTimer.toStringAsFixed(2)}');
+    if (characterState.landingAnimationTimer > 0) states.add('LAND_ANIM:${characterState.landingAnimationTimer.toStringAsFixed(2)}');
+    if (characterState.jumpAnimationTimer > 0) states.add('JUMP_ANIM:${characterState.jumpAnimationTimer.toStringAsFixed(2)}');
 
     // Render state text
     final textPainter = TextPainter(
@@ -83,7 +81,7 @@ extension DebugVisualization on GameCharacter {
     );
 
     // Draw ground detection line
-    if (groundPlatform != null) {
+    if (characterState.groundPlatform != null) {
       canvas.drawLine(
         Offset(0, size.y / 2),
         Offset(0, size.y / 2 + 10),
@@ -210,15 +208,15 @@ class StateVisualizer extends PositionComponent {
   void render(Canvas canvas) {
     Color stateColor = Colors.grey;
 
-    if (character.isStunned) {
+    if (character.characterState.isStunned) {
       stateColor = Colors.yellow;
-    } else if (character.landingAnimationTimer > 0) {
+    } else if (character.characterState.landingAnimationTimer > 0) {
       stateColor = Colors.orange;
-    } else if (character.isDodging) {
+    } else if (character.characterState.isDodging) {
       stateColor = Colors.blue;
-    } else if (character.isAttacking) {
+    } else if (character.characterState.isAttacking) {
       stateColor = Colors.red;
-    } else if (character.isAirborne || character.jumpAnimationTimer > 0) {
+    } else if (character.characterState.isAirborne || character.characterState.jumpAnimationTimer > 0) {
       stateColor = Colors.purple;
     } else if (character.velocity.x.abs() > 10) {
       stateColor = Colors.green;
