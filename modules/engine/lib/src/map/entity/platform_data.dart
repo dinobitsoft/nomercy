@@ -1,5 +1,5 @@
 class PlatformData {
-  final int id;
+  // final int id; TODO: implement id
   final String type; // 'brick', 'ground'
   final double x;
   final double y;
@@ -7,7 +7,7 @@ class PlatformData {
   final double height;
 
   PlatformData({
-    required this.id,
+    // required this.id,
     required this.type,
     required this.x,
     required this.y,
@@ -17,7 +17,7 @@ class PlatformData {
 
   factory PlatformData.fromJson(Map<String, dynamic> json) {
     return PlatformData(
-      id: json['id'] ?? 0,
+      // id: json['id'] ?? 0,
       type: json['type'] ?? 'brick',
       x: (json['x'] ?? 0).toDouble(),
       y: (json['y'] ?? 0).toDouble(),
@@ -28,7 +28,7 @@ class PlatformData {
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      // 'id': id,
       'type': type,
       'x': x,
       'y': y,

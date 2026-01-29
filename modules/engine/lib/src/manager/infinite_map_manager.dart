@@ -12,6 +12,7 @@ import 'package:flame/components.dart';
 /// - Camera-based culling
 class InfiniteMapManager {
   final ActionGame game;
+  late ProceduralMapGenerator generator;
 
   // Chunk configuration
   static const double chunkWidth = 2400.0;
@@ -67,12 +68,116 @@ class InfiniteMapManager {
   void initialize() {
     print('🗺️  Initializing infinite map system (seed: $mapSeed)...');
 
+    // Initialize generator with current seed
+    generator = ProceduralMapGenerator(seed: mapSeed);
+
     // Generate initial chunks
     for (int i = -2; i <= 2; i++) {
       _loadChunk(i);
     }
 
     print('✅ Infinite map initialized with ${_activeChunks.length} chunks');
+  }
+
+  /// Public: Generate a single chunk using the ProceduralMapGenerator
+  /// Integrates with generator.generate() if available
+  WorldChunk generateChunk(int chunkIndex) {
+    // Check if already loaded
+    if (_activeChunks.containsKey(chunkIndex)) {
+      return _activeChunks[chunkIndex]!;
+    }
+
+    // Create/retrieve chunk from pool
+    final chunk = _getChunkFromPool()
+      ..reset(
+        index: chunkIndex,
+        startX: chunkIndex * chunkWidth,
+        width: chunkWidth,
+      );
+
+    // Try to generate with ProceduralMapGenerator
+    try {
+      final config = MapGeneratorConfig(
+        seed: mapSeed + chunkIndex,
+        width: chunkWidth,
+        height: 1080,
+        startX: chunk.startX,
+        difficulty: 1.0 + (chunkIndex * 0.1),
+      );
+
+      final generatedMap = generator.generate(config: config);
+
+      if (generatedMap != null) {
+        // Use generated map data
+        chunk.platformData = generatedMap.platforms
+            .map((p) => Vector2(p.x, p.y))
+            .toList();
+        chunk.waveConfigs = generatedMap.waves
+            .map((w) => WaveConfig(
+          waveNumber: w.waveNumber,
+          enemyCount: w.enemyCount,
+          difficulty: w.difficulty,
+        ))
+            .toList();
+      } else {
+        // Fallback to internal generation
+        _generateChunkContent(chunk);
+      }
+    } catch (e) {
+      // If generator fails, use internal generation
+      print('⚠️ Generator failed for chunk $chunkIndex: $e. Using fallback.');
+      _generateChunkContent(chunk);
+    }
+
+    // Add platforms to world
+    _addChunkPlatformsToWorld(chunk);
+
+    _activeChunks[chunkIndex] = chunk;
+    _totalChunksGenerated++;
+
+    print('✅ Generated chunk $chunkIndex '
+        '(${chunk.startX.toInt()} - ${(chunk.startX + chunk.width).toInt()}) '
+        'with generator');
+
+    return chunk;
+  }
+
+  /// Public: Generate entire initial map using the generator
+  Map<int, WorldChunk> generate({int radius = 2}) {
+    final chunks = <int, WorldChunk>{};
+
+    for (int i = -radius; i <= radius; i++) {
+      chunks[i] = generateChunk(i);
+    }
+
+    print('✅ Generated ${chunks.length} chunks using ProceduralMapGenerator');
+    return chunks;
+  }
+
+  /// Public: Regenerate a chunk using the generator
+  /// Clears old data and regenerates with new seed variant
+  void regenerateChunk(int chunkIndex) {
+    // Remove from active chunks
+    if (_activeChunks.containsKey(chunkIndex)) {
+      final oldChunk = _activeChunks.remove(chunkIndex);
+      if (oldChunk != null) {
+        // Remove platforms from world
+        for (final platform in oldChunk.platformRefs) {
+          platform.removeFromParent();
+          game.world.remove(platform);
+          game.platforms.remove(platform);
+        }
+        _returnChunkToPool(oldChunk);
+      }
+    }
+
+    // Clear caches
+    _platformCache.remove(chunkIndex);
+    _waveCache.remove(chunkIndex);
+
+    // Regenerate with generator
+    generateChunk(chunkIndex);
+    print('🔄 Regenerated chunk $chunkIndex with generator');
   }
 
   /// Update based on player position
@@ -479,3 +584,4 @@ class InfiniteMapManager {
     print('🗑️  InfiniteMapManager disposed');
   }
 }
+

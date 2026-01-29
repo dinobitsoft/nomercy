@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 import 'dart:ui';
-
 import 'package:engine/engine.dart';
 import 'package:flame/components.dart';
 
@@ -42,7 +41,6 @@ class ProceduralMapGenerator {
       width: chunkWidth,
       height: 60,
       type: biome.groundType,
-      isGround: true,
     ));
 
     // Generate floating platforms
@@ -60,7 +58,6 @@ class ProceduralMapGenerator {
           width: 150 + random.nextDouble() * 150,
           height: 30,
           type: biome.platformType,
-          isGround: false,
         ));
       }
     }
@@ -221,34 +218,6 @@ class ProceduralMapGenerator {
     print('  Biome Cache Entries: ${stats['biome_cache_entries']}');
     print('  Random Seed: ${stats['random_seed']}');
   }
-}
-
-/// Biome configuration
-
-
-/// Platform data structure for generation
-class PlatformData {
-  final double x;
-  final double y;
-  final double width;
-  final double height;
-  final String type;
-  final bool isGround;
-
-  PlatformData({
-    required this.x,
-    required this.y,
-    required this.width,
-    required this.height,
-    required this.type,
-    this.isGround = false,
-  });
-
-  Vector2 get position => Vector2(x, y);
-  Vector2 get size => Vector2(width, height);
-
-  @override
-  String toString() => 'Platform(${x.toInt()}, ${y.toInt()}, $type)';
 }
 
 /// Chunk quadtree for spatial queries (optimization for large maps)

@@ -15,7 +15,7 @@ class MapLoader {
     MapGeneratorConfig? config,
   }) async {
     if (procedural) {
-      return generateProceduralMap(config ?? MapGeneratorConfig());
+      return generateProceduralMap(config ?? MapGeneratorConfig(startX: 0.0,));
     }
 
     // Check if mapName is a special procedural identifier
@@ -23,7 +23,7 @@ class MapLoader {
       // Extract seed from name
       final seed = int.tryParse(mapName.replaceFirst('procedural_', ''));
       if (seed != null) {
-        return generateProceduralMap(MapGeneratorConfig(seed: seed));
+        return generateProceduralMap(MapGeneratorConfig(seed: seed, startX: 0.0,));
       }
     }
 
@@ -54,7 +54,7 @@ class MapLoader {
     }
 
     // Generate new map
-    final generator = ProceduralMapGenerator(config);
+    final generator = ProceduralMapGenerator(seed: config.seed);
     final map = generator.generate();
 
     // Cache it
@@ -70,7 +70,7 @@ class MapLoader {
 
     return generateProceduralMap(MapGeneratorConfig(
       style: randomStyle,
-      difficulty: difficulty,
+      difficulty: difficulty, startX: 0.0,
     ));
   }
 
@@ -78,7 +78,7 @@ class MapLoader {
   static GameMap generateStyleMap(MapStyle style, {MapDifficulty difficulty = MapDifficulty.medium}) {
     return generateProceduralMap(MapGeneratorConfig(
       style: style,
-      difficulty: difficulty,
+      difficulty: difficulty, startX: 0.0, //TODO: implement
     ));
   }
 
@@ -109,6 +109,7 @@ class MapLoader {
       style: style,
       difficulty: difficulty,
       seed: waveNumber * 1000, // Reproducible maps per wave
+      startX: 0.0,
     ));
   }
 
@@ -122,6 +123,7 @@ class MapLoader {
       chestCount: 2,
       width: 2000,
       height: 1000,
+      startX: 0.0,
     ));
   }
 
@@ -138,7 +140,6 @@ class MapLoader {
       height: 1080,
       platforms: [
         PlatformData(
-          id: 1,
           type: 'ground',
           x: 960,
           y: 1000,
@@ -146,7 +147,6 @@ class MapLoader {
           height: 80,
         ),
         PlatformData(
-          id: 2,
           type: 'brick',
           x: 500,
           y: 700,
@@ -154,7 +154,6 @@ class MapLoader {
           height: 40,
         ),
         PlatformData(
-          id: 3,
           type: 'brick',
           x: 1400,
           y: 700,

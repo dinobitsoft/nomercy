@@ -95,8 +95,8 @@ class InfiniteMapDebugHUD extends PositionComponent with HasGameReference<Action
     super.update(dt);
 
     final charPos = game.character.position;
-    final chunkIndex = game.infiniteMapManager.getCurrentChunkIndex(charPos);
-    final difficulty = game.infiniteMapManager.getEstimatedDifficulty(charPos);
+    final chunkIndex = game.mapManager.getCurrentChunkIndex(charPos);
+    final difficulty = game.mapManager.getEstimatedDifficulty(charPos);
 
     chunkText.text = '📍 Chunk: $chunkIndex';
     positionText.text = '🎯 Pos: (${charPos.x.toInt()}, ${charPos.y.toInt()})';
@@ -161,7 +161,7 @@ class WaveZoneVisualizer extends PositionComponent with HasGameReference<ActionG
   @override
   void render(Canvas canvas) {
     const chunkWidth = 2400.0;
-    final manager = game.infiniteMapManager;
+    final manager = game.mapManager;
 
     // Show all active wave zones
     for (final chunk in manager.loadedChunks.values) {
@@ -427,7 +427,7 @@ extension DebugSetup on ActionGame {
 
   /// Print detailed infinite map report
   void printInfiniteMapReport() {
-    print(infiniteMapManager.getMapInfo());
-    infiniteMapManager.printStats();
+    print(mapManager.getMapInfo());
+    mapManager.printStats();
   }
 }

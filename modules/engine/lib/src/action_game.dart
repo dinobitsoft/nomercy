@@ -42,7 +42,7 @@ class ActionGame extends FlameGame
   // ==========================================
   // INFINITE MAP SYSTEM
   // ==========================================
-  late InfiniteMapManager infiniteMapManager;
+  late InfiniteMapManager mapManager;
   late ProceduralMapGenerator mapGenerator;
 
   // Event subscriptions
@@ -105,7 +105,7 @@ class ActionGame extends FlameGame
 
     // Initialize infinite map system
     mapGenerator = ProceduralMapGenerator(seed: mapSeed);
-    infiniteMapManager = InfiniteMapManager(game: this, seed: mapSeed);
+    mapManager = InfiniteMapManager(game: this, seed: mapSeed);
 
     // Setup event listeners
     _setupEventListeners();
@@ -125,7 +125,7 @@ class ActionGame extends FlameGame
     _createBackground();
 
     // Initialize infinite map (generates initial chunks)
-    infiniteMapManager.initialize();
+    mapManager.initialize();
 
     // Create player
     character = _createCharacter(
@@ -269,12 +269,33 @@ class ActionGame extends FlameGame
     ));
   }
 
+  void onPowerUpActivated() {
+    // Regenerate all nearby chunks
+    final currentIndex = mapManager.currentChunkIndex;
+    for (int i = currentIndex - 2; i <= currentIndex + 2; i++) {
+      mapManager.regenerateChunk(i);
+    }
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
 
     // CRITICAL: Update infinite map system
-    infiniteMapManager.update(character.position, dt);
+    mapManager.update(character.position, dt);
+
+    final loadedChunks = mapManager.loadedChunks;
+    for (final chunk in loadedChunks.values) {
+      // Render or process chunk
+    }
+
+    final chunks = mapManager.generate(radius: 2);
+
+    for (final entry in chunks.entries) {
+      final chunkIndex = entry.key;
+      final chunk = entry.value;
+      print('Generated chunk $chunkIndex');
+    }
 
     waveSystem.update(dt);
     combatSystem.updateCombos(dt);
@@ -614,7 +635,7 @@ class ActionGame extends FlameGame
     audioSystem.dispose();
     itemSystem.dispose();
     uiSystem.dispose();
-    infiniteMapManager.dispose();
+    mapManager.dispose();
     mapGenerator.clearCache();
 
     if (enableMultiplayer) NetworkManager().disconnect();

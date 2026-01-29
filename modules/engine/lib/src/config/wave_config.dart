@@ -9,10 +9,10 @@ class WaveConfig {
 
   WaveConfig({
     required this.waveNumber,
-    required this.spawnX,
-    required this.spawnY,
+    this.spawnX = 0,
+    this.spawnY = 600,
     required this.enemyCount,
-    required this.enemyTypes,
+    this.enemyTypes = const [],
     required this.difficulty,
     this.isBossWave = false,
   });
