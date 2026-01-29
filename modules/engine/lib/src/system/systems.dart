@@ -6,3 +6,4 @@ export 'combat_system.dart';
 export 'item_system.dart';
 export 'ui_system.dart';
 export 'wave_system.dart';
+export 'infinite_world_system.dart';

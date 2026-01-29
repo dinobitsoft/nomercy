@@ -6,3 +6,4 @@ export 'src/manager/managers.dart';
 export 'src/system/systems.dart';
 export 'src/statemachine/sm.dart';
 export 'src/map/maps.dart';
+export 'src/entity/entities.dart';
