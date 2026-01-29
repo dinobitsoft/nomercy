@@ -9,6 +9,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ui/ui.dart';
 
+import 'manager/infinite_map_manager.dart';
+
+/// INTEGRATION GUIDE:
+/// ==================
+/// 1. Replace InfiniteMapManager in action_game.dart with the new implementation
+/// 2. Add ProceduralMapGenerator to game initialization
+/// 3. Call infiniteMapManager.update(character.position, dt) in ActionGame.update()
+/// 4. Use infiniteMapManager.getStats() for debugging
+///
+/// The new system provides:
+/// - Seamless infinite world generation
+/// - Deterministic chunk generation via seeds
+/// - Proper memory management with chunk pooling
+/// - Camera-based culling for performance
+/// - Automatic wave spawning at boundaries
+/// - Biome-based difficulty scaling
+
 class ActionGame extends FlameGame
     with HasCollisionDetection, TapCallbacks, KeyboardEvents {
 
@@ -22,6 +39,12 @@ class ActionGame extends FlameGame
   late final ItemSystem itemSystem;
   late final UISystem uiSystem;
 
+  // ==========================================
+  // INFINITE MAP SYSTEM
+  // ==========================================
+  late InfiniteMapManager infiniteMapManager;
+  late ProceduralMapGenerator mapGenerator;
+
   // Event subscriptions
   final List<EventSubscription> _subscriptions = [];
 
@@ -34,6 +57,7 @@ class ActionGame extends FlameGame
   final bool procedural;
   final MapGeneratorConfig? mapConfig;
   final bool enableMultiplayer;
+  final int? mapSeed;
 
   int availableSpawns = 0;
   int totalSpawns = 0;
@@ -59,10 +83,11 @@ class ActionGame extends FlameGame
   ActionGame({
     required this.selectedCharacterClass,
     required this.gameMode,
-    this.mapName = 'level_1',
-    this.procedural = false,
+    this.mapName = 'infinite',
+    this.procedural = true,
     this.mapConfig,
     this.enableMultiplayer = false,
+    this.mapSeed,
   });
 
   @override
@@ -71,12 +96,16 @@ class ActionGame extends FlameGame
 
     gameStartTime = DateTime.now();
 
-    // Initialize system
+    // Initialize systems
     combatSystem = CombatSystem();
     waveSystem = WaveSystem(game: this, gameMode: gameMode);
     audioSystem = AudioSystem();
     itemSystem = ItemSystem(game: this);
     uiSystem = UISystem(game: this);
+
+    // Initialize infinite map system
+    mapGenerator = ProceduralMapGenerator(seed: mapSeed);
+    infiniteMapManager = InfiniteMapManager(game: this, seed: mapSeed);
 
     // Setup event listeners
     _setupEventListeners();
@@ -93,100 +122,24 @@ class ActionGame extends FlameGame
         : await MapLoader.loadMap(mapName, procedural: false);
 
     // Create background
-    final background = SpriteComponent()
-      ..sprite = await loadSprite('ground.png')
-      ..size = Vector2(1920, 1080)
-      ..paint = (Paint()..color = Colors.blueGrey.withOpacity(0.2));
-    world.add(background);
+    _createBackground();
 
-    // Create a large background gradient
-    final bgRect = RectangleComponent(
-      size: Vector2(5000, 2000),
-      position: Vector2(-1000, -500),
-      paint: Paint()..shader = UIGradient.linear(
-        const Offset(0, 0),
-        const Offset(0, 1000),
-        [const Color(0xFF1a1a2e), const Color(0xFF16213e)],
-      ).shader,
-    );
-    world.add(bgRect);
-
-    // Create platforms
-    for (final platformData in gameMap.platforms) {
-      final platform = TiledPlatform(
-        position: Vector2(
-          platformData.x + platformData.width / 2,
-          platformData.y + platformData.height / 2,
-        ),
-        size: Vector2(platformData.width, platformData.height),
-        platformType: platformData.type,
-      );
-      platform.priority = 10;
-      world.add(platform);
-      platforms.add(platform);
-    }
-
-    // Create chests
-    for (final chestData in gameMap.chests) {
-      final chest = Chest(
-        position: Vector2(chestData.x, chestData.y),
-        data: chestData,
-      );
-      chest.priority = 50; // HIGHER than platforms
-      world.add(chest);
-      chests.add(chest);
-      print('✅ Added chest at ${chestData.x}, ${chestData.y}');
-    }
-
-    // Create items
-    for (final itemData in gameMap.items) {
-      final item = itemData.toItem();
-      final itemDrop = ItemDrop(
-        position: Vector2(itemData.x, itemData.y),
-        item: item,
-      );
-      itemDrop.priority = 50;
-      world.add(itemDrop);
-      itemDrops.add(itemDrop);
-    }
+    // Initialize infinite map (generates initial chunks)
+    infiniteMapManager.initialize();
 
     // Create player
     character = _createCharacter(
       selectedCharacterClass,
-      Vector2(gameMap.playerSpawn.x, gameMap.playerSpawn.y),
+      Vector2(400, 600),
       PlayerType.human,
-      customId: 'player_main', // Explicit player ID
+      customId: 'player_main',
     );
     character.priority = 100;
     world.add(character);
-
-    // Register player
     _registerCharacter(character);
 
-    // Create BOT enemies
-    final botConfigs = [
-      {'class': 'knight', 'x': 600.0, 'tactic': AggressiveTactic()},
-      {'class': 'thief', 'x': 1000.0, 'tactic': BalancedTactic()},
-      {'class': 'trader', 'x': 1000.0, 'tactic': BalancedTactic()},
-      {'class': 'wizard', 'x': 1400.0, 'tactic': DefensiveTactic()},
-    ];
-
-    for (int i = 0; i < botConfigs.length; i++) {
-      final config = botConfigs[i];
-      final bot = _createCharacter(
-        config['class'] as String,
-        Vector2(config['x'] as double, gameMap.playerSpawn.y),
-        PlayerType.bot,
-        botTactic: config['tactic'] as BotTactic,
-        customId: 'bot_${config['class']}_$i', // Unique bot ID
-      );
-      bot.priority = 90;
-      world.add(bot);
-      enemies.add(bot);
-
-      // Register bot
-      _registerCharacter(bot);
-    }
+    // Create initial enemies
+    _spawnInitialEnemies();
 
     // Setup camera
     camera.follow(character);
@@ -231,32 +184,64 @@ class ActionGame extends FlameGame
 
     eventBus.emit(PlayMusicEvent(musicId: 'battle_theme'));
 
-    print('✅ ActionGame: Fully initialized');
+    print('✅ ActionGame: Fully initialized with infinite map system');
   }
 
-  // NEW: Register character in registry
+  void _createBackground() {
+    // Large dynamic background (follows camera)
+    final bgRect = RectangleComponent(
+      size: Vector2(20000, 2000),
+      position: Vector2(-5000, -500),
+      paint: Paint()..shader = UIGradient.linear(
+        const Offset(0, 0),
+        const Offset(0, 1000),
+        [const Color(0xFF1a1a2e), const Color(0xFF16213e)],
+      ).shader,
+    );
+    world.add(bgRect);
+  }
+
+  void _spawnInitialEnemies() {
+    // Spawn a few initial enemies to start gameplay
+    final botConfigs = [
+      {'class': 'knight', 'x': 800.0, 'tactic': AggressiveTactic()},
+      {'class': 'thief', 'x': 1000.0, 'tactic': BalancedTactic()},
+      {'class': 'trader', 'x': 1200.0, 'tactic': BalancedTactic()},
+    ];
+
+    for (int i = 0; i < botConfigs.length; i++) {
+      final config = botConfigs[i];
+      final bot = _createCharacter(
+        config['class'] as String,
+        Vector2(config['x'] as double, 600.0),
+        PlayerType.bot,
+        botTactic: config['tactic'] as BotTactic,
+        customId: 'bot_${config['class']}_$i',
+      );
+      bot.priority = 90;
+      world.add(bot);
+      enemies.add(bot);
+      _registerCharacter(bot);
+    }
+  }
+
   void _registerCharacter(GameCharacter character) {
     _characterRegistry[character.uniqueId] = character;
-    print('✅ Registered character: ${character.uniqueId} (${character.stats.name}, ${character.playerType})');
+    print('✅ Registered: ${character.uniqueId}');
   }
 
-  // NEW: Unregister character from registry
   void _unregisterCharacter(GameCharacter character) {
     _characterRegistry.remove(character.uniqueId);
-    print('❌ Unregistered character: ${character.uniqueId}');
   }
 
-  // NEW: Find character by unique ID
   GameCharacter? findCharacterById(String uniqueId) {
     return _characterRegistry[uniqueId];
   }
 
-  // NEW: Check if character is the player
   bool isPlayerCharacter(GameCharacter character) {
     return character.uniqueId == this.character.uniqueId;
   }
 
-  // NEW: Check if character is a bot
   bool isBotCharacter(GameCharacter character) {
     return enemies.any((e) => e.uniqueId == character.uniqueId);
   }
@@ -288,6 +273,9 @@ class ActionGame extends FlameGame
   void update(double dt) {
     super.update(dt);
 
+    // CRITICAL: Update infinite map system
+    infiniteMapManager.update(character.position, dt);
+
     waveSystem.update(dt);
     combatSystem.updateCombos(dt);
     itemSystem.update(dt);
@@ -310,6 +298,11 @@ class ActionGame extends FlameGame
         }
       }
     }
+
+    // Debug: Print stats periodically
+    if (DateTime.now().second % 10 == 0) {
+      // Optional: infiniteMapManager.printStats();
+    }
   }
 
   @override
@@ -317,9 +310,8 @@ class ActionGame extends FlameGame
       KeyEvent event,
       Set<LogicalKeyboardKey> keysPressed,
       ) {
-    // Explicitly forward to gamepad manager if not automatically handled
     gamepadManager.onKeyEvent(event, keysPressed);
-    return KeyEventResult.ignored; // Let Flame dispatch to other components
+    return KeyEventResult.ignored;
   }
 
   @override
@@ -362,38 +354,27 @@ class ActionGame extends FlameGame
   }
 
   void _onCharacterKilled(CharacterKilledEvent event) {
-    print('💀 Character killed event: victimId=${event.victimId}');
-
-    // Try to find the character by the victimId (which should be uniqueId)
     final victim = findCharacterById(event.victimId);
 
     if (victim == null) {
-      print('⚠️ Warning: Could not find victim with ID: ${event.victimId}');
+      print('⚠️ Could not find victim: ${event.victimId}');
       return;
     }
 
-    // Check if it's the player using unique ID comparison
     if (isPlayerCharacter(victim)) {
-      print('💀 PLAYER DIED: ${victim.stats.name}');
       _handlePlayerDeath();
       return;
     }
 
-    // Check if it's a bot using unique ID comparison
     if (isBotCharacter(victim)) {
-      print('💀 BOT DIED: ${victim.stats.name} (${victim.uniqueId})');
       _handleEnemyDeath(victim, event);
       return;
     }
-
-    print('⚠️ Warning: Character ${event.victimId} is neither player nor registered bot');
   }
 
   void _handlePlayerDeath() {
     isGameOver = true;
     final playTime = DateTime.now().difference(gameStartTime!);
-
-    print('☠️ GAME OVER - Player died');
 
     eventBus.emit(GameOverEvent(
       reason: 'death',
@@ -406,35 +387,19 @@ class ActionGame extends FlameGame
   }
 
   void _handleEnemyDeath(GameCharacter enemy, CharacterKilledEvent event) {
-    print('💀 Handling bot death: ${enemy.stats.name} (${enemy.uniqueId})');
-
-    // Award gold and update stats
     character.stats.money += event.bountyGold;
     enemiesDefeated++;
 
-    // Remove from tracking list FIRST (prevents further attacks)
-    final wasRemoved = enemies.remove(enemy);
-    print('  - Removed from enemies list: $wasRemoved');
-
-    // Unregister from registry
+    enemies.remove(enemy);
     _unregisterCharacter(enemy);
-
-    // IMMEDIATE removal from game world
-    // Don't mark as dead - just remove completely
     enemy.removeFromParent();
     remove(enemy);
     world.remove(enemy);
 
-
-    print('✅ Bot fully removed');
-    print('  - Remaining enemies: ${enemies.length}');
-
-    // Drop loot at death position
     if (event.shouldDropLoot) {
       itemSystem.dropLoot(event.deathPosition);
     }
 
-    // Update HUD
     eventBus.emit(UpdateHUDEvent(element: 'kills', value: enemiesDefeated));
     eventBus.emit(UpdateHUDEvent(element: 'gold', value: character.stats.money));
   }
@@ -445,7 +410,7 @@ class ActionGame extends FlameGame
       enemy.priority = 90;
       world.add(enemy);
       enemies.add(enemy);
-      print('✅ Spawned enemy: ${enemy.uniqueId}');
+      _registerCharacter(enemy);
     }
   }
 
@@ -465,7 +430,6 @@ class ActionGame extends FlameGame
   }
 
   void _playerAttack() {
-    // CRITICAL: Only attack enemies that are alive AND in the enemies list
     final aliveEnemies = enemies.where((e) => e.characterState.health > 0 && e.isMounted).toList();
 
     for (final enemy in aliveEnemies) {
@@ -486,7 +450,6 @@ class ActionGame extends FlameGame
       );
     }
 
-    // Trigger animation
     character.attack();
   }
 
@@ -571,7 +534,6 @@ class ActionGame extends FlameGame
     }
   }
 
-
   GameCharacter? _createEnemy(String enemyType, Vector2 position) {
     final tactics = [
       AggressiveTactic(),
@@ -581,7 +543,6 @@ class ActionGame extends FlameGame
     ];
     final randomTactic = tactics[math.Random().nextInt(tactics.length)];
 
-    // Generate unique ID for spawned enemy
     final enemyId = 'spawned_${enemyType}_${DateTime.now().millisecondsSinceEpoch}';
 
     final enemy = _createCharacter(
@@ -592,7 +553,6 @@ class ActionGame extends FlameGame
       customId: enemyId,
     );
 
-    // Register the new enemy
     if (enemy != null) {
       _registerCharacter(enemy);
     }
@@ -644,16 +604,19 @@ class ActionGame extends FlameGame
 
   @override
   void onRemove() {
-    // Clear character registry
     _characterRegistry.clear();
 
     for (final sub in _subscriptions) sub.cancel();
     _subscriptions.clear();
+
     combatSystem.dispose();
     waveSystem.dispose();
     audioSystem.dispose();
     itemSystem.dispose();
     uiSystem.dispose();
+    infiniteMapManager.dispose();
+    mapGenerator.clearCache();
+
     if (enableMultiplayer) NetworkManager().disconnect();
     super.onRemove();
   }
@@ -661,6 +624,10 @@ class ActionGame extends FlameGame
 
 class UIGradient {
   static Paint linear(Offset from, Offset to, List<Color> colors) {
-    return Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: colors).createShader(Rect.fromPoints(from, to));
+    return Paint()..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: colors)
+        .createShader(Rect.fromPoints(from, to));
   }
 }

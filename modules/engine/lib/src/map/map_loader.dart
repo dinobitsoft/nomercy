@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'package:engine/engine.dart';
 import 'package:flutter/services.dart';
 import 'package:ui/ui.dart';
 
-import 'game_map.dart';
+import 'entity/game_map.dart';
 
 class MapLoader {
   // Cache for generated maps (so same seed produces same map)

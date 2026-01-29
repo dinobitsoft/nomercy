@@ -1,0 +1,79 @@
+import 'dart:math' as math;
+import 'dart:ui';
+import 'package:core/core.dart';
+import 'package:engine/engine.dart';
+import 'package:flame/components.dart';
+import 'package:ui/ui.dart';
+
+enum MapStyle {
+  arena,
+  platformer,
+  dungeon,
+  towers,
+  chaos,
+  balanced,
+}
+
+enum MapDifficulty {
+  easy,
+  medium,
+  hard,
+  expert,
+}
+
+class MapGeneratorConfig {
+  final MapStyle style;
+  final MapDifficulty difficulty;
+  final double width;
+  final double height;
+  final int minPlatforms;
+  final int maxPlatforms;
+  final int chestCount;
+  final bool ensureConnectivity;
+  final int seed;
+
+  MapGeneratorConfig({
+    this.style = MapStyle.balanced,
+    this.difficulty = MapDifficulty.medium,
+    this.width = 2400,
+    this.height = 1200,
+    this.minPlatforms = 8,
+    this.maxPlatforms = 15,
+    this.chestCount = 3,
+    this.ensureConnectivity = true,
+    int? seed,
+  }) : seed = seed ?? DateTime.now().millisecondsSinceEpoch;
+}
+
+class GeneratedPlatform {
+  final Vector2 position;
+  final Vector2 size;
+  final String type;
+  final int layer;
+
+  GeneratedPlatform({
+    required this.position,
+    required this.size,
+    required this.type,
+    this.layer = 0,
+  });
+
+  bool overlaps(GeneratedPlatform other, {double margin = 20}) {
+    return (position.x - size.x / 2 - margin < other.position.x + other.size.x / 2 + margin) &&
+        (position.x + size.x / 2 + margin > other.position.x - other.size.x / 2 - margin) &&
+        (position.y - size.y / 2 - margin < other.position.y + other.size.y / 2 + margin) &&
+        (position.y + size.y / 2 + margin > other.position.y - other.size.y / 2 - margin);
+  }
+
+  bool isReachableFrom(GeneratedPlatform other) {
+    final verticalDist = (position.y - other.position.y).abs();
+    final horizontalDist = (position.x - other.position.x).abs();
+
+    if (position.y < other.position.y) {
+      return verticalDist <= GameConfig.maxJumpHeight &&
+          horizontalDist <= GameConfig.maxJumpDistance;
+    } else {
+      return horizontalDist <= GameConfig.maxJumpDistance * 1.5;
+    }
+  }
+}
