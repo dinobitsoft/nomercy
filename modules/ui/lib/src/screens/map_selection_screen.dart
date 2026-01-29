@@ -20,6 +20,7 @@ class MapSelectionScreen extends StatefulWidget {
 
 class _MapSelectionScreenState extends State<MapSelectionScreen> {
   bool useProceduralMap = true;
+  bool _useInfiniteWorld = false;
   MapStyle selectedStyle = MapStyle.balanced;
   MapDifficulty selectedDifficulty = MapDifficulty.medium;
   int? customSeed;
@@ -82,6 +83,15 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                         Icons.map,
                         !useProceduralMap,
                             () => setState(() => useProceduralMap = false),
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: _buildTypeButton(
+                        context.translate('infinite_map'),
+                        Icons.map,
+                        _useInfiniteWorld,
+                            () => setState(() => _useInfiniteWorld = true),
                       ),
                     ),
                   ],
@@ -241,6 +251,32 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                       const SizedBox(width: 5),
                       Text(
                         context.translate('generate_play'),
+                        style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 20),
+              // Generate button
+              Expanded(
+                flex: 1,
+                child: ElevatedButton(
+                  onPressed: _startWithInfiniteMap,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepOrange,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.play_arrow, size: 20, color: Colors.white),
+                      const SizedBox(width: 5),
+                      Text(
+                        context.translate('infinite_play'),
                         style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold),
                       ),
                     ],
@@ -457,6 +493,25 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
           selectedCharacterClass: widget.selectedCharacterClass,
           gameMode: widget.gameMode,
           procedural: true,
+          mapConfig: MapGeneratorConfig(
+            style: selectedStyle,
+            difficulty: selectedDifficulty,
+            seed: customSeed,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _startWithInfiniteMap() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GameScreen(
+          selectedCharacterClass: widget.selectedCharacterClass,
+          gameMode: widget.gameMode,
+          procedural: false,
+          useInfiniteWorld: true,
           mapConfig: MapGeneratorConfig(
             style: selectedStyle,
             difficulty: selectedDifficulty,

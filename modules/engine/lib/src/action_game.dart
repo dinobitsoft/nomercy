@@ -50,6 +50,10 @@ class ActionGame extends FlameGame
   Weapon? equippedWeapon;
 
   late JoystickComponent joystick;
+  late final InfiniteWorldSystem infiniteWorld;
+  // ADD THIS FLAG
+  bool useInfiniteWorld = false; // Set to true to enable
+
   final GamepadManager gamepadManager = GamepadManager();
 
   int enemiesDefeated = 0;
@@ -87,106 +91,143 @@ class ActionGame extends FlameGame
     // Setup camera
     camera.viewfinder.zoom = 1.2;
 
-    // Load map
-    final gameMap = procedural
-        ? await MapLoader.loadMap(mapName, procedural: true, config: mapConfig)
-        : await MapLoader.loadMap(mapName, procedural: false);
+    if (useInfiniteWorld) {
+      // ============================================
+      // INFINITE WORLD MODE
+      // ============================================
 
-    // Create background
-    final background = SpriteComponent()
-      ..sprite = await loadSprite('ground.png')
-      ..size = Vector2(1920, 1080)
-      ..paint = (Paint()..color = Colors.blueGrey.withOpacity(0.2));
-    world.add(background);
-
-    // Create a large background gradient
-    final bgRect = RectangleComponent(
-      size: Vector2(5000, 2000),
-      position: Vector2(-1000, -500),
-      paint: Paint()..shader = UIGradient.linear(
-        const Offset(0, 0),
-        const Offset(0, 1000),
-        [const Color(0xFF1a1a2e), const Color(0xFF16213e)],
-      ).shader,
-    );
-    world.add(bgRect);
-
-    // Create platforms
-    for (final platformData in gameMap.platforms) {
-      final platform = TiledPlatform(
-        position: Vector2(
-          platformData.x + platformData.width / 2,
-          platformData.y + platformData.height / 2,
-        ),
-        size: Vector2(platformData.width, platformData.height),
-        platformType: platformData.type,
+      // Create simple background
+      final background = RectangleComponent(
+        size: Vector2(5000, 2000),
+        position: Vector2(-1000, -500),
+        paint: Paint()..shader = UIGradient.linear(
+          const Offset(0, 0),
+          const Offset(0, 1000),
+          [const Color(0xFF1a1a2e), const Color(0xFF16213e)],
+        ).shader,
       );
-      platform.priority = 10;
-      world.add(platform);
-      platforms.add(platform);
+      world.add(background);
+
+      // Initialize infinite world system
+      infiniteWorld = InfiniteWorldSystem(game: this);
+      infiniteWorld.initialize();
+
+      // Player spawn at origin
+      character = _createCharacter(
+        selectedCharacterClass,
+        Vector2(200, 800), // Start position
+        PlayerType.human,
+        customId: 'player_main',
+      );
+
+    } else {
+      // Load map
+      final gameMap = procedural
+          ? await MapLoader.loadMap(
+          mapName, procedural: true, config: mapConfig)
+          : await MapLoader.loadMap(mapName, procedural: false);
+
+      // Create background
+      final background = SpriteComponent()
+        ..sprite = await loadSprite('ground.png')
+        ..size = Vector2(1920, 1080)
+        ..paint = (Paint()
+          ..color = Colors.blueGrey.withOpacity(0.2));
+      world.add(background);
+
+      // Create a large background gradient
+      final bgRect = RectangleComponent(
+        size: Vector2(5000, 2000),
+        position: Vector2(-1000, -500),
+        paint: Paint()
+          ..shader = UIGradient
+              .linear(
+            const Offset(0, 0),
+            const Offset(0, 1000),
+            [const Color(0xFF1a1a2e), const Color(0xFF16213e)],
+          )
+              .shader,
+      );
+      world.add(bgRect);
+
+      // Create platforms
+      for (final platformData in gameMap.platforms) {
+        final platform = TiledPlatform(
+          position: Vector2(
+            platformData.x + platformData.width / 2,
+            platformData.y + platformData.height / 2,
+          ),
+          size: Vector2(platformData.width, platformData.height),
+          platformType: platformData.type,
+        );
+        platform.priority = 10;
+        world.add(platform);
+        platforms.add(platform);
+      }
+
+      // Create chests
+      for (final chestData in gameMap.chests) {
+        final chest = Chest(
+          position: Vector2(chestData.x, chestData.y),
+          data: chestData,
+        );
+        chest.priority = 50; // HIGHER than platforms
+        world.add(chest);
+        chests.add(chest);
+        print('✅ Added chest at ${chestData.x}, ${chestData.y}');
+      }
+
+      // Create items
+      for (final itemData in gameMap.items) {
+        final item = itemData.toItem();
+        final itemDrop = ItemDrop(
+          position: Vector2(itemData.x, itemData.y),
+          item: item,
+        );
+        itemDrop.priority = 50;
+        world.add(itemDrop);
+        itemDrops.add(itemDrop);
+      }
+
+      // Create player
+      character = _createCharacter(
+        selectedCharacterClass,
+        Vector2(gameMap.playerSpawn.x, gameMap.playerSpawn.y),
+        PlayerType.human,
+        customId: 'player_main', // Explicit player ID
+      );
+      character.priority = 100;
+      world.add(character);
+
+      // Register player
+      _registerCharacter(character);
+
+      // Create BOT enemies
+      final botConfigs = [
+        {'class': 'knight', 'x': 600.0, 'tactic': AggressiveTactic()},
+        {'class': 'thief', 'x': 1000.0, 'tactic': BalancedTactic()},
+        {'class': 'trader', 'x': 1000.0, 'tactic': BalancedTactic()},
+        {'class': 'wizard', 'x': 1400.0, 'tactic': DefensiveTactic()},
+      ];
+
+      for (int i = 0; i < botConfigs.length; i++) {
+        final config = botConfigs[i];
+        final bot = _createCharacter(
+          config['class'] as String,
+          Vector2(config['x'] as double, gameMap.playerSpawn.y),
+          PlayerType.bot,
+          botTactic: config['tactic'] as BotTactic,
+          customId: 'bot_${config['class']}_$i', // Unique bot ID
+        );
+        bot.priority = 90;
+        world.add(bot);
+        enemies.add(bot);
+
+        // Register bot
+        _registerCharacter(bot);
+      }
     }
 
-    // Create chests
-    for (final chestData in gameMap.chests) {
-      final chest = Chest(
-        position: Vector2(chestData.x, chestData.y),
-        data: chestData,
-      );
-      chest.priority = 50; // HIGHER than platforms
-      world.add(chest);
-      chests.add(chest);
-      print('✅ Added chest at ${chestData.x}, ${chestData.y}');
-    }
-
-    // Create items
-    for (final itemData in gameMap.items) {
-      final item = itemData.toItem();
-      final itemDrop = ItemDrop(
-        position: Vector2(itemData.x, itemData.y),
-        item: item,
-      );
-      itemDrop.priority = 50;
-      world.add(itemDrop);
-      itemDrops.add(itemDrop);
-    }
-
-    // Create player
-    character = _createCharacter(
-      selectedCharacterClass,
-      Vector2(gameMap.playerSpawn.x, gameMap.playerSpawn.y),
-      PlayerType.human,
-      customId: 'player_main', // Explicit player ID
-    );
-    character.priority = 100;
-    world.add(character);
-
-    // Register player
-    _registerCharacter(character);
-
-    // Create BOT enemies
-    final botConfigs = [
-      {'class': 'knight', 'x': 600.0, 'tactic': AggressiveTactic()},
-      {'class': 'thief', 'x': 1000.0, 'tactic': BalancedTactic()},
-      {'class': 'trader', 'x': 1000.0, 'tactic': BalancedTactic()},
-      {'class': 'wizard', 'x': 1400.0, 'tactic': DefensiveTactic()},
-    ];
-
-    for (int i = 0; i < botConfigs.length; i++) {
-      final config = botConfigs[i];
-      final bot = _createCharacter(
-        config['class'] as String,
-        Vector2(config['x'] as double, gameMap.playerSpawn.y),
-        PlayerType.bot,
-        botTactic: config['tactic'] as BotTactic,
-        customId: 'bot_${config['class']}_$i', // Unique bot ID
-      );
-      bot.priority = 90;
-      world.add(bot);
-      enemies.add(bot);
-
-      // Register bot
-      _registerCharacter(bot);
-    }
 
     // Setup camera
     camera.follow(character);
@@ -309,6 +350,15 @@ class ActionGame extends FlameGame
           _openChest(chest);
         }
       }
+    }
+
+    if (useInfiniteWorld) {
+      infiniteWorld.update(dt, character.position);
+    }
+
+    // Optional: print stats periodically
+    if (DateTime.now().second % 10 == 0) {
+      infiniteWorld.printStats();
     }
   }
 
@@ -647,7 +697,9 @@ class ActionGame extends FlameGame
     // Clear character registry
     _characterRegistry.clear();
 
-    for (final sub in _subscriptions) sub.cancel();
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
     _subscriptions.clear();
     combatSystem.dispose();
     waveSystem.dispose();
@@ -655,6 +707,12 @@ class ActionGame extends FlameGame
     itemSystem.dispose();
     uiSystem.dispose();
     if (enableMultiplayer) NetworkManager().disconnect();
+
+    // ADD THIS: Dispose infinite world
+    if (useInfiniteWorld) {
+      infiniteWorld.dispose();
+    }
+
     super.onRemove();
   }
 }

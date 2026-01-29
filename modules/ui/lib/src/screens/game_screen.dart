@@ -8,6 +8,7 @@ class GameScreen extends StatefulWidget {
   final String? mapName;
   final GameMode gameMode;
   final bool procedural;
+  final bool useInfiniteWorld;
   final MapGeneratorConfig? mapConfig;
   final bool enableMultiplayer;
   final String? roomId;
@@ -18,6 +19,7 @@ class GameScreen extends StatefulWidget {
     this.mapName,
     this.gameMode = GameMode.survival,
     this.procedural = false,
+    this.useInfiniteWorld = false,
     this.mapConfig,
     this.enableMultiplayer = false,
     this.roomId,
@@ -41,6 +43,8 @@ class _GameScreenState extends State<GameScreen> {
       mapConfig: widget.mapConfig,
       enableMultiplayer: widget.enableMultiplayer,
     );
+
+    _game.useInfiniteWorld = widget.useInfiniteWorld;
   }
 
   @override
