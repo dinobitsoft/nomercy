@@ -1,4 +1,4 @@
-import 'package:ui/ui.dart';
+import 'package:engine/engine.dart';
 
 class MapGeneratorExamples {
 
