@@ -50,7 +50,7 @@ class ActionGame extends FlameGame
   Weapon? equippedWeapon;
 
   late JoystickComponent joystick;
-  late final InfiniteWorldSystem infiniteWorld;
+  late final InfiniteWorldSystem infiniteWorldSystem;
   // ADD THIS FLAG
   bool useInfiniteWorld = false; // Set to true to enable
 
@@ -109,8 +109,8 @@ class ActionGame extends FlameGame
       world.add(background);
 
       // Initialize infinite world system
-      infiniteWorld = InfiniteWorldSystem(game: this);
-      infiniteWorld.initialize();
+      infiniteWorldSystem = InfiniteWorldSystem(game: this);
+      infiniteWorldSystem.initialize();
 
       // Player spawn at origin
       character = _createCharacter(
@@ -329,10 +329,14 @@ class ActionGame extends FlameGame
   void update(double dt) {
     super.update(dt);
 
+    if (useInfiniteWorld) {
+      infiniteWorldSystem.update(dt, character.position);
+    }
     waveSystem.update(dt);
     combatSystem.updateCombos(dt);
     itemSystem.update(dt);
     uiSystem.update(dt);
+
 
     if (enableMultiplayer) {
       NetworkManager().update(dt);
@@ -352,13 +356,9 @@ class ActionGame extends FlameGame
       }
     }
 
-    if (useInfiniteWorld) {
-      infiniteWorld.update(dt, character.position);
-    }
-
     // Optional: print stats periodically
-    if (DateTime.now().second % 10 == 0) {
-      infiniteWorld.printStats();
+    if (DateTime.now().second % 60 == 0) {
+      infiniteWorldSystem.printStats();
     }
   }
 
@@ -710,7 +710,7 @@ class ActionGame extends FlameGame
 
     // ADD THIS: Dispose infinite world
     if (useInfiniteWorld) {
-      infiniteWorld.dispose();
+      infiniteWorldSystem.dispose();
     }
 
     super.onRemove();
