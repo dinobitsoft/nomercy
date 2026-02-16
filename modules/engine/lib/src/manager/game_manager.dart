@@ -4,6 +4,8 @@ import 'package:core/core.dart';
 import 'package:engine/engine.dart';
 import 'package:flame/components.dart';
 
+import '../map/platform_factory.dart';
+
 class GameManager extends Component with HasGameReference<ActionGame> {
   final GameMode mode;
 
@@ -68,12 +70,21 @@ class GameManager extends Component with HasGameReference<ActionGame> {
   void _startSurvivalMode() {
     print('=== SURVIVAL MODE STARTED ===');
     print('Defeat waves of enemies!');
+    final factory = PlatformFactory();
+
+    // Start at high quality
+    factory.quality = PlatformQuality.high;
+
+    // Enable dynamic adjustment
+    factory.enableLOD = true;
+
     currentWave = 0;
     _startNextWave();
   }
 
   void _startCampaignMode() {
     print('=== CAMPAIGN MODE STARTED ===');
+    PlatformFactory().quality = PlatformQuality.ultra;
     // Campaign has predefined waves and bosses
     currentWave = 1;
     _startCampaignWave(1);

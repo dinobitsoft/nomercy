@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ui/ui.dart';
 
+import 'map/platform_factory.dart';
+
 class ActionGame extends FlameGame
     with HasCollisionDetection, TapCallbacks, KeyboardEvents {
 
@@ -43,7 +45,7 @@ class ActionGame extends FlameGame
   final Map<String, GameCharacter> _characterRegistry = {};
 
   final List<Projectile> projectiles = [];
-  final List<TiledPlatform> platforms = [];
+  final List<PositionComponent> platforms = [];
   final List<Chest> chests = [];
   final List<Item> inventory = [];
   final List<ItemDrop> itemDrops = [];
@@ -91,6 +93,15 @@ class ActionGame extends FlameGame
     // Setup camera
     camera.viewfinder.zoom = 1.2;
 
+    // ==========================================
+    // PLATFORM FACTORY INITIALIZATION
+    // ==========================================
+
+    final platformFactory = PlatformFactory();
+
+    // Set quality based on game mode or device capabilities
+    platformFactory.quality = _determinePlatformQuality();
+
     if (useInfiniteWorld) {
       // ============================================
       // INFINITE WORLD MODE
@@ -123,8 +134,7 @@ class ActionGame extends FlameGame
     } else {
       // Load map
       final gameMap = procedural
-          ? await MapLoader.loadMap(
-          mapName, procedural: true, config: mapConfig)
+          ? await MapLoader.loadMap(mapName, procedural: true, config: mapConfig)
           : await MapLoader.loadMap(mapName, procedural: false);
 
       // Create background
@@ -151,7 +161,29 @@ class ActionGame extends FlameGame
       world.add(bgRect);
 
       // Create platforms
-      for (final platformData in gameMap.platforms) {
+
+      // ==========================================
+      // PLATFORM CREATION - REFACTORED
+      // ==========================================
+
+      print('🏗️  Creating ${gameMap.platforms.length} platforms...');
+
+      final createdPlatforms = platformFactory.createBatch(
+        platformDataList: gameMap.platforms,
+      );
+
+      for (final platform in createdPlatforms) {
+        world.add(platform);
+        if (platform is TiledPlatform) {
+          platforms.add(platform);
+        } else if (platform is EnhancedPlatform) {
+          platforms.add(platform as dynamic); // Dynamic list
+        }// Cast needed for list
+      }
+
+      platformFactory.printStats();
+
+/*      for (final platformData in gameMap.platforms) {
         final platform = TiledPlatform(
           position: Vector2(
             platformData.x + platformData.width / 2,
@@ -163,7 +195,7 @@ class ActionGame extends FlameGame
         platform.priority = 10;
         world.add(platform);
         platforms.add(platform);
-      }
+      }*/
 
       // Create chests
       for (final chestData in gameMap.chests) {
@@ -200,7 +232,7 @@ class ActionGame extends FlameGame
       world.add(character);
 
       // Register player
-      _registerCharacter(character);
+      registerCharacter(character);
 
       // Create BOT enemies
       final botConfigs = [
@@ -224,7 +256,7 @@ class ActionGame extends FlameGame
         enemies.add(bot);
 
         // Register bot
-        _registerCharacter(bot);
+        registerCharacter(bot);
       }
     }
 
@@ -245,10 +277,13 @@ class ActionGame extends FlameGame
       ),
       margin: const EdgeInsets.only(left: 40, bottom: 40),
     );
+    joystick.priority = 1000;  // Set BEFORE adding to viewport
     camera.viewport.add(joystick);
 
     // Add HUD
-    camera.viewport.add(HUD(character: character, game: this));
+    final hud = HUD(character: character, game: this);
+    hud.priority = 500;
+    camera.viewport.add(hud);
 
     // Initialize multiplayer
     if (enableMultiplayer) {
@@ -275,14 +310,34 @@ class ActionGame extends FlameGame
     print('✅ ActionGame: Fully initialized');
   }
 
+  PlatformQuality _determinePlatformQuality() {
+    // Priority 1: Game mode determines quality
+    if (gameMode == GameMode.training) {
+      return PlatformQuality.ultra; // Best visuals for learning
+    }
+
+    if (gameMode == GameMode.survival && useInfiniteWorld) {
+      return PlatformQuality.medium; // Balance for endless mode
+    }
+
+    // Priority 2: Device capability (if available)
+    // You can add device detection here
+
+    // Priority 3: User preference (from settings)
+    // return GameSettings.platformQuality;
+
+    // Default: High quality
+    return PlatformQuality.high;
+  }
+
   // NEW: Register character in registry
-  void _registerCharacter(GameCharacter character) {
+  void registerCharacter(GameCharacter character) {
     _characterRegistry[character.uniqueId] = character;
     print('✅ Registered character: ${character.uniqueId} (${character.stats.name}, ${character.playerType})');
   }
 
   // NEW: Unregister character from registry
-  void _unregisterCharacter(GameCharacter character) {
+  void unregisterCharacter(GameCharacter character) {
     _characterRegistry.remove(character.uniqueId);
     print('❌ Unregistered character: ${character.uniqueId}');
   }
@@ -354,6 +409,12 @@ class ActionGame extends FlameGame
           _openChest(chest);
         }
       }
+    }
+
+    // Dynamic quality adjustment every 5 seconds
+    if (DateTime.now().second % 5 == 0) {
+      final fps = 1.0 / dt;
+      PlatformFactory().adjustQualityBasedOnFPS(fps);
     }
 
     // Optional: print stats periodically
@@ -467,7 +528,7 @@ class ActionGame extends FlameGame
     print('  - Removed from enemies list: $wasRemoved');
 
     // Unregister from registry
-    _unregisterCharacter(enemy);
+    unregisterCharacter(enemy);
 
     // IMMEDIATE removal from game world
     // Don't mark as dead - just remove completely
@@ -644,7 +705,7 @@ class ActionGame extends FlameGame
 
     // Register the new enemy
     if (enemy != null) {
-      _registerCharacter(enemy);
+      registerCharacter(enemy);
     }
 
     return enemy;

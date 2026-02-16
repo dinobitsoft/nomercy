@@ -421,7 +421,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
 
     // Calculate proposed position
     final proposedPosition = position + velocity * dt;
-    TiledPlatform? newGroundPlatform;
+    PositionComponent? newGroundPlatform;
 
     for (final platform in game.platforms) {
       final platformLeft = platform.position.x - platform.size.x / 2;

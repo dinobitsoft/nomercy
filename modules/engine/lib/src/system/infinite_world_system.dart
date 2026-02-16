@@ -1,11 +1,13 @@
 import 'dart:math' as math;
 import 'dart:ui';
-
 import 'package:core/core.dart';
 import 'package:engine/engine.dart';
 import 'package:flame/components.dart';
 
+import '../map/platform_factory.dart';
+
 /// Manages infinite scrolling world with chunk-based generation and wave spawning
+/// UPDATED WITH BUG FIXES
 class InfiniteWorldSystem {
   final ActionGame game;
 
@@ -30,7 +32,7 @@ class InfiniteWorldSystem {
   // ==========================================
   // CULLING & OPTIMIZATION
   // ==========================================
-  final Set<TiledPlatform> _visiblePlatforms = {};
+  final Set<PositionComponent> _visiblePlatforms = {};
   final Set<GameCharacter> _visibleEnemies = {};
   double _cullDistance = 3000.0;
 
@@ -59,9 +61,28 @@ class InfiniteWorldSystem {
       _generateChunk(i);
     }
 
+    // FIX: Spawn first wave immediately near player
+    final firstWaveZone = WaveZone(
+      chunkIndex: 0,
+      spawnX: 1000, // Near player spawn (200)
+      waveNumber: 1,
+      difficulty: 1.0,
+      enemyCount: 2,
+    );
+    _activeWaveZones[0] = firstWaveZone;
+
+    // Trigger after 3 seconds
+    Future.delayed(Duration(seconds: 3), () {
+      if (!game.isGameOver) {
+        print('⏰ Triggering first wave...');
+        _triggerWave(firstWaveZone);
+      }
+    });
+
     print('✅ Infinite World initialized');
     print('   - Chunk pool: ${_chunkPool.length}');
     print('   - Active chunks: ${_activeChunks.length}');
+    print('   - First wave will spawn in 3 seconds');
   }
 
   /// Update based on player position (call every frame)
@@ -133,20 +154,24 @@ class InfiniteWorldSystem {
     );
   }
 
+// Replace _generatePlatformsForChunk method
+
   void _generatePlatformsForChunk(WorldChunk chunk) {
-    // Ground platform (always present)
-    final groundPlatform = TiledPlatform(
+    final platformFactory = PlatformFactory();
+
+    // Ground platform
+    final groundPlatform = platformFactory.createPlatform(
       position: Vector2(chunk.centerX, 1000),
       size: Vector2(chunk.width, 60),
       platformType: 'ground',
+      priority: 10,
     );
-    groundPlatform.priority = 10;
 
-    chunk.platforms.add(groundPlatform);
+    chunk.platforms.add(groundPlatform as TiledPlatform); // Type assertion needed
     game.world.add(groundPlatform);
-    game.platforms.add(groundPlatform);
+    game.platforms.add(groundPlatform as dynamic);
 
-    // Procedural floating platforms (3-6 per chunk)
+    // Floating platforms (3-6 per chunk)
     final platformCount = 3 + _random.nextInt(4);
 
     for (int i = 0; i < platformCount; i++) {
@@ -154,17 +179,20 @@ class InfiniteWorldSystem {
       final y = 400 + _random.nextDouble() * 400;
       final width = 120.0 + _random.nextDouble() * 150;
 
-      final platform = TiledPlatform(
+      final platform = platformFactory.createPlatform(
         position: Vector2(x, y),
         size: Vector2(width, 30),
         platformType: _random.nextBool() ? 'brick' : 'ground',
+        priority: 10,
       );
-      platform.priority = 10;
 
-      chunk.platforms.add(platform);
+      chunk.platforms.add(platform as TiledPlatform);
       game.world.add(platform);
-      game.platforms.add(platform);
+      game.platforms.add(platform as dynamic);
     }
+
+    // Optional: Reduce quality for distant chunks
+    // platformFactory.quality = PlatformQuality.medium;
   }
 
   // ==========================================
@@ -316,6 +344,11 @@ class InfiniteWorldSystem {
     game.add(enemy);
     game.world.add(enemy);
     game.enemies.add(enemy);
+
+    // FIX: Register enemy in character registry
+    game.registerCharacter(enemy);
+
+    print('✅ Spawned wave enemy: ${enemy.stats.name} at ${position.x.toInt()}, ${position.y.toInt()}');
   }
 
   // ==========================================
@@ -370,7 +403,7 @@ class InfiniteWorldSystem {
   }
 
   // ==========================================
-  // CULLING SYSTEM
+  // CULLING SYSTEM (FIXED)
   // ==========================================
 
   void _updateCulling(Vector2 cameraPosition) {
@@ -388,7 +421,11 @@ class InfiniteWorldSystem {
       if (shouldBeVisible && !_visiblePlatforms.contains(platform)) {
         // Make visible
         platform.priority = 10;
-        _visiblePlatforms.add(platform);
+        if (platform is TiledPlatform) {
+          _visiblePlatforms.add(platform);
+        } else if (platform is EnhancedPlatform) {
+          _visiblePlatforms.add(platform as dynamic); // Dynamic list
+        }
       } else if (!shouldBeVisible && _visiblePlatforms.contains(platform)) {
         // Cull (hide by setting very low priority)
         platform.priority = -1000;
@@ -403,17 +440,22 @@ class InfiniteWorldSystem {
   }
 
   void _cullEnemies(Vector2 cameraPosition) {
+    // FIX: Less aggressive culling
     for (final enemy in game.enemies) {
       final distance = (enemy.position - cameraPosition).length;
-      final shouldBeVisible = distance < _cullDistance;
+
+      // Always visible if reasonably close
+      final shouldBeVisible = distance < _cullDistance || distance < 2500;
 
       if (shouldBeVisible && !_visibleEnemies.contains(enemy)) {
-        enemy.priority = 90;
+        enemy.priority = 90; // Normal enemy priority
         _visibleEnemies.add(enemy);
       } else if (!shouldBeVisible && _visibleEnemies.contains(enemy)) {
-        // Pause distant enemies (don't remove, just lower priority)
-        enemy.priority = -500;
-        _visibleEnemies.remove(enemy);
+        // Only cull if VERY far
+        if (distance > 4000) {
+          enemy.priority = 50; // Still rendered, just lower
+          _visibleEnemies.remove(enemy);
+        }
       }
     }
   }
