@@ -51,5 +51,5 @@ class GameCharacterState {
   double comboTimer = 0;
   double comboWindow = 1.5;
 
-  TiledPlatform? groundPlatform; //TODO: it should not belong to this class
+  GamePlatform? groundPlatform; //TODO: it should not belong to this class
 }

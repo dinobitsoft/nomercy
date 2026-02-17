@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:core/core.dart';
 import 'package:engine/engine.dart';
+import 'package:engine/src/system/infinite_ground_system.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
@@ -8,6 +9,8 @@ import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ui/ui.dart';
+
+import 'components/platform/platform_factory.dart';
 
 class ActionGame extends FlameGame
     with HasCollisionDetection, TapCallbacks, KeyboardEvents {
@@ -40,10 +43,10 @@ class ActionGame extends FlameGame
 
   late GameCharacter character;
   final List<GameCharacter> enemies = [];
-  final Map<String, GameCharacter> _characterRegistry = {};
+  final Map<String, GameCharacter> characterRegistry = {};
 
   final List<Projectile> projectiles = [];
-  final List<TiledPlatform> platforms = [];
+  final List<GamePlatform> platforms = [];
   final List<Chest> chests = [];
   final List<Item> inventory = [];
   final List<ItemDrop> itemDrops = [];
@@ -51,8 +54,11 @@ class ActionGame extends FlameGame
 
   late JoystickComponent joystick;
   late final InfiniteWorldSystem infiniteWorldSystem;
-  // ADD THIS FLAG
-  bool useInfiniteWorld = false; // Set to true to enable
+  late final InfiniteGroundSystem infiniteGroundSystem;
+
+  // Mode flags - SET ONE OF THESE TO TRUE
+  bool useInfiniteWorld = false;   // Chunked world with platforms
+  bool useInfiniteGround = false;
 
   final GamepadManager gamepadManager = GamepadManager();
 
@@ -90,8 +96,48 @@ class ActionGame extends FlameGame
 
     // Setup camera
     camera.viewfinder.zoom = 1.2;
+// Add this BEFORE the existing "if (useInfiniteWorld)" block:
 
-    if (useInfiniteWorld) {
+    if (useInfiniteGround) {
+      // ============================================
+      // INFINITE GROUND MODE
+      // ============================================
+      print('\n🌍 ═══ INFINITE GROUND MODE ═══\n');
+
+      // Background
+      final background = RectangleComponent(
+        size: Vector2(30000, 2000),
+        position: Vector2(-10000, -500),
+        paint: Paint()..shader = UIGradient.linear(
+          const Offset(0, 0),
+          const Offset(0, 1000),
+          [const Color(0xFF0f0f1e), const Color(0xFF1a1a2e)],
+        ).shader,
+      );
+      background.priority = -100;
+      world.add(background);
+
+      // Initialize system
+      infiniteGroundSystem = InfiniteGroundSystem(game: this);
+      infiniteGroundSystem.initialize();
+
+      // Create player
+      character = _createCharacter(
+        selectedCharacterClass,
+        infiniteGroundSystem.getSpawnPosition(x: 200),
+        PlayerType.human,
+        customId: 'player_main',
+      );
+      character.priority = 100;
+      world.add(character);
+      registerCharacter(character);
+
+      // Spawn initial enemies
+      infiniteGroundSystem.spawnInitialEnemies(count: 4);
+
+      print('✅ Infinite ground mode initialized\n');
+
+    } else if (useInfiniteWorld) {
       // ============================================
       // INFINITE WORLD MODE
       // ============================================
@@ -151,19 +197,19 @@ class ActionGame extends FlameGame
       world.add(bgRect);
 
       // Create platforms
-      for (final platformData in gameMap.platforms) {
-        final platform = TiledPlatform(
-          position: Vector2(
-            platformData.x + platformData.width / 2,
-            platformData.y + platformData.height / 2,
-          ),
-          size: Vector2(platformData.width, platformData.height),
-          platformType: platformData.type,
-        );
-        platform.priority = 10;
+
+      print('🏗️  Creating ${gameMap.platforms.length} platforms...');
+
+      final createdPlatforms = PlatformFactory().createBatch(
+        platformDataList: gameMap.platforms,
+      );
+
+      for (final platform in createdPlatforms) {
         world.add(platform);
-        platforms.add(platform);
+        platforms.add(platform);  // ✅ No casting needed!
       }
+
+      PlatformFactory().printStats();
 
       // Create chests
       for (final chestData in gameMap.chests) {
@@ -200,7 +246,7 @@ class ActionGame extends FlameGame
       world.add(character);
 
       // Register player
-      _registerCharacter(character);
+      registerCharacter(character);
 
       // Create BOT enemies
       final botConfigs = [
@@ -224,7 +270,7 @@ class ActionGame extends FlameGame
         enemies.add(bot);
 
         // Register bot
-        _registerCharacter(bot);
+        registerCharacter(bot);
       }
     }
 
@@ -276,20 +322,20 @@ class ActionGame extends FlameGame
   }
 
   // NEW: Register character in registry
-  void _registerCharacter(GameCharacter character) {
-    _characterRegistry[character.uniqueId] = character;
+  void registerCharacter(GameCharacter character) {
+    characterRegistry[character.uniqueId] = character;
     print('✅ Registered character: ${character.uniqueId} (${character.stats.name}, ${character.playerType})');
   }
 
   // NEW: Unregister character from registry
   void _unregisterCharacter(GameCharacter character) {
-    _characterRegistry.remove(character.uniqueId);
+    characterRegistry.remove(character.uniqueId);
     print('❌ Unregistered character: ${character.uniqueId}');
   }
 
   // NEW: Find character by unique ID
   GameCharacter? findCharacterById(String uniqueId) {
-    return _characterRegistry[uniqueId];
+    return characterRegistry[uniqueId];
   }
 
   // NEW: Check if character is the player
@@ -644,7 +690,7 @@ class ActionGame extends FlameGame
 
     // Register the new enemy
     if (enemy != null) {
-      _registerCharacter(enemy);
+      registerCharacter(enemy);
     }
 
     return enemy;
@@ -695,7 +741,7 @@ class ActionGame extends FlameGame
   @override
   void onRemove() {
     // Clear character registry
-    _characterRegistry.clear();
+    characterRegistry.clear();
 
     for (final sub in _subscriptions) {
       sub.cancel();
