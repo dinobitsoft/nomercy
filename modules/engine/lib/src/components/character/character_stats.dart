@@ -9,7 +9,7 @@ abstract class CharacterStats {
   int money;
   String weaponName;
   double attackRange;
-  late final double attackDamage;
+  double attackDamage;
   final Color color;
 
   CharacterStats({

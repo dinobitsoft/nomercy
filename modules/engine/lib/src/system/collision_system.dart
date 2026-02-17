@@ -12,29 +12,23 @@ class CollisionSystem {
   final SpatialHashGrid<GamePlatform> _platformGrid =
   SpatialHashGrid(cellSize: 400.0);
 
-  /// Update all grids (call once per frame)
   void updateGrids({
     required List<GameCharacter> characters,
     required List<Projectile> projectiles,
     required List<GamePlatform> platforms,
   }) {
-    // Clear grids
     _characterGrid.clear();
     _projectileGrid.clear();
 
-    // Platforms are static, only update once
-    if (_platformGrid.getStats()['totalObjects'] == 0) {
-      for (final platform in platforms) {
-        _platformGrid.insert(platform, platform.position, platform.size);
-      }
+    // FIX BUG 3: always rebuild platform grid — TiledGroundComponent moves each frame
+    _platformGrid.clear();
+    for (final platform in platforms) {
+      _platformGrid.insert(platform, platform.position, platform.size);
     }
 
-    // Update character grid
     for (final character in characters) {
       _characterGrid.insert(character, character.position, character.size);
     }
-
-    // Update projectile grid
     for (final projectile in projectiles) {
       _projectileGrid.insert(projectile, projectile.position, projectile.size);
     }

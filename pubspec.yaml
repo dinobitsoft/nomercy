@@ -61,7 +61,11 @@ flutter:
     - assets/images/trader_idle.png
     - assets/images/trader_landing.png
     - assets/images/brick.png
+    - assets/images/stone.png
     - assets/images/ground.png
+    - assets/images/brick_overlay.png
+    - assets/images/stone_overlay.png
+    - assets/images/ground_overlay.png
     - assets/images/brick_tile.png
     - assets/images/ground_tile.png
     - assets/images/dower_chest.png
