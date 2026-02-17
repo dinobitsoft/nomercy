@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'package:core/core.dart';
 import 'package:engine/engine.dart';
-import 'package:engine/src/system/infinite_ground_system.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
