@@ -53,12 +53,9 @@ class ActionGame extends FlameGame
   Weapon? equippedWeapon;
 
   late JoystickComponent joystick;
-  late final InfiniteWorldSystem infiniteWorldSystem;
-  late final InfiniteGroundSystem infiniteGroundSystem;
+  InfiniteWorldSystem? infiniteWorldSystem;
 
-  // Mode flags - SET ONE OF THESE TO TRUE
-  bool useInfiniteWorld = false;   // Chunked world with platforms
-  bool useInfiniteGround = false;
+  bool useInfiniteWorld = true;   // Chunked world with platforms
 
   final GamepadManager gamepadManager = GamepadManager();
 
@@ -98,46 +95,7 @@ class ActionGame extends FlameGame
     camera.viewfinder.zoom = 1.2;
 // Add this BEFORE the existing "if (useInfiniteWorld)" block:
 
-    if (useInfiniteGround) {
-      // ============================================
-      // INFINITE GROUND MODE
-      // ============================================
-      print('\n🌍 ═══ INFINITE GROUND MODE ═══\n');
-
-      // Background
-      final background = RectangleComponent(
-        size: Vector2(30000, 2000),
-        position: Vector2(-10000, -500),
-        paint: Paint()..shader = UIGradient.linear(
-          const Offset(0, 0),
-          const Offset(0, 1000),
-          [const Color(0xFF0f0f1e), const Color(0xFF1a1a2e)],
-        ).shader,
-      );
-      background.priority = -100;
-      world.add(background);
-
-      // Initialize system
-      infiniteGroundSystem = InfiniteGroundSystem(game: this);
-      infiniteGroundSystem.initialize();
-
-      // Create player
-      character = _createCharacter(
-        selectedCharacterClass,
-        infiniteGroundSystem.getSpawnPosition(x: 200),
-        PlayerType.human,
-        customId: 'player_main',
-      );
-      character.priority = 100;
-      world.add(character);
-      registerCharacter(character);
-
-      // Spawn initial enemies
-      infiniteGroundSystem.spawnInitialEnemies(count: 4);
-
-      print('✅ Infinite ground mode initialized\n');
-
-    } else if (useInfiniteWorld) {
+    if (useInfiniteWorld) {
       // ============================================
       // INFINITE WORLD MODE
       // ============================================
@@ -156,17 +114,22 @@ class ActionGame extends FlameGame
 
       // Initialize infinite world system
       infiniteWorldSystem = InfiniteWorldSystem(game: this);
-      infiniteWorldSystem.initialize();
+      infiniteWorldSystem?.initialize();
 
       // Player spawn at origin
       character = _createCharacter(
         selectedCharacterClass,
-        Vector2(200, 800), // Start position
+        Vector2(200, InfiniteWorldSystem.spawnY(100)),
         PlayerType.human,
         customId: 'player_main',
       );
 
-    } else {
+      character.priority = 100;
+      world.add(character);
+      registerCharacter(character);
+
+    } else
+    {
       // Load map
       final gameMap = procedural
           ? await MapLoader.loadMap(
@@ -375,14 +338,10 @@ class ActionGame extends FlameGame
   void update(double dt) {
     super.update(dt);
 
-    if (useInfiniteWorld) {
-      infiniteWorldSystem.update(dt, character.position);
-    }
     waveSystem.update(dt);
     combatSystem.updateCombos(dt);
     itemSystem.update(dt);
     uiSystem.update(dt);
-
 
     if (enableMultiplayer) {
       NetworkManager().update(dt);
@@ -402,10 +361,12 @@ class ActionGame extends FlameGame
       }
     }
 
-    // Optional: print stats periodically
+    infiniteWorldSystem?.update(dt, character.position);
+
     if (DateTime.now().second % 60 == 0) {
-      infiniteWorldSystem.printStats();
+      infiniteWorldSystem?.printStats();  // ← safe, does nothing when null
     }
+
   }
 
   @override
@@ -754,10 +715,7 @@ class ActionGame extends FlameGame
     uiSystem.dispose();
     if (enableMultiplayer) NetworkManager().disconnect();
 
-    // ADD THIS: Dispose infinite world
-    if (useInfiniteWorld) {
-      infiniteWorldSystem.dispose();
-    }
+    infiniteWorldSystem?.dispose();
 
     super.onRemove();
   }
