@@ -403,52 +403,70 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       velocity.y = math.min(velocity.y, GameConfig.maxFallSpeed);
     }
 
-    // Ground friction - stronger when not attacking or dodging
+    // Ground friction
     if (characterState.groundPlatform != null && !characterState.isAttackCommitted && !characterState.isDodging) {
       final currentFriction = characterState.isLanding ? GameConfig.landingFriction : GameConfig.groundFriction;
       velocity.x *= currentFriction;
-
-      // Stop completely if very slow
-      if (velocity.x.abs() < GameConfig.stopThreshold) {
-        velocity.x = 0;
-      }
+      if (velocity.x.abs() < GameConfig.stopThreshold) velocity.x = 0;
     }
 
-    // Air resistance - apply when airborne
+    // Air resistance
     if (characterState.groundPlatform == null && !characterState.isDodging) {
       velocity.x *= GameConfig.airResistance;
     }
 
-    // Calculate proposed position
+    // ── collision ─────────────────────────────────────────────────────────────
+    // Use CURRENT position (not proposed) so we can snap from any starting
+    // offset — including spawning slightly above the surface.
+    //
+    // FIX: OLD code used `proposedPosition` for charBottom which meant a
+    // character spawned even 1px above platformTop produced distanceToPlatform < 0,
+    // failing the `>= 0` guard and letting gravity accumulate every frame.
+    //
+    // NEW approach:
+    //   1. Compute proposedPosition for horizontal movement.
+    //   2. For vertical collision, look at where the character's bottom WILL be
+    //      after this frame AND allow a small upward snap window (snapUp) so
+    //      a character standing 1–4 px above the surface is still treated as
+    //      grounded and pulled flush to the surface.
     final proposedPosition = position + velocity * dt;
+
+    // How far above the surface we're still willing to "snap" downward onto it.
+    // Large enough to absorb a missed frame but small enough not to pull the
+    // character through a thin platform from above.
+    const double snapUp = 4.0;
+
     GamePlatform? newGroundPlatform;
 
     for (final platform in game.platforms) {
-      final platformLeft = platform.position.x - platform.size.x / 2;
+      final platformLeft  = platform.position.x - platform.size.x / 2;
       final platformRight = platform.position.x + platform.size.x / 2;
-      final platformTop = platform.position.y - platform.size.y / 2;
+      final platformTop   = platform.position.y - platform.size.y / 2;
 
-      final charLeft = proposedPosition.x - size.x / 2;
-      final charRight = proposedPosition.x + size.x / 2;
+      final charLeft   = proposedPosition.x - size.x / 2;
+      final charRight  = proposedPosition.x + size.x / 2;
       final charBottom = proposedPosition.y + size.y / 2;
 
-      final hasHorizontalOverlap = charRight > platformLeft && charLeft < platformRight;
+      if (charRight <= platformLeft || charLeft >= platformRight) continue;
 
-      if (!hasHorizontalOverlap) {
-        continue;
-      }
+      final distanceToPlatform = charBottom - platformTop;
 
-      if (charRight > platformLeft && charLeft < platformRight) {
-        final distanceToPlatform = charBottom - platformTop;
-        if (velocity.y >= 0 && distanceToPlatform >= 0 && distanceToPlatform < GameConfig.platformDetectionRange) {
-          position.y = platformTop - size.y / 2;
-          velocity.y = 0;
-          newGroundPlatform = platform;
-          break;
-        }
+      // Accept the collision when:
+      //   • velocity is downward (or zero) — not while jumping upward
+      //   • character bottom is within the detection window:
+      //       -snapUp  ..  platformDetectionRange
+      //     The negative side handles spawning / landing a few px above surface.
+      if (velocity.y >= 0 &&
+          distanceToPlatform > -snapUp &&
+          distanceToPlatform < GameConfig.platformDetectionRange) {
+        position.y      = platformTop - size.y / 2;  // snap flush to surface
+        velocity.y      = 0;
+        newGroundPlatform = platform;
+        break;
       }
     }
 
+    // Apply movement
     if (newGroundPlatform == null) {
       position.add(velocity * dt);
     } else {

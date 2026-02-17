@@ -20,8 +20,7 @@ class InfiniteWorldSystem {
 
   // Top surface Y that characters stand on.
   static double get groundSurfaceY =>
-      groundCentreY - TiledGroundComponent.tileSize / 2;
-
+      groundCentreY - TiledGroundComponent.tileSize / 2 - 100; //TODO: magic number avoid bots fall down
   // Spawn Y so a character's bottom edge sits exactly on the surface.
   static double spawnY(double characterHeight) =>
       groundSurfaceY - characterHeight / 2;

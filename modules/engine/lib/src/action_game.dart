@@ -119,7 +119,7 @@ class ActionGame extends FlameGame
       // Player spawn at origin
       character = _createCharacter(
         selectedCharacterClass,
-        Vector2(200, InfiniteWorldSystem.spawnY(100)),
+        Vector2(200, InfiniteWorldSystem.spawnY(GameConfig.characterHeight)),
         PlayerType.human,
         customId: 'player_main',
       );
