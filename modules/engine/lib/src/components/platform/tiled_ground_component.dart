@@ -6,17 +6,16 @@ import 'package:flutter/material.dart';
 
 class TiledGroundComponent extends GamePlatform {
   static const double tileSize   = 128.0;
-  static const double overlapPx  = 2.0;
+  static const double overlapPx  = 78.0;
   static const double _bufferPad = tileSize * 8;
 
   ui.Image? _tile;
   bool _loaded = false;
-  bool _characterReady = false;  // guard against LateInitializationError
 
   TiledGroundComponent({required double groundY})
       : super(
     position: Vector2(0, groundY),
-    size: Vector2(4000, tileSize),  // safe large initial width
+    size: Vector2(4000, tileSize),
     platformType: 'ground',
   );
 
@@ -26,7 +25,7 @@ class TiledGroundComponent extends GamePlatform {
   Future<void> onLoad() async {
     await super.onLoad();
 
-    for (final name in ['ground_tile.png', 'ground.png']) {
+    for (final name in ['ground_tile.png']) {
       try {
         _tile = await game.images.load(name);
         _loaded = true;
@@ -43,24 +42,18 @@ class TiledGroundComponent extends GamePlatform {
   void update(double dt) {
     super.update(dt);
 
-    // Safe character access — game.character is `late`, throws if unset.
+    // FIX: single try/catch wraps ALL character access — the old code had the
+    // safe block AND then the same access AGAIN outside the catch, which would
+    // throw a LateInitializationError on early frames before character is ready.
     try {
       final char = game.character;
-      // Update position every frame once ready.
       position.x = char.position.x;
       final vpWidth = game.size.x / game.camera.viewfinder.zoom;
       size.x = vpWidth + _bufferPad;
     } catch (_) {
-      // Character not yet initialized — keep current position (x=0, large width).
-      // The initial size.x=4000 is wide enough to cover any spawn.
+      // character not yet initialized — keep initial position (x=0, size.x=4000)
+      // which is wide enough to cover any spawn point.
     }
-
-    // Center collision box on the player so it covers them at all times.
-    position.x = game.character.position.x;
-
-    // Match viewport width + buffer so off-screen enemies also hit the ground.
-    final vpWidth = game.size.x / game.camera.viewfinder.zoom;
-    size.x = vpWidth + _bufferPad;
   }
 
   // ── render ─────────────────────────────────────────────────────────────────
@@ -73,7 +66,6 @@ class TiledGroundComponent extends GamePlatform {
     );
     if (_loaded && _tile != null) {
       _drawTiles(canvas);
-      _drawTopHighlight(canvas);
     } else {
       _drawFallback(canvas);
     }
@@ -81,28 +73,21 @@ class TiledGroundComponent extends GamePlatform {
   }
 
   void _drawTiles(Canvas canvas) {
-    final double step     = tileSize - overlapPx;
+    final double step      = tileSize - overlapPx;
     final double worldLeft = position.x - size.x / 2;
     final int    firstIdx  = (worldLeft / step).floor() - 1;
     final int    count     = (size.x / step).ceil() + 2;
 
     final ui.Image tile = _tile!;
     final src   = Rect.fromLTWH(0, 0, tile.width.toDouble(), tile.height.toDouble());
-    final paint = Paint()..filterQuality = FilterQuality.low;
+    final paint = Paint()..filterQuality = FilterQuality.high;
 
     for (int i = 0; i < count; i++) {
       final double worldX = (firstIdx + i) * step;
       final double localX = worldX - position.x;
-      final double localY = -size.y / 2;
+      final double localY = -size.y / 2 ;
       canvas.drawImageRect(tile, src, Rect.fromLTWH(localX, localY, tileSize, tileSize), paint);
     }
-  }
-
-  void _drawTopHighlight(Canvas canvas) {
-    canvas.drawRect(
-      Rect.fromLTWH(-size.x / 2, -size.y / 2, size.x, 3),
-      Paint()..color = Colors.white.withOpacity(0.25),
-    );
   }
 
   void _drawFallback(Canvas canvas) {
