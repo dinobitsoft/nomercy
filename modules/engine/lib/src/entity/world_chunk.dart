@@ -7,7 +7,7 @@ class WorldChunk {
   double startX;
   final double width;
 
-  final List<TiledPlatform> platforms = [];
+  final List<GamePlatform> platforms = [];
   bool waveSpawned = false;
 
   WorldChunk({

@@ -9,14 +9,14 @@ class CollisionSystem {
   final SpatialHashGrid<Projectile> _projectileGrid =
   SpatialHashGrid(cellSize: 200.0);
 
-  final SpatialHashGrid<TiledPlatform> _platformGrid =
+  final SpatialHashGrid<GamePlatform> _platformGrid =
   SpatialHashGrid(cellSize: 400.0);
 
   /// Update all grids (call once per frame)
   void updateGrids({
     required List<GameCharacter> characters,
     required List<Projectile> projectiles,
-    required List<TiledPlatform> platforms,
+    required List<GamePlatform> platforms,
   }) {
     // Clear grids
     _characterGrid.clear();
@@ -38,6 +38,29 @@ class CollisionSystem {
     for (final projectile in projectiles) {
       _projectileGrid.insert(projectile, projectile.position, projectile.size);
     }
+  }
+
+  /// Check character vs platform collisions (optimized)
+  GamePlatform? checkPlatformCollision(GameCharacter character) {  // ✅ Changed return type
+    final nearbyPlatforms = _platformGrid.getNearby(
+      character.position,
+      character.size,
+    );
+
+    for (final platform in nearbyPlatforms) {
+      if (_checkAABB(
+        character.position, character.size,
+        platform.position, platform.size,
+      )) {
+        // Additional check: character falling onto platform from above
+        if (character.velocity.y > 0 &&
+            character.position.y < platform.position.y) {
+          return platform;
+        }
+      }
+    }
+
+    return null;
   }
 
   /// Check character vs projectile collisions (optimized)
@@ -67,28 +90,6 @@ class CollisionSystem {
     }
   }
 
-  /// Check character vs platform collisions (optimized)
-  TiledPlatform? checkPlatformCollision(GameCharacter character) {
-    final nearbyPlatforms = _platformGrid.getNearby(
-      character.position,
-      character.size,
-    );
-
-    for (final platform in nearbyPlatforms) {
-      if (_checkAABB(
-        character.position, character.size,
-        platform.position, platform.size,
-      )) {
-        // Additional check: character falling onto platform from above
-        if (character.velocity.y > 0 &&
-            character.position.y < platform.position.y) {
-          return platform;
-        }
-      }
-    }
-
-    return null;
-  }
 
   /// AABB collision check
   bool _checkAABB(
