@@ -241,6 +241,8 @@ class ActionGame extends FlameGame
     camera.follow(character);
     camera.viewfinder.visibleGameSize = Vector2(1280, 720);
 
+    camera.viewfinder.anchor = Anchor(0.5, 0.75);
+
     // Create joystick
     joystick = JoystickComponent(
       knob: CircleComponent(

@@ -290,7 +290,7 @@ class InfiniteWorldSystem {
       final id     = 'wave${zone.waveNumber}_${type}_$i';
 
       // Use the shared spawnY helper — no magic numbers.
-      final pos = Vector2(spawnX, spawnY(100));
+      final pos = Vector2(spawnX, spawnY(GameConfig.characterHeight));
 
       final enemy = _buildEnemy(type, pos, tactic, id, zone.difficulty);
       if (enemy == null) continue;
