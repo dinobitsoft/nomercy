@@ -6,13 +6,19 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
 /// Infinite ground strip that:
-///   1. Follows the player horizontally (and covers ALL active bots — Fix #3).
-///   2. Draws tiles symmetrically around its centre (Fix #2).
-///   3. The visual top edge sits at groundSurfaceY so characters stand flush
-///      on the visible tile (Fix #1 — no more −100 magic offset).
+///   1. Follows the player horizontally (and covers ALL active bots).
+///   2. Draws tiles symmetrically around its centre.
+///   3. The visual top edge sits at groundSurfaceY so characters stand flush.
+///
+/// IMPORTANT: anchor = Anchor.center — position.x IS the world midpoint.
+/// All render math depends on this; do not change the anchor without
+/// updating _drawTiles / _drawFallback accordingly.
 class TiledGroundComponent extends GamePlatform {
   static const double tileSize  = 128.0;
   static const double overlapPx = 78.0;
+
+  /// Effective horizontal advance per tile (tile width minus overlap).
+  static const double _step = tileSize - overlapPx; // 50 px
 
   /// Extra world-units to extend beyond the outermost tracked character on
   /// each side.  One full viewport + a few tiles of safety.
@@ -26,7 +32,12 @@ class TiledGroundComponent extends GamePlatform {
     position: Vector2(0, groundY),
     size: Vector2(4000, tileSize),
     platformType: 'ground',
-  );
+  ) {
+    // ── FIX (root cause): render assumes Offset.zero == component centre. ──
+    // Without this, the canvas origin is the top-left corner and the
+    // symmetric clip / tile math places tiles only to the left of the player.
+    anchor = Anchor.center;
+  }
 
   // ── loading ────────────────────────────────────────────────────────────────
 
@@ -37,11 +48,11 @@ class TiledGroundComponent extends GamePlatform {
       try {
         _tile = await game.images.load(name);
         _loaded = true;
-        print('✅ TiledGroundComponent loaded "$name"');
+        debugPrint('✅ TiledGroundComponent loaded "$name"');
         break;
       } catch (_) {}
     }
-    if (!_loaded) print('⚠️  TiledGroundComponent: no texture, using fallback');
+    if (!_loaded) debugPrint('⚠️  TiledGroundComponent: no texture, using fallback');
   }
 
   // ── update ─────────────────────────────────────────────────────────────────
@@ -53,7 +64,6 @@ class TiledGroundComponent extends GamePlatform {
     try {
       final char = game.character;
 
-      // ── FIX #3: extend strip to cover ALL living enemies, not just player ──
       double leftmost  = char.position.x;
       double rightmost = char.position.x;
 
@@ -63,10 +73,9 @@ class TiledGroundComponent extends GamePlatform {
         rightmost = math.max(rightmost, enemy.position.x);
       }
 
-      // Centre the component between the extremes, pad each side.
-      final span   = (rightmost - leftmost).abs();
-      position.x   = (leftmost + rightmost) / 2;
-      size.x       = span + _sidePad * 2;
+      // Centre anchor → position.x is the visual midpoint of the strip.
+      position.x = (leftmost + rightmost) / 2;
+      size.x     = (rightmost - leftmost).abs() + _sidePad * 2;
     } catch (_) {
       // character not yet initialised — keep fallback size (4000)
     }
@@ -76,6 +85,7 @@ class TiledGroundComponent extends GamePlatform {
 
   @override
   void render(Canvas canvas) {
+    // With Anchor.center, (0,0) IS the component centre in canvas space.
     canvas.save();
     canvas.clipRect(
       Rect.fromCenter(center: Offset.zero, width: size.x, height: size.y),
@@ -88,28 +98,31 @@ class TiledGroundComponent extends GamePlatform {
     canvas.restore();
   }
 
-  /// ── FIX #2: symmetric tile placement around component centre ──────────────
+  /// Symmetric tile placement around component centre.
   ///
-  /// Old code computed worldLeft then iterated forward, which caused tiles to
-  /// only appear left of the player when the first-tile index was off.
-  /// New approach: start from the tile index at the centre and expand outward
-  /// in both directions — always symmetric regardless of world position.
+  /// Canvas origin == component centre (guaranteed by Anchor.center).
+  /// worldCentreX  == position.x (Flame keeps these in sync).
+  ///
+  /// Algorithm:
+  ///   1. Find the tile grid index closest to the world centre.
+  ///   2. Compute how many tiles are needed to fill each half.
+  ///   3. For each tile: localX = its world position − world centre.
+  ///      This is exactly its canvas offset because canvas origin == centre.
   void _drawTiles(Canvas canvas) {
-    final step   = tileSize - overlapPx; // 50 px advance per tile
-    final half   = (size.x / 2 / step).ceil() + 2; // tiles needed each side
+    final half = (size.x / 2 / _step).ceil() + 2;
 
-    // Tile index whose left edge is nearest to the component centre.
-    final centreIdx = (position.x / step).round();
-    final firstIdx  = centreIdx - half;
-    final lastIdx   = centreIdx + half;
+    // World-aligned tile index nearest to the component's world centre.
+    final centreIdx = (position.x / _step).round();
 
     final src   = Rect.fromLTWH(0, 0, _tile!.width.toDouble(), _tile!.height.toDouble());
     final paint = Paint()..filterQuality = FilterQuality.medium;
 
-    for (int idx = firstIdx; idx <= lastIdx; idx++) {
-      final worldX = idx * step;
-      final localX = worldX - position.x; // relative to component anchor (centre)
-      final localY = -size.y / 2;         // top edge of strip
+    for (int idx = centreIdx - half; idx <= centreIdx + half; idx++) {
+      final worldX = idx * _step;
+      // localX: distance from world centre → canvas offset (Anchor.center).
+      final localX = worldX - position.x;
+      // Top of tile = top edge of strip (−half height from centre).
+      final localY = -size.y / 2;
       canvas.drawImageRect(
         _tile!,
         src,
@@ -125,15 +138,14 @@ class TiledGroundComponent extends GamePlatform {
       Paint()..color = const Color(0xFF3a7d44),
     );
 
-    final step  = tileSize - overlapPx;
-    final half  = (size.x / 2 / step).ceil() + 2;
-    final cIdx  = (position.x / step).round();
+    final half  = (size.x / 2 / _step).ceil() + 2;
+    final cIdx  = (position.x / _step).round();
     final lp    = Paint()
       ..color       = Colors.black.withOpacity(0.15)
       ..strokeWidth = 1;
 
     for (int i = cIdx - half; i <= cIdx + half; i++) {
-      final lx = i * step - position.x;
+      final lx = i * _step - position.x;
       canvas.drawLine(Offset(lx, -size.y / 2), Offset(lx, size.y / 2), lp);
     }
   }
