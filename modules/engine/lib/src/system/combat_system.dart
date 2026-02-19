@@ -299,9 +299,8 @@ class CombatSystem {
     // Calculate bounty
     final bounty = 20; // Base bounty
 
-    // Emit death event
     _eventBus.emit(CharacterKilledEvent(
-      victimId: victim.stats.name,
+      victimId: victim.uniqueId,
       killerId: killerId,
       bountyGold: bounty,
       deathPosition: victim.position.clone(),
