@@ -463,36 +463,43 @@ class ActionGame extends FlameGame
     ));
   }
 
+// ============================================================
+// PATCH 3: action_game.dart — replace _handleEnemyDeath
+// Sets isDead FIRST so render() skips immediately,
+// then safely removes from world on the same frame.
+// ============================================================
+
   void _handleEnemyDeath(GameCharacter enemy, CharacterKilledEvent event) {
     print('💀 Handling bot death: ${enemy.stats.name} (${enemy.uniqueId})');
 
-    // Award gold and update stats
+    // 1. Mark dead IMMEDIATELY — render() will return early this frame
+    enemy.isDead = true;
+
+    // 2. Remove from tracking list (prevents further AI / attacks)
+    enemies.remove(enemy);
+
+    // 3. Unregister from registry
+    _unregisterCharacter(enemy);
+
+    // 4. Remove from world — use only world.remove; removeFromParent is equivalent
+    //    Calling both world.remove AND remove() causes duplicate-removal errors.
+    if (enemy.isMounted) {
+      world.remove(enemy);
+    }
+
+    // 5. Award gold & update stats
     character.stats.money += event.bountyGold;
     enemiesDefeated++;
 
-    // Remove from tracking list FIRST (prevents further attacks)
-    final wasRemoved = enemies.remove(enemy);
-    print('  - Removed from enemies list: $wasRemoved');
+    print('✅ Bot removed | remaining enemies: ${enemies.length} | kills: $enemiesDefeated');
 
-    // Unregister from registry
-    _unregisterCharacter(enemy);
-
-    // IMMEDIATE removal from game world
-    // Don't mark as dead - just remove completely
-    enemy.removeFromParent();
-    remove(enemy);
-    world.remove(enemy);
-
-
-    print('✅ Bot fully removed');
-    print('  - Remaining enemies: ${enemies.length}');
-
-    // Drop loot at death position
+    // 6. Drop loot
     if (event.shouldDropLoot) {
       itemSystem.dropLoot(event.deathPosition);
     }
 
-    // Update HUD
+    // 7. HUD updates (kills counter auto-reads enemiesDefeated each frame,
+    //    but emit for any event-driven consumers)
     eventBus.emit(UpdateHUDEvent(element: 'kills', value: enemiesDefeated));
     eventBus.emit(UpdateHUDEvent(element: 'gold', value: character.stats.money));
   }

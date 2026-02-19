@@ -17,6 +17,18 @@ class TiledGroundComponent extends GamePlatform {
   static const double tileSize  = 128.0;
   static const double overlapPx = 78.0;
 
+  /// Extra tiles drawn beyond each viewport edge — prevents pop-in on fast
+  /// camera movement.
+  static const int _bleedTiles = 3;
+
+  /// Huge width so Flame's frustum culler never removes this component.
+  /// Has no effect on tile drawing logic.
+  static const double _cullWidth = 1e8;
+
+  /// Set to true to draw a red outline + index label on every tile.
+  /// Flip off before shipping.
+  static const bool _debugDraw = true;
+
   /// Effective horizontal advance per tile (tile width minus overlap).
   static const double _step = tileSize - overlapPx; // 50 px
 
@@ -90,12 +102,20 @@ class TiledGroundComponent extends GamePlatform {
     canvas.clipRect(
       Rect.fromCenter(center: Offset.zero, width: size.x, height: size.y),
     );
+
+    final (worldLeft, worldRight) = _visibleWorldBounds();
+
+    final firstIdx = (worldLeft  / _step).floor() - _bleedTiles;
+    final lastIdx  = (worldRight / _step).ceil()  + _bleedTiles;
+
     if (_loaded && _tile != null) {
       _drawTiles(canvas);
     } else {
       _drawFallback(canvas);
     }
     canvas.restore();
+
+    if (_debugDraw) _drawDebugOverlay(canvas, firstIdx, lastIdx, worldLeft, worldRight);
   }
 
   /// Symmetric tile placement around component centre.
@@ -115,7 +135,7 @@ class TiledGroundComponent extends GamePlatform {
     final centreIdx = (position.x / _step).round();
 
     final src   = Rect.fromLTWH(0, 0, _tile!.width.toDouble(), _tile!.height.toDouble());
-    final paint = Paint()..filterQuality = FilterQuality.medium;
+    final paint = Paint()..filterQuality = FilterQuality.low;
 
     for (int idx = centreIdx - half; idx <= centreIdx + half; idx++) {
       final worldX = idx * _step;
@@ -148,5 +168,91 @@ class TiledGroundComponent extends GamePlatform {
       final lx = i * _step - position.x;
       canvas.drawLine(Offset(lx, -size.y / 2), Offset(lx, size.y / 2), lp);
     }
+  }
+
+  void _drawDebugOverlay(
+      Canvas canvas, int firstIdx, int lastIdx,
+      double worldLeft, double worldRight,
+      ) {
+    final outlinePaint = Paint()
+      ..color       = Colors.red.withOpacity(0.6)
+      ..strokeWidth = 1.5
+      ..style       = PaintingStyle.stroke;
+
+    final vpPaint = Paint()
+      ..color       = Colors.yellow.withOpacity(0.4)
+      ..strokeWidth = 2
+      ..style       = PaintingStyle.stroke;
+
+    // Draw viewport boundary in canvas space.
+    canvas.drawRect(
+      Rect.fromLTRB(
+        worldLeft  - position.x, -tileSize / 2,
+        worldRight - position.x,  tileSize / 2,
+      ),
+      vpPaint,
+    );
+
+    // Draw outline + index on each tile.
+    for (int idx = firstIdx; idx <= lastIdx; idx++) {
+      final lx = _canvasX(idx);
+      canvas.drawRect(
+        Rect.fromLTWH(lx, -tileSize / 2, tileSize, tileSize),
+        outlinePaint,
+      );
+
+      final para = _buildTextParagraph(
+        '$idx\n(${(idx * _step).toInt()})',
+        fontSize: 9,
+        color: Colors.red,
+      );
+      canvas.drawParagraph(para, Offset(lx + 4, -tileSize / 2 + 4));
+    }
+
+    // Component centre marker.
+    canvas.drawCircle(
+      Offset.zero,
+      6,
+      Paint()..color = Colors.lime,
+    );
+
+    debugPrint(
+      '[Ground] pos.x=${position.x.toStringAsFixed(0)} '
+          'world=[${ worldLeft.toStringAsFixed(0)}, ${worldRight.toStringAsFixed(0)}] '
+          'tiles=[$firstIdx..$lastIdx] '
+          'tile=${_loaded ? '${_tile!.width}×${_tile!.height}' : 'fallback'}',
+    );
+  }
+
+  ui.Paragraph _buildTextParagraph(String text, {double fontSize = 10, Color color = Colors.white}) {
+    final style = ui.ParagraphStyle(textAlign: TextAlign.left);
+    final builder = ui.ParagraphBuilder(style)
+      ..pushStyle(ui.TextStyle(
+        color: color,
+        fontSize: fontSize,
+        background: Paint()..color = Colors.black.withOpacity(0.5),
+      ))
+      ..addText(text);
+    return builder.build()..layout(const ui.ParagraphConstraints(width: 100));
+  }
+
+  double _canvasX(int idx) => idx * _step - position.x;
+
+  (double, double) _visibleWorldBounds() {
+    // 1. Modern Flame CameraComponent API.
+    try {
+      final r = game.camera.visibleWorldRect;
+      if (r.width > 0) return (r.left, r.right);
+    } catch (_) {}
+
+    // 2. Legacy: viewport size centred on the player.
+    try {
+      final halfW = game.size.x / 2;
+      final cx    = game.character.position.x;
+      return (cx - halfW, cx + halfW);
+    } catch (_) {}
+
+    // 3. Last resort.
+    return (position.x - 1000, position.x + 1000);
   }
 }

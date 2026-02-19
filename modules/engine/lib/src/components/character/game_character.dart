@@ -47,6 +47,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
 
 
   bool spritesLoaded = false;
+  bool isDead = false;
 
   GameCharacter({
     required Vector2 position,
@@ -837,11 +838,14 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
 
   @override
   void render(Canvas canvas) {
-    if (characterState.health <= 0) {
-      final deathOpacity = 0.3;
+    // Immediately skip all rendering when dead — world.remove() may lag one frame
+    if (isDead) return;
+
+    // Player death: ghost + skull (player is not removed, game-over handled separately)
+    if (isPlayer && characterState.health <= 0) {
       canvas.saveLayer(
         Rect.fromCenter(center: Offset.zero, width: size.x, height: size.y),
-        Paint()..color = Colors.white.withOpacity(deathOpacity),
+        Paint()..color = Colors.white.withOpacity(0.3),
       );
       super.render(canvas);
       canvas.restore();
@@ -858,6 +862,10 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       return;
     }
 
+    // Bot with health <= 0: render nothing (isDead will be true by next frame,
+    // but guard here too so skull never flashes)
+    if (isBot && characterState.health <= 0) return;
+
     super.render(canvas);
 
     if (!spritesLoaded) {
@@ -868,19 +876,11 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       );
     }
 
-    if (characterState.isStunned) {
-      _renderStunEffect(canvas);
-    }
+    if (characterState.isStunned) _renderStunEffect(canvas);
+    if (characterState.isDodging) _renderDodgeEffect(canvas);
+    if (characterState.isBlocking) _renderBlockEffect(canvas);
 
-    if (characterState.isDodging) {
-      _renderDodgeEffect(canvas);
-    }
-
-    if (characterState.isBlocking) {
-      _renderBlockEffect(canvas);
-    }
-
-    if (playerType == PlayerType.bot && characterState.health > 0) {
+    if (isBot && characterState.health > 0) {
       final healthBarWidth = size.x;
       final healthPercent = (characterState.health / 100).clamp(0.0, 1.0);
       canvas.drawRect(
@@ -893,8 +893,9 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       );
     }
 
-    if (playerType == PlayerType.human) {
-      final staminaPercent = (characterState.stamina / characterState.maxStamina).clamp(0.0, 1.0);
+    if (isPlayer) {
+      final staminaPercent =
+      (characterState.stamina / characterState.maxStamina).clamp(0.0, 1.0);
       canvas.drawRect(
         Rect.fromLTWH(-size.x / 2, size.y / 2 + 5, size.x, 5),
         Paint()..color = Colors.grey.withOpacity(0.5),
@@ -905,9 +906,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       );
     }
 
-    if (characterState.comboCount > 1) {
-      _renderComboIndicator(canvas);
-    }
+    if (characterState.comboCount > 1) _renderComboIndicator(canvas);
   }
 
   void _renderStunEffect(Canvas canvas) {
