@@ -17,6 +17,9 @@ class Knight extends GameCharacter {
   );
 
   @override
+  double get jumpPower => -350;
+
+  @override
   void updateHumanControl(double dt) {
     if (characterState.isStunned || characterState.isLanding || characterState.isDodging) return;
 
@@ -45,7 +48,7 @@ class Knight extends GameCharacter {
     }
 
     // BLOCK (Down on joystick or Y button on gamepad)
-    bool blockInput = inputDelta.y > 0.5 || gamepad.isBlockPressed;
+    bool blockInput = gamepad.isBlockPressed;
     if (blockInput && characterState.groundPlatform != null) {
       startBlock();
       velocity.x = 0;
@@ -53,17 +56,12 @@ class Knight extends GameCharacter {
       stopBlock();
     }
 
-    // JUMP (Up on joystick or A button on gamepad)
-    bool jumpInput = (game.joystick.direction == JoystickDirection.up) ||
-        gamepad.isJumpPressed;
-
-    if (jumpInput &&
-        characterState.groundPlatform != null &&
-        !characterState.isBlocking &&
-        !characterState.isAttackCommitted &&
-        !characterState.isAirborne &&
-        characterState.stamina >= 20) {
-      performJump(customPower: -500); // Knight has high jump
+    // JUMP — edge-detected, supports double jump
+    bool jumpInput = game.joystick.direction == JoystickDirection.up || gamepad.isJumpPressed;
+    if (!characterState.isBlocking && !characterState.isAttackCommitted) {
+      handleJumpInput(jumpInput);
+    } else {
+      prevJumpInput = jumpInput; // keep edge state in sync even when blocked
     }
 
     // DODGE (Diagonal down or B button on gamepad)

@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:ui/ui.dart';
 
 import 'components/platform/platform_factory.dart';
+import 'components/util/gamepad_debug_overlay.dart';
 
 class ActionGame extends FlameGame
     with HasCollisionDetection, TapCallbacks, KeyboardEvents {
@@ -256,6 +257,8 @@ class ActionGame extends FlameGame
       margin: const EdgeInsets.only(left: 40, bottom: 40),
     );
     camera.viewport.add(joystick);
+
+    camera.viewport.add(GamepadDebugOverlay());
 
     // Add HUD
     camera.viewport.add(HUD(character: character, game: this));

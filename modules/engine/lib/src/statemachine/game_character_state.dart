@@ -1,6 +1,9 @@
 import 'package:core/core.dart';
 import 'package:engine/engine.dart';
 import 'package:flame/components.dart';
+import 'package:core/core.dart';
+import 'package:engine/engine.dart';
+import 'package:flame/components.dart';
 
 class GameCharacterState {
   // State
@@ -21,6 +24,10 @@ class GameCharacterState {
   bool wasGrounded = false;
   double landingAnimationTimer = 0;
   double jumpAnimationTimer = 0;
+
+  // Double jump
+  bool hasDoubleJumped = false;
+  bool canDoubleJump = true;
 
   // Landing and recovery mechanics
   bool isLanding = false;

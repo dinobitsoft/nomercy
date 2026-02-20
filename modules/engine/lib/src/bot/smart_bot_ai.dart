@@ -260,21 +260,39 @@ class SmartBotAI implements IntelligentBotAI {
     return BotDecision('dodge', priority);
   }
 
-  BotDecision _evaluateJumpAttack(GameCharacter bot, GameCharacter target, double distance, double staminaPercent) {
+  BotDecision _evaluateJumpAttack(GameCharacter bot, GameCharacter target,
+      double distance, double staminaPercent) {
     double priority = 0;
 
-    // Jump attack if target is on lower platform
-    if (target.position.y > bot.position.y + 50 && distance < 250) {
+    final isGrounded = bot.characterState.groundPlatform != null;
+    final canDoubleJump = bot.characterState.canDoubleJump &&
+        !bot.characterState.hasDoubleJumped &&
+        bot.characterState.isAirborne;
+
+    // Jump attack from ground toward lower target
+    if (isGrounded && target.position.y > bot.position.y + 50 && distance < 250) {
       priority = 0.6 * aggressionLevel;
     }
 
-    // Aggressive personalities use more aerial attacks
+    // Double jump to reach elevated targets or escape combos
+    if (canDoubleJump) {
+      if (target.position.y < bot.position.y - 80 && distance < 300) {
+        priority = 0.75 * aggressionLevel; // chase upward target
+      } else if (bot.characterState.health / 100 < 0.3) {
+        priority = 0.5; // escape upward when low health
+      } else if (target.characterState.isAttacking && distance < 180) {
+        priority = 0.6; // aerial evasion
+      }
+    }
+
     if (personality == BotPersonality.aggressive || personality == BotPersonality.berserker) {
       priority += 0.2;
     }
 
-    // Can't jump attack without stamina or already airborne
-    if (bot.characterState.stamina < 20 || bot.characterState.isAirborne || bot.characterState.groundPlatform == null) priority = 0;
+    // Can't jump without stamina
+    if (staminaPercent < 0.2) priority = 0;
+    // Can't ground-jump if airborne without double jump available
+    if (!isGrounded && !canDoubleJump) priority = 0;
 
     return BotDecision('jump_attack', priority);
   }
@@ -362,19 +380,22 @@ class SmartBotAI implements IntelligentBotAI {
     }
 
     // Jump over obstacles or to platforms
+    // Jump to reach elevated platforms or escape
     if (bot.characterState.groundPlatform != null && math.Random().nextDouble() < 0.1) {
       final platforms = bot.game.platforms;
       for (final platform in platforms) {
-        // Check if there's a platform we should jump to
         if (platform.position.y < bot.position.y - 50 &&
-            (platform.position.x - bot.position.x).abs() < 200 &&
-            bot.characterState.stamina >= 20) {
-          bot.velocity.y = -300;
-          bot.characterState.groundPlatform = null;
-          bot.characterState.stamina -= 20;
+            (platform.position.x - bot.position.x).abs() < 200) {
+          bot.performJump();
           break;
         }
       }
+    } else if (bot.characterState.canDoubleJump &&
+        !bot.characterState.hasDoubleJumped &&
+        bot.characterState.isAirborne &&
+        math.Random().nextDouble() < 0.05) {
+      // Opportunistic double jump mid-air to reach platforms
+      bot.performJump();
     }
 
     currentState = BotState.reposition;
@@ -419,17 +440,22 @@ class SmartBotAI implements IntelligentBotAI {
     final toTarget = target.position - bot.position;
     bot.facingRight = toTarget.x > 0;
 
-    // Jump towards target
-    if (bot.characterState.groundPlatform != null && bot.characterState.stamina >= 20) {
-      bot.velocity.y = -300;
-      bot.velocity.x = toTarget.normalized().x * (bot.stats.dexterity / 2);
-      bot.characterState.groundPlatform = null;
-      bot.characterState.stamina -= 20;
+    final isGrounded = bot.characterState.groundPlatform != null;
+    final canDoubleJump = bot.characterState.canDoubleJump &&
+        !bot.characterState.hasDoubleJumped &&
+        bot.characterState.isAirborne;
 
-      // Attack in air after a slight delay
-      if (bot.characterState.attackCooldown <= 0) {
-        bot.attack();
-      }
+    if (isGrounded || canDoubleJump) {
+      bot.performJump(); // handles both ground and double jump internally
+    }
+
+    // Move toward target horizontally during jump
+    bot.velocity.x = toTarget.normalized().x * (bot.stats.dexterity / 2.5);
+
+    if (bot.characterState.attackCooldown <= 0 &&
+        bot.characterState.stamina >= 15 &&
+        bot.position.distanceTo(target.position) < bot.stats.attackRange * 30) {
+      bot.attack();
     }
 
     currentState = BotState.attack;

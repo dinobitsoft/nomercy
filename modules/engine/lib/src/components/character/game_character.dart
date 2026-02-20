@@ -47,6 +47,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
 
 
   bool spritesLoaded = false;
+  bool prevJumpInput = false;
   bool isDead = false;
 
   GameCharacter({
@@ -293,12 +294,13 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     }
 
     // Detect landing (was airborne, now grounded)
-  if (!characterState.wasGrounded && isGroundedNow && velocity.y > GameConfig.landingVelocityThreshold) {
+    if (!characterState.wasGrounded && isGroundedNow && velocity.y > GameConfig.landingVelocityThreshold) {
       handleLandingWithEvent();
       characterState.landingAnimationTimer = 0.25;
       characterState.isLanding = true;
       characterState.isAirborne = false;
       characterState.isJumping = false;
+      characterState.hasDoubleJumped = false; // ← RESET double jump on land
     }
 
     // Update airborne state
@@ -752,25 +754,67 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     ));
   }
 
+  /// Base jump power — subclasses override via [jumpPower] getter.
+  double get jumpPower => GameConfig.jumpVelocity;
+
+  /// 85 % of first jump for the double-jump burst.
+  double get doubleJumpPower => jumpPower * 0.85;
+
+  /// Call from subclass updateHumanControl / bot AI.
+  /// Pass the RAW (non-edge-detected) bool from input this frame.
+  /// Edge detection is handled here so subclasses stay simple.
+  void handleJumpInput(bool jumpPressed) {
+    final justPressed = jumpPressed && !prevJumpInput;
+    prevJumpInput = jumpPressed;
+    if (!justPressed) return;
+    performJump();
+  }
+
   void performJump({double? customPower, bool isDoubleJump = false}) {
-    if (characterState.groundPlatform == null || characterState.stamina < GameConfig.jumpStaminaCost) return;
+    final isGrounded = characterState.groundPlatform != null;
+    final stamina = characterState.stamina;
 
-    final jumpPower = customPower ?? GameConfig.jumpVelocity;
+    // Ground jump
+    if (isGrounded && stamina >= GameConfig.jumpStaminaCost) {
+      final power = customPower ?? jumpPower;
+      velocity.y = power;
+      characterState.groundPlatform = null;
+      characterState.stamina -= GameConfig.jumpStaminaCost;
+      characterState.isJumping = true;
+      characterState.isAirborne = true;
+      characterState.airborneTime = 0;
+      characterState.hasDoubleJumped = false;
 
-    velocity.y = jumpPower;
-    characterState.groundPlatform = null;
-    characterState.stamina -= GameConfig.jumpStaminaCost;
-    characterState.isJumping = true;
-    characterState.isAirborne = true;
-    characterState.airborneTime = 0;
+      _eventBus.emit(CharacterJumpedEvent(
+        characterId: stats.name,
+        position: position.clone(),
+        jumpPower: power.abs(),
+        staminaCost: GameConfig.jumpStaminaCost.toDouble(),
+        isDoubleJump: false,
+      ));
+      return;
+    }
 
-    _eventBus.emit(CharacterJumpedEvent(
-      characterId: stats.name,
-      position: position.clone(),
-      jumpPower: jumpPower.abs(),
-      staminaCost: 20,
-      isDoubleJump: isDoubleJump,
-    ));
+    // Double jump — airborne, hasn't used it yet, has stamina
+    if (!isGrounded &&
+        characterState.isAirborne &&
+        characterState.canDoubleJump &&
+        !characterState.hasDoubleJumped &&
+        stamina >= GameConfig.jumpStaminaCost) {
+      final power = customPower != null ? customPower * 0.85 : doubleJumpPower;
+      velocity.y = power;
+      characterState.stamina -= GameConfig.jumpStaminaCost;
+      characterState.hasDoubleJumped = true;
+      characterState.jumpAnimationTimer = 0.3;
+
+      _eventBus.emit(CharacterJumpedEvent(
+        characterId: stats.name,
+        position: position.clone(),
+        jumpPower: power.abs(),
+        staminaCost: GameConfig.jumpStaminaCost.toDouble(),
+        isDoubleJump: true,
+      ));
+    }
   }
 
   void performWalk(Vector2 direction, double speed) {

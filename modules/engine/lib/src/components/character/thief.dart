@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 class Thief extends GameCharacter {
   final EventBus _eventBus = EventBus();
 
+  double get jumpPower => -500;
+
   Thief({
     required super.position,
     required super.playerType,
@@ -40,7 +42,7 @@ class Thief extends GameCharacter {
     }
 
     // BLOCK
-    bool blockInput = inputDelta.y > 0.5 || gamepad.isBlockPressed;
+    bool blockInput = gamepad.isBlockPressed;
     if (blockInput && characterState.groundPlatform != null) {
       startBlock();
       velocity.x = 0;
@@ -48,17 +50,12 @@ class Thief extends GameCharacter {
       stopBlock();
     }
 
-    // JUMP (Thief has high jump)
-    bool jumpInput = (game.joystick.direction == JoystickDirection.up) ||
-        gamepad.isJumpPressed;
-
-    if (jumpInput &&
-        characterState.groundPlatform != null &&
-        !characterState.isBlocking &&
-        !characterState.isAttackCommitted &&
-        !characterState.isAirborne &&
-        characterState.stamina >= 15) {
-      performJump(customPower: -320);
+    // JUMP — edge-detected, supports double jump
+    bool jumpInput = game.joystick.direction == JoystickDirection.up || gamepad.isJumpPressed;
+    if (!characterState.isBlocking && !characterState.isAttackCommitted) {
+      handleJumpInput(jumpInput);
+    } else {
+      prevJumpInput = jumpInput; // keep edge state in sync even when blocked
     }
 
     // DODGE

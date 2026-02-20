@@ -7,6 +7,9 @@ class Trader extends GameCharacter {
 
   final EventBus _eventBus = EventBus();
 
+  @override
+  double get jumpPower => -300;
+
   Trader({
     required super.position,
     required super.playerType,
@@ -41,7 +44,7 @@ class Trader extends GameCharacter {
     }
 
     // BLOCK
-    bool blockInput = inputDelta.y > 0.5 || gamepad.isBlockPressed;
+    bool blockInput = gamepad.isBlockPressed;
     if (blockInput && characterState.groundPlatform != null) {
       startBlock();
       velocity.x = 0;
@@ -50,16 +53,11 @@ class Trader extends GameCharacter {
     }
 
     // JUMP (Trader has balanced jump)
-    bool jumpInput = (game.joystick.direction == JoystickDirection.up) ||
-        gamepad.isJumpPressed;
-
-    if (jumpInput &&
-        characterState.groundPlatform != null &&
-        !characterState.isBlocking &&
-        !characterState.isAttackCommitted &&
-        !characterState.isAirborne &&
-        characterState.stamina >= 18) {
-      performJump(customPower: -300);
+    bool jumpInput = game.joystick.direction == JoystickDirection.up || gamepad.isJumpPressed;
+    if (!characterState.isBlocking && !characterState.isAttackCommitted) {
+      handleJumpInput(jumpInput);
+    } else {
+      prevJumpInput = jumpInput;
     }
 
     // DODGE
