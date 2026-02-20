@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 class Wizard extends GameCharacter {
   final EventBus _eventBus = EventBus();
 
+  @override
+  double get jumpPower => -280;
+
   Wizard({
     required super.position,
     required super.playerType,
@@ -37,7 +40,7 @@ class Wizard extends GameCharacter {
       performStopWalk();
     }
 
-    bool blockInput = inputDelta.y > 0.5 || gamepad.isBlockPressed;
+    bool blockInput = gamepad.isBlockPressed;
     if (blockInput && characterState.groundPlatform != null) {
       startBlock();
       velocity.x = 0;
@@ -45,12 +48,12 @@ class Wizard extends GameCharacter {
       stopBlock();
     }
 
-    bool jumpInput = (game.joystick.direction == JoystickDirection.up) ||
-        gamepad.isJumpPressed;
-
-    if (jumpInput && characterState.groundPlatform != null && !characterState.isBlocking &&
-        !characterState.isAttackCommitted && !characterState.isAirborne && characterState.stamina >= 20) {
-      performJump(customPower: -280);
+    //JUMP
+    bool jumpInput = game.joystick.direction == JoystickDirection.up || gamepad.isJumpPressed;
+    if (!characterState.isBlocking && !characterState.isAttackCommitted) {
+      handleJumpInput(jumpInput);
+    } else {
+      prevJumpInput = jumpInput;
     }
 
     bool dodgeInput = (inputDelta.length > 0.5 && inputDelta.y < -0.5) ||
