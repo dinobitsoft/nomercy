@@ -23,15 +23,9 @@ class Knight extends GameCharacter {
   void updateHumanControl(double dt) {
     if (characterState.isStunned || characterState.isLanding || characterState.isDodging) return;
 
-    // ==========================================
-    // UNIFIED INPUT: Touch Joystick + Gamepad
-    // ==========================================
     final gamepad = game.gamepadManager;
 
-    // Combine touch joystick and gamepad joystick
     Vector2 inputDelta = game.joystick.relativeDelta;
-
-    // If gamepad is connected and has input, use gamepad instead
     if (gamepad.isGamepadConnected && gamepad.hasMovementInput()) {
       inputDelta = gamepad.getJoystickDirection();
     }
@@ -41,14 +35,13 @@ class Knight extends GameCharacter {
 
     // MOVEMENT
     if (inputDelta.x != 0 && !characterState.isBlocking) {
-      final direction = Vector2(inputDelta.x, 0);
-      performWalk(direction, moveSpeed * 100 * moveMultiplier);
+      performWalk(Vector2(inputDelta.x, 0), moveSpeed * 100 * moveMultiplier);
     } else if (!characterState.isAttackCommitted && !characterState.isBlocking) {
       performStopWalk();
     }
 
-    // BLOCK (Down on joystick or Y button on gamepad)
-    bool blockInput = gamepad.isBlockPressed;
+    // BLOCK — Y button or down-stick; use continuous press (not edge)
+    final blockInput = gamepad.isBlockPressed;
     if (blockInput && characterState.groundPlatform != null) {
       startBlock();
       velocity.x = 0;
@@ -56,33 +49,38 @@ class Knight extends GameCharacter {
       stopBlock();
     }
 
-    // JUMP — edge-detected, supports double jump
-    bool jumpInput = game.joystick.direction == JoystickDirection.up || gamepad.isJumpPressed;
+    // JUMP — edge-detected via handleJumpInput
+    final jumpInput = game.joystick.direction == JoystickDirection.up ||
+        gamepad.isJumpPressed;
     if (!characterState.isBlocking && !characterState.isAttackCommitted) {
       handleJumpInput(jumpInput);
     } else {
-      prevJumpInput = jumpInput; // keep edge state in sync even when blocked
+      prevJumpInput = jumpInput;
     }
 
-    // DODGE (Diagonal down or B button on gamepad)
-    bool dodgeInput = (inputDelta.length > 0.5 && inputDelta.y < -0.5) ||
-        gamepad.isDodgePressed;
+    // DODGE — B button (edge-detected) OR joystick flick down+direction
+    // inputDelta.y > 0.5 = stick pushed down (positive Y = down in game coords)
+    final stickDodge = inputDelta.length > 0.5 && inputDelta.y > 0.5;
+    final buttonDodge = gamepad.isDodgeJustPressed();
 
-    if (dodgeInput &&
+    if ((stickDodge || buttonDodge) &&
         characterState.groundPlatform != null &&
-        !characterState.isBlocking) {
-      final dodgeDirection = inputDelta.x != 0
+        !characterState.isBlocking &&
+        characterState.dodgeCooldown <= 0) {
+      final dodgeDir = inputDelta.x != 0
           ? Vector2(inputDelta.x, 0)
           : Vector2(facingRight ? 1 : -1, 0);
-      dodge(dodgeDirection);
+      dodge(dodgeDir);
     }
   }
 
   @override
   void updateBotControl(double dt) {
-    if (botTactic != null && !characterState.isStunned && !characterState.isLanding) {
+    if (botTactic != null &&
+        !characterState.isStunned &&
+        !characterState.isLanding &&
+        characterState.health > 0) {
       botTactic!.execute(this, game.character, dt);
-      _botAdvancedMechanics(dt);
     }
   }
 

@@ -22,10 +22,8 @@ class Thief extends GameCharacter {
   void updateHumanControl(double dt) {
     if (characterState.isStunned || characterState.isLanding || characterState.isDodging) return;
 
-    // Unified input: Touch + Gamepad
     final gamepad = game.gamepadManager;
     Vector2 inputDelta = game.joystick.relativeDelta;
-
     if (gamepad.isGamepadConnected && gamepad.hasMovementInput()) {
       inputDelta = gamepad.getJoystickDirection();
     }
@@ -35,14 +33,13 @@ class Thief extends GameCharacter {
 
     // MOVEMENT
     if (inputDelta.x != 0 && !characterState.isBlocking) {
-      final direction = Vector2(inputDelta.x, 0);
-      performWalk(direction, moveSpeed * 100 * moveMultiplier);
+      performWalk(Vector2(inputDelta.x, 0), moveSpeed * 100 * moveMultiplier);
     } else if (!characterState.isAttackCommitted && !characterState.isBlocking) {
       performStopWalk();
     }
 
-    // BLOCK
-    bool blockInput = gamepad.isBlockPressed;
+    // BLOCK — continuous press
+    final blockInput = gamepad.isBlockPressed;
     if (blockInput && characterState.groundPlatform != null) {
       startBlock();
       velocity.x = 0;
@@ -50,36 +47,42 @@ class Thief extends GameCharacter {
       stopBlock();
     }
 
-    // JUMP — edge-detected, supports double jump
-    bool jumpInput = game.joystick.direction == JoystickDirection.up || gamepad.isJumpPressed;
+    // JUMP — edge-detected
+    final jumpInput = game.joystick.direction == JoystickDirection.up ||
+        gamepad.isJumpPressed;
     if (!characterState.isBlocking && !characterState.isAttackCommitted) {
       handleJumpInput(jumpInput);
     } else {
-      prevJumpInput = jumpInput; // keep edge state in sync even when blocked
+      prevJumpInput = jumpInput;
     }
 
-    // DODGE
-    bool dodgeInput = (inputDelta.length > 0.5 && inputDelta.y < -0.5) ||
-        gamepad.isDodgePressed;
+    // DODGE — B button (edge-detected) OR stick flick down
+    final stickDodge = inputDelta.length > 0.5 && inputDelta.y > 0.5;
+    final buttonDodge = gamepad.isDodgeJustPressed();
 
-    if (dodgeInput && characterState.groundPlatform != null && !characterState.isBlocking) {
-      final dodgeDirection = inputDelta.x != 0
+    if ((stickDodge || buttonDodge) &&
+        characterState.groundPlatform != null &&
+        !characterState.isBlocking &&
+        characterState.dodgeCooldown <= 0) {
+      final dodgeDir = inputDelta.x != 0
           ? Vector2(inputDelta.x, 0)
           : Vector2(facingRight ? 1 : -1, 0);
-      dodge(dodgeDirection);
+      dodge(dodgeDir);
     }
   }
 
   @override
   void updateBotControl(double dt) {
-    if (botTactic != null && !characterState.isStunned && !characterState.isLanding && characterState.health > 0) {
+    if (botTactic != null &&
+        !characterState.isStunned &&
+        !characterState.isLanding &&
+        characterState.health > 0) {
       botTactic!.execute(this, game.character, dt);
       _botAdvancedMechanics(dt);
     }
   }
 
   void _botAdvancedMechanics(double dt) {
-    // Thief prefers dodging over blocking
     final nearbyProjectiles = game.projectiles.where((p) {
       return p.owner != null &&
           position.distanceTo(p.position) < 200 &&
@@ -89,7 +92,7 @@ class Thief extends GameCharacter {
     if (nearbyProjectiles.isNotEmpty && characterState.stamina > 15) {
       final projectile = nearbyProjectiles.first;
       final dodgeDir = Vector2(
-        projectile.direction.x > 0 ? -1 : 1,
+        projectile.direction.x > 0 ? -1.0 : 1.0,
         0,
       );
       dodge(dodgeDir);
