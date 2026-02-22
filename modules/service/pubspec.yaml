@@ -1,5 +1,5 @@
-name: engine
-description: "engine"
+name: service
+description: "service"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -23,8 +23,6 @@ dependencies:
     path: ../core
   ui:
     path: ../ui
-  service:
-    path: ../service
 
 dev_dependencies:
   flutter_test:

@@ -1,9 +1,11 @@
 import 'package:engine/engine.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:service/service.dart';
 import 'package:ui/ui.dart';
 
 import 'game_screen.dart';
+import 'settings_screen.dart';
 
 class CharacterSelectionScreen extends StatefulWidget {
   const CharacterSelectionScreen({super.key});
@@ -16,6 +18,8 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
   String? selectedCharacterClass;
   late PageController _pageController;
   int _currentPage = 0;
+
+  final AudioSystem _audioSystem = AudioSystem();
 
   final List<CharacterStats> characterOptions = [
     KnightStats(),
@@ -40,6 +44,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _audioSystem.dispose();
     super.dispose();
   }
 
@@ -71,7 +76,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                           Text(
                             'NO MERCY',
                             style: TextStyle(
-                              fontSize: 56,
+                              fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                               letterSpacing: 4,
@@ -104,6 +109,13 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                                 ),
                               );
                             },
+                          ),
+                          const SizedBox(height: 15),
+                          _buildMenuItem(
+                            icon: FontAwesomeIcons.gear,
+                            label: 'SETTINGS',
+                            color: Colors.grey[400]!,
+                            onTap: () => _openSettings(context),
                           ),
                         ],
                       ),
@@ -394,6 +406,26 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
     );
   }
 
+  void _openSettings(BuildContext context) {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            SettingsScreen(audioSystem: _audioSystem),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(1.0, 0.0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 350),
+      ),
+    );
+  }
+
   void _startSinglePlayer(BuildContext context) {
     if (selectedCharacterClass == null) return;
 
@@ -418,7 +450,6 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
     );
 
     if (result != null) {
-      // Start game with room ID
       Navigator.push(
         context,
         MaterialPageRoute(
