@@ -284,7 +284,9 @@ class ActionGame extends FlameGame
       mapName: mapName,
     ));
 
+  if (audioSystem.isMusicEnabled) {
     eventBus.emit(PlayMusicEvent(musicId: 'battle_theme'));
+  }
 
     print('✅ ActionGame: Fully initialized');
   }
