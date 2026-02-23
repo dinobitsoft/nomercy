@@ -1,6 +1,7 @@
 import 'package:engine/engine.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:gamepad/gamepad.dart';
 import 'package:service/service.dart';
 import 'package:ui/ui.dart';
 
@@ -14,10 +15,13 @@ class CharacterSelectionScreen extends StatefulWidget {
   State<CharacterSelectionScreen> createState() => _CharacterSelectionScreenState();
 }
 
-class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
+class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
+    with GamepadMenuController<CharacterSelectionScreen> {
   String? selectedCharacterClass;
   late PageController _pageController;
   int _currentPage = 0;
+
+  static const int _kMenuItems = 3;
 
   final AudioSystem _audioSystem = AudioSystem();
 
@@ -27,6 +31,9 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
     WizardStats(),
     TraderStats(),
   ];
+
+  // Two focus zones: 'menu' (left) or 'characters' (right)
+  bool _inCharacterZone = false;
 
   @override
   void initState() {
@@ -39,6 +46,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
     );
 
     selectedCharacterClass = characterOptions[0].name.toLowerCase();
+    _rebuildItems();
   }
 
   @override
@@ -88,6 +96,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                             label: 'SINGLE PLAYER',
                             color: Colors.blueAccent,
                             onTap: () => _startSinglePlayer(context),
+                            focused: !_inCharacterZone && isFocused(0),
                           ),
                           const SizedBox(height: 15),
                           _buildMenuItem(
@@ -95,6 +104,15 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                             label: 'MULTIPLAYER',
                             color: Colors.orangeAccent,
                             onTap: () => _startMultiplayer(context),
+                            focused: !_inCharacterZone && isFocused(1),
+                          ),
+                          const SizedBox(height: 15),
+                          _buildMenuItem(
+                            icon: FontAwesomeIcons.gear,
+                            label: 'SETTINGS',
+                            color: Colors.grey[400]!,
+                            onTap: () => _openSettings(context),
+                            focused: !_inCharacterZone && isFocused(2),
                           ),
                           const SizedBox(height: 15),
                           _buildMenuItem(
@@ -109,13 +127,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
                                 ),
                               );
                             },
-                          ),
-                          const SizedBox(height: 15),
-                          _buildMenuItem(
-                            icon: FontAwesomeIcons.gear,
-                            label: 'SETTINGS',
-                            color: Colors.grey[400]!,
-                            onTap: () => _openSettings(context),
+                            focused: !_inCharacterZone && isFocused(3),
                           ),
                         ],
                       ),
@@ -268,39 +280,86 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
     required String label,
     required Color color,
     required VoidCallback onTap,
+    required bool focused,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.white24),
-            borderRadius: BorderRadius.circular(15),
-            color: Colors.white.withOpacity(0.05),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              FaIcon(icon, color: color, size: 20),
-              const SizedBox(width: 20),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
+    return GamepadMenuItem(
+      focused: focused,
+      child:     Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            setState(() {
+              if (_inCharacterZone) { _inCharacterZone = false; _rebuildItems(); }
+              // update focus to tapped item
+              registerItems([
+                GamepadItem(onSelect: () => _startSinglePlayer(context)),
+                GamepadItem(onSelect: () => _startMultiplayer(context)),
+                GamepadItem(onSelect: () => _openSettings(context)),
+              ]);
+            });
+            onTap();
+          },
+          borderRadius: BorderRadius.circular(15),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.white24),
+              borderRadius: BorderRadius.circular(15),
+              color: focused
+                  ? color.withOpacity(0.25)
+                  : Colors.black.withOpacity(0.3),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FaIcon(icon, color: color, size: 20),
+                const SizedBox(width: 20),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  void _rebuildItems() {
+    if (_inCharacterZone) {
+      // Character carousel: left/right cycle through chars
+      registerItems([
+        for (int i = 0; i < characterOptions.length; i++)
+          GamepadItem(
+            onSelect: () => _confirmCharacter(i),
+            column: i,
+            row: 0,
+          ),
+      ], columns: characterOptions.length);
+    } else {
+      // Main menu
+      registerItems([
+        GamepadItem(onSelect: () => _startSinglePlayer(context)),
+        GamepadItem(onSelect: () => _startMultiplayer(context)),
+        GamepadItem(onSelect: () => _openSettings(context)),
+      ]);
+    }
+  }
+
+  void _confirmCharacter(int index) {
+    setState(() {
+      _currentPage = index;
+      selectedCharacterClass = characterOptions[index].name.toLowerCase();
+    });
+    _startSinglePlayer(context);
+  }
+
 
   Widget _buildCharacterCard(String charClass, CharacterStats stats, bool isSelected) {
     return Container(

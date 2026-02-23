@@ -64,6 +64,10 @@ mixin GamepadMenuController<T extends StatefulWidget> on State<T> {
 
   bool isFocused(int index) => index == _focusIndex;
 
+  /// Override to handle B / Escape. Default: pop current route.
+  // ignore: prefer_void_to_null
   void onBack()  { if (mounted) Navigator.maybePop(context); }
+
+  /// Override to handle Start / Menu button.
   void onStart() {}
 }
