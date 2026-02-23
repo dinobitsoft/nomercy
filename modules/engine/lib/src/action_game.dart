@@ -7,6 +7,7 @@ import 'package:flame/game.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:service/service.dart';
 import 'package:ui/ui.dart';
 
 import 'components/platform/platform_factory.dart';
@@ -283,7 +284,9 @@ class ActionGame extends FlameGame
       mapName: mapName,
     ));
 
+  if (audioSystem.isMusicEnabled) {
     eventBus.emit(PlayMusicEvent(musicId: 'battle_theme'));
+  }
 
     print('✅ ActionGame: Fully initialized');
   }

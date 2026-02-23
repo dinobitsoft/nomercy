@@ -26,6 +26,8 @@ dependencies:
     path: modules/engine
   ui:
     path: modules/ui
+  service:
+    path: modules/service
 
 dev_dependencies:
   flutter_test:
