@@ -228,7 +228,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ── Difficulty crosslight ──────────────────────────────────────────
-          _DifficultyLights(
+          DifficultyLights(
             diffs:      _diffs,
             selected:   _difficulty,
             colors:     _diffColors,
@@ -262,7 +262,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
                         focused: isFocused(i),
                         onTap: () => setState(() => _style = _styles[i]),
                         borderRadius: BorderRadius.circular(10),
-                        child: _StyleTile(style: _styles[i], selected: _style == _styles[i]),
+                        child: StyleTile(style: _styles[i], selected: _style == _styles[i]),
                       );
                     }),
                   ),
@@ -306,7 +306,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
                         focused: isFocused(_kIdxGen),
                         onTap: _launchProcedural,
                         borderRadius: BorderRadius.circular(10),
-                        child: _LaunchBtn(
+                        child: LaunchBtn(
                           label: context.translate('generate_play'),
                           color: Colors.green,
                           icon: Icons.play_arrow,
@@ -320,7 +320,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
                         focused: isFocused(_kIdxInf),
                         onTap: _launchInfinite,
                         borderRadius: BorderRadius.circular(10),
-                        child: _LaunchBtn(
+                        child: LaunchBtn(
                           label: context.translate('infinite_play'),
                           color: Colors.deepOrange,
                           icon: Icons.all_inclusive,
@@ -355,7 +355,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
             focused: isFocused(i),
             onTap: () => _launchPremade(_levels[i]),
             borderRadius: BorderRadius.circular(15),
-            child: _LevelCard(
+            child: LevelCard(
               mapName: _levels[i],
               levelNum: i + 1,
               label: context.translate('level'),
@@ -426,255 +426,6 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Difficulty Crosslight widget ───────────────────────────────────────────────
-class _DifficultyLights extends StatelessWidget {
-  final List<MapDifficulty> diffs;
-  final MapDifficulty selected;
-  final Map<MapDifficulty, Color> colors;
-  final int focusStart;
-  final bool Function(int) isFocused;
-  final void Function(MapDifficulty) onSelect;
-
-  const _DifficultyLights({
-    required this.diffs,
-    required this.selected,
-    required this.colors,
-    required this.focusStart,
-    required this.isFocused,
-    required this.onSelect,
-  });
-
-  static const _labels = {
-    MapDifficulty.easy:   'EASY',
-    MapDifficulty.medium: 'MED',
-    MapDifficulty.hard:   'HARD',
-    MapDifficulty.expert: 'EXP',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 72,
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.45),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white12, width: 1),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          Text('DIFF',
-              style: TextStyle(
-                  color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5)),
-          const SizedBox(height: 6),
-          // Vertical pole line behind lights
-          ...List.generate(diffs.length, (i) {
-            final diff   = diffs[i];
-            final isOn   = selected == diff;
-            final color  = colors[diff]!;
-            final fi     = focusStart + i;
-            final hasFocus = isFocused(fi);
-
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => onSelect(diff),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      // Radio dot
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        width: 26,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isOn ? color : Colors.transparent,
-                          border: Border.all(
-                            color: hasFocus
-                                ? const Color(0xFFFFD700)
-                                : (isOn ? color : Colors.white30),
-                            width: hasFocus ? 2.5 : (isOn ? 2 : 1.5),
-                          ),
-                          boxShadow: isOn
-                              ? [BoxShadow(color: color.withOpacity(0.7), blurRadius: 10, spreadRadius: 2)]
-                              : null,
-                        ),
-                        child: isOn
-                            ? Center(
-                          child: Container(
-                            width: 10, height: 10,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white.withOpacity(0.9),
-                            ),
-                          ),
-                        )
-                            : null,
-                      ),
-
-                      const SizedBox(width: 5),
-
-                      // Label
-                      Text(
-                        _labels[diff]!,
-                        style: TextStyle(
-                          color: isOn ? color : Colors.white38,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Style tile ────────────────────────────────────────────────────────────────
-class _StyleTile extends StatelessWidget {
-  final MapStyle style;
-  final bool selected;
-
-  const _StyleTile({required this.style, required this.selected});
-
-  static (IconData icon, String name) _info(MapStyle style) {
-    switch (style) {
-      case MapStyle.arena:      return (Icons.sports_mma,  'Arena');
-      case MapStyle.platformer: return (Icons.stairs,       'Platform');
-      case MapStyle.dungeon:    return (Icons.domain,       'Dungeon');
-      case MapStyle.towers:     return (Icons.apartment,    'Towers');
-      case MapStyle.chaos:      return (Icons.shuffle,      'Chaos');
-      case MapStyle.balanced:   return (Icons.balance,      'Balanced');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final info = _info(style);
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: selected
-              ? [Colors.blue[700]!, Colors.blue[900]!]
-              : [Colors.grey[800]!, Colors.grey[900]!],
-        ),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-            color: selected ? Colors.blue : Colors.grey[600]!,
-            width: selected ? 2 : 1),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(info.$1, color: Colors.white, size: 20),
-          const SizedBox(height: 3),
-          Text(info.$2,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Launch button ─────────────────────────────────────────────────────────────
-class _LaunchBtn extends StatelessWidget {
-  final String label;
-  final Color color;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _LaunchBtn({
-    required this.label,
-    required this.color,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: onTap,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 16, color: Colors.white),
-          const SizedBox(width: 5),
-          Flexible(
-            child: Text(label,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Level card ────────────────────────────────────────────────────────────────
-class _LevelCard extends StatelessWidget {
-  final String mapName;
-  final int levelNum;
-  final String label;
-  final VoidCallback onTap;
-
-  const _LevelCard({
-    required this.mapName,
-    required this.levelNum,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Colors.blue[700]!, Colors.blue[900]!],
-          ),
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.white30, width: 2),
-          boxShadow: [BoxShadow(color: Colors.blue.withOpacity(0.2), blurRadius: 10)],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.map, size: 36, color: Colors.white),
-            const SizedBox(height: 4),
-            Text('$label $levelNum',
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            Text(mapName,
-                style: const TextStyle(color: Colors.white70, fontSize: 11)),
-          ],
         ),
       ),
     );
