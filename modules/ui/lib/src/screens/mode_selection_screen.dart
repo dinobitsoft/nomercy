@@ -51,16 +51,22 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     switch (event) {
       case GamepadNavEvent.up:
         _moveFocus(0, -1);
+        break;
       case GamepadNavEvent.down:
         _moveFocus(0, 1);
+        break;
       case GamepadNavEvent.left:
         _moveFocus(-1, 0);
+        break;
       case GamepadNavEvent.right:
         _moveFocus(1, 0);
+        break;
       case GamepadNavEvent.confirm:
         _navigate(_modes[_focus].$1);
+        break;
       case GamepadNavEvent.back:
         Navigator.maybePop(context);
+        break;
       default:
         break;
     }
