@@ -79,13 +79,26 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
   void _onNav(GamepadNavEvent event) {
     if (ModalRoute.of(context)?.isCurrent != true) return;
     switch (event) {
-      case GamepadNavEvent.up:    _moveFocus(0, -1);
-      case GamepadNavEvent.down:  _moveFocus(0,  1);
-      case GamepadNavEvent.left:  _moveFocus(-1, 0);
-      case GamepadNavEvent.right: _moveFocus( 1, 0);
-      case GamepadNavEvent.confirm: _activate();
-      case GamepadNavEvent.back:  Navigator.maybePop(context);
-      default: break;
+      case GamepadNavEvent.up:
+        _moveFocus(0, -1);
+        break;
+      case GamepadNavEvent.down:
+        _moveFocus(0, 1);
+        break;
+      case GamepadNavEvent.left:
+        _moveFocus(-1, 0);
+        break;
+      case GamepadNavEvent.right:
+        _moveFocus(1, 0);
+        break;
+      case GamepadNavEvent.confirm:
+        _activate();
+        break;
+      case GamepadNavEvent.back:
+        Navigator.maybePop(context);
+        break;
+      default:
+        break;
     }
   }
 
@@ -153,6 +166,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                 style: _style, difficulty: _difficulty, seed: _customSeed),
           ),
         ));
+        break;
       case _MapMode.premade:
         if (premadeMap == null) return;
         Navigator.push(context, MaterialPageRoute(
@@ -162,6 +176,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
             gameMode: widget.gameMode,
           ),
         ));
+        break;
       case _MapMode.infinite:
         Navigator.push(context, MaterialPageRoute(
           builder: (_) => GameScreen(
@@ -173,6 +188,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                 style: _style, difficulty: _difficulty, seed: _customSeed),
           ),
         ));
+        break;
     }
   }
 

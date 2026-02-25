@@ -65,6 +65,8 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
   }
 
   void _onNav(GamepadNavEvent event) {
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+
     if (_inCharacterZone) {
       _onNavCharZone(event);
     } else {
@@ -77,17 +79,23 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
     switch (event) {
       case GamepadNavEvent.up:
         setState(() => _menuFocus = (_menuFocus - 1 + _menuCount) % _menuCount);
+        break;
       case GamepadNavEvent.down:
         setState(() => _menuFocus = (_menuFocus + 1) % _menuCount);
+        break;
       case GamepadNavEvent.right:
       // Enter char zone — highlight current carousel page
         setState(() => _inCharacterZone = true);
+        break;
       case GamepadNavEvent.confirm:
         _activateMenuItem(_menuFocus);
+        break;
       case GamepadNavEvent.back:
         Navigator.maybePop(context);
+        break;
       case GamepadNavEvent.start:
         _startSinglePlayer(context);
+        break;
       default:
         break;
     }
@@ -98,8 +106,10 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
     switch (event) {
       case GamepadNavEvent.left:
         _scrollCarousel(-1);
+        break;
       case GamepadNavEvent.right:
         _scrollCarousel(1);
+        break;
       case GamepadNavEvent.confirm:
         // Confirm character → exit char zone, return to menu
         setState(() {
@@ -107,8 +117,10 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
               .toLowerCase();
           _inCharacterZone = false;
         });
+        break;
       case GamepadNavEvent.back:
         setState(() => _inCharacterZone = false);
+        break;
       default:
         break;
     }
@@ -132,10 +144,13 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
     switch (index) {
       case 0:
         _startSinglePlayer(context);
+        break;
       case 1:
         _startMultiplayer(context);
+        break;
       case 2:
         _openSettings(context);
+        break;
     }
   }
 
