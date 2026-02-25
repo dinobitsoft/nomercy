@@ -4,6 +4,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gamepads/gamepads.dart';
 
+// ─── Android KEYCODE constants (gamepads sends these as numeric strings) ──────
+const _kA   = '96';   // KEYCODE_BUTTON_A   → Jump
+const _kB   = '97';   // KEYCODE_BUTTON_B   → Dodge
+const _kC   = '98';   // KEYCODE_BUTTON_C   (unused)
+const _kX   = '99';   // KEYCODE_BUTTON_X   → Attack
+const _kY   = '100';  // KEYCODE_BUTTON_Y   → Block
+const _kZ   = '101';  // KEYCODE_BUTTON_Z   (unused)
+const _kL1  = '102';  // KEYCODE_BUTTON_L1  → Block
+const _kR1  = '103';  // KEYCODE_BUTTON_R1  → Attack
+const _kL2  = '104';  // KEYCODE_BUTTON_L2  → Block
+const _kR2  = '105';  // KEYCODE_BUTTON_R2  → Attack
+const _kSel = '109';  // KEYCODE_BUTTON_SELECT
+const _kStt = '108';  // KEYCODE_BUTTON_START
+// D-pad keycodes
+const _kDL  = '21';   // KEYCODE_DPAD_LEFT
+const _kDR  = '22';   // KEYCODE_DPAD_RIGHT
+const _kDU  = '19';   // KEYCODE_DPAD_UP
+const _kDD  = '20';   // KEYCODE_DPAD_DOWN
+
+/// Keys that are buttons, NOT analog axes — must never be learned as axis X/Y.
+const _kButtonKeycodes = {_kA, _kB, _kC, _kX, _kY, _kZ, _kL1, _kR1, _kL2, _kR2, _kSel, _kStt, _kDL, _kDR, _kDU, _kDD};
+
+/// Named fragments that identify a button key (not an axis).
+const _kButtonNameFragments = ['button_a', 'button_b', 'button_x', 'button_y',
+  'cross', 'circle', 'square', 'triangle',
+  'south', 'east', 'west', 'north',
+  'shoulder', 'trigger', 'select', 'start', 'mode',
+  'dpad_left', 'dpad_right', 'dpad_up', 'dpad_down',
+  'hat', 'thumbl', 'thumbr'];
+
 class GamepadManager extends Component with KeyboardHandler {
   static final GamepadManager _instance = GamepadManager._internal();
   factory GamepadManager() => _instance;
@@ -20,18 +50,16 @@ class GamepadManager extends Component with KeyboardHandler {
   Vector2 _analog  = Vector2.zero();
   Vector2 _hwDpad  = Vector2.zero();
 
-  // Auto-learn first two distinct analog axis keys (X, then Y)
   String? _axisXKey;
   String? _axisYKey;
 
-  // ─── Stream button states (gamepads package — XABY etc on Android/PS) ────────
-  // These must NOT be overwritten by HardwareKeyboard callbacks.
+  // ─── Stream button states ────────────────────────────────────────────────────
   bool _sJump   = false;
   bool _sAttack = false;
   bool _sBlock  = false;
   bool _sDodge  = false;
 
-  // ─── HardwareKeyboard gamepad button states (Flutter mapped keys) ─────────────
+  // ─── HardwareKeyboard gamepad button states ───────────────────────────────────
   bool _hwJump   = false;
   bool _hwAttack = false;
   bool _hwBlock  = false;
@@ -51,8 +79,6 @@ class GamepadManager extends Component with KeyboardHandler {
     return _kbStick;
   }
 
-  // Stick up/down as explicit booleans — used by character controllers for
-  // jump (up) and block (down) when no face buttons are pressed.
   bool get isStickUp   => joystickDelta.y < -0.5;
   bool get isStickDown => joystickDelta.y >  0.5;
 
@@ -121,16 +147,36 @@ class GamepadManager extends Component with KeyboardHandler {
     if (rawLog.length > 20) rawLog.removeAt(0);
     debugPrint('🎮 $log');
 
+    final trimmed = e.key.trim();
+
     if (e.type == KeyType.analog) {
-      _handleAnalog(e.key.trim(), e.value);
+      _handleAnalog(trimmed, e.value);
     } else {
-      // KeyType.button — PS XABY, shoulders, dpad buttons
-      _handleStreamButton(e.key.trim(), e.value > 0.5);
+      _handleStreamButton(trimmed, e.value > 0.5);
     }
+  }
+
+  /// Returns true if this key string identifies a button, not an axis.
+  bool _isButtonKey(String raw) {
+    final k = raw.toLowerCase();
+    // Exact match against Android keycode numerics
+    if (_kButtonKeycodes.contains(k)) return true;
+    // Named fragment match
+    for (final frag in _kButtonNameFragments) {
+      if (k.contains(frag)) return true;
+    }
+    return false;
   }
 
   void _handleAnalog(String rawKey, double value) {
     final k = rawKey.toLowerCase();
+
+    // ── CRITICAL: never learn a face/shoulder/dpad button as an axis ──────────
+    if (_isButtonKey(k)) {
+      // Treat as digital button from analog channel (some controllers do this)
+      _handleStreamButton(rawKey, value > 0.5);
+      return;
+    }
 
     // ── Auto-learn first two distinct axes as X then Y ───────────────────────
     if (_axisXKey == null) {
@@ -147,54 +193,70 @@ class GamepadManager extends Component with KeyboardHandler {
     }
     if (k == _axisYKey) {
       // PS Y axis is INVERTED: physical up → positive value.
-      // Negate so game coords match: up = negative, down = positive.
       _analog.y = -_dz(value);
       return;
     }
 
     // ── Hat/D-pad axes ───────────────────────────────────────────────────────
     if (_isHatX(k)) { _hwDpad.x =  _dz(value); return; }
-    if (_isHatY(k)) { _hwDpad.y = -_dz(value); return; } // same inversion
+    if (_isHatY(k)) { _hwDpad.y = -_dz(value); return; }
 
-    // ── Triggers as buttons ──────────────────────────────────────────────────
-    if (k.contains('right trigger') || k.contains('r2') || k == '5') { _sAttack = value > 0.3; return; }
-    if (k.contains('left trigger')  || k.contains('l2') || k == '4') { _sBlock  = value > 0.3; return; }
+    // ── Triggers as buttons (analog threshold) ───────────────────────────────
+    if (_isTriggerRight(k)) { _sAttack = value > 0.3; return; }
+    if (_isTriggerLeft(k))  { _sBlock  = value > 0.3; return; }
   }
 
   void _handleStreamButton(String rawKey, bool pressed) {
     final k = rawKey.toLowerCase();
 
-    // ── Face buttons: PS naming from gamepads on Android ────────────────────
-    // gamepads sends "KEYCODE_BUTTON_A" stripped to key string — may vary.
-    // Covers: "a", "button_a", "cross", "south", numeric "0" etc.
-    if (_isBtn(k, ['a', 'button_a', 'cross',    'south',   '0', 'keycode_button_a']))   { _sJump   = pressed; return; }
-    if (_isBtn(k, ['b', 'button_b', 'circle',   'east',    '1', 'keycode_button_b']))   { _sDodge  = pressed; return; }
-    if (_isBtn(k, ['x', 'button_x', 'square',   'west',    '2', 'keycode_button_x']))   { _sAttack = pressed; return; }
-    if (_isBtn(k, ['y', 'button_y', 'triangle', 'north',   '3', 'keycode_button_y']))   { _sBlock  = pressed; return; }
+    // ── Face buttons ─────────────────────────────────────────────────────────
+    // Android keycodes: A=96, B=97, X=99, Y=100
+    // Named: cross/south=jump, circle/east=dodge, square/west=attack, triangle/north=block
+    if (_matchBtn(k, exact: [_kA, '0'], fragments: ['button_a', 'cross', 'south']))         { _sJump   = pressed; return; }
+    if (_matchBtn(k, exact: [_kB, '1'], fragments: ['button_b', 'circle', 'east']))          { _sDodge  = pressed; return; }
+    if (_matchBtn(k, exact: [_kX, '2'], fragments: ['button_x', 'square', 'west']))          { _sAttack = pressed; return; }
+    if (_matchBtn(k, exact: [_kY, '3'], fragments: ['button_y', 'triangle', 'north']))       { _sBlock  = pressed; return; }
 
-    // ── Shoulders / triggers ─────────────────────────────────────────────────
-    if (_isBtn(k, ['r1', 'button_r1', 'right shoulder',  'rightshoulder',  '5', 'keycode_button_r1'])) { _sAttack = pressed; return; }
-    if (_isBtn(k, ['l1', 'button_l1', 'left shoulder',   'leftshoulder',   '4', 'keycode_button_l1'])) { _sBlock  = pressed; return; }
-    if (_isBtn(k, ['r2', 'button_r2', 'right trigger',   'righttrigger',   '7', 'keycode_button_r2'])) { _sAttack = pressed; return; }
-    if (_isBtn(k, ['l2', 'button_l2', 'left trigger',    'lefttrigger',    '6', 'keycode_button_l2'])) { _sBlock  = pressed; return; }
+    // ── Shoulders ────────────────────────────────────────────────────────────
+    if (_matchBtn(k, exact: [_kR1], fragments: ['button_r1', 'rightshoulder', 'right shoulder'])) { _sAttack = pressed; return; }
+    if (_matchBtn(k, exact: [_kL1], fragments: ['button_l1', 'leftshoulder',  'left shoulder']))  { _sBlock  = pressed; return; }
 
-    // ── D-pad buttons ────────────────────────────────────────────────────────
-    if (_isBtn(k, ['left',  'dpad_left',  'dpad left',  'keycode_dpad_left']))  { if (pressed) _hwDpad.x = -1; else if (_hwDpad.x < 0) _hwDpad.x = 0; return; }
-    if (_isBtn(k, ['right', 'dpad_right', 'dpad right', 'keycode_dpad_right'])) { if (pressed) _hwDpad.x =  1; else if (_hwDpad.x > 0) _hwDpad.x = 0; return; }
-    if (_isBtn(k, ['up',    'dpad_up',    'dpad up',    'keycode_dpad_up']))    { if (pressed) _hwDpad.y = -1; else if (_hwDpad.y < 0) _hwDpad.y = 0; return; }
-    if (_isBtn(k, ['down',  'dpad_down',  'dpad down',  'keycode_dpad_down'])) { if (pressed) _hwDpad.y =  1; else if (_hwDpad.y > 0) _hwDpad.y = 0; return; }
+    // ── Triggers (digital path) ───────────────────────────────────────────────
+    if (_matchBtn(k, exact: [_kR2], fragments: ['button_r2', 'righttrigger', 'right trigger'])) { _sAttack = pressed; return; }
+    if (_matchBtn(k, exact: [_kL2], fragments: ['button_l2', 'lefttrigger',  'left trigger']))  { _sBlock  = pressed; return; }
+
+    // ── D-pad ────────────────────────────────────────────────────────────────
+    if (_matchBtn(k, exact: [_kDL], fragments: ['dpad_left',  'dpad left']))  { if (pressed) _hwDpad.x = -1; else if (_hwDpad.x < 0) _hwDpad.x = 0; return; }
+    if (_matchBtn(k, exact: [_kDR], fragments: ['dpad_right', 'dpad right'])) { if (pressed) _hwDpad.x =  1; else if (_hwDpad.x > 0) _hwDpad.x = 0; return; }
+    if (_matchBtn(k, exact: [_kDU], fragments: ['dpad_up',    'dpad up']))    { if (pressed) _hwDpad.y = -1; else if (_hwDpad.y < 0) _hwDpad.y = 0; return; }
+    if (_matchBtn(k, exact: [_kDD], fragments: ['dpad_down',  'dpad down']))  { if (pressed) _hwDpad.y =  1; else if (_hwDpad.y > 0) _hwDpad.y = 0; return; }
   }
 
-  bool _isBtn(String k, List<String> variants) =>
-      variants.any((v) => k == v || k.contains(v));
+  /// Safe button matcher: exact match for short/numeric strings, fragment match for names.
+  /// Avoids false positives from single-char contains (e.g. 'a' inside 'analog').
+  bool _matchBtn(String k, {required List<String> exact, required List<String> fragments}) {
+    for (final e in exact) {
+      if (k == e) return true;
+    }
+    for (final f in fragments) {
+      if (k.contains(f)) return true;
+    }
+    return false;
+  }
 
-  bool _isHatX(String k) => k.contains('hat x') || (k.contains('dpad') && k.contains('x')) || k == 'axis 6' || k == '6';
-  bool _isHatY(String k) => k.contains('hat y') || (k.contains('dpad') && k.contains('y')) || k == 'axis 7' || k == '7';
+  bool _isHatX(String k) => k.contains('hat x') || k == 'axis_hat_x' || k == 'axis 6';
+  bool _isHatY(String k) => k.contains('hat y') || k == 'axis_hat_y' || k == 'axis 7';
+
+  bool _isTriggerRight(String k) =>
+      k.contains('right trigger') || k.contains('righttrigger') ||
+          k.contains('r2') || k.contains('axis_z') || k == 'axis 5';
+  bool _isTriggerLeft(String k) =>
+      k.contains('left trigger')  || k.contains('lefttrigger')  ||
+          k.contains('l2') || k.contains('axis_rz') || k == 'axis 4';
 
   double _dz(double v, {double t = 0.12}) => v.abs() < t ? 0.0 : v;
 
-  // ─── HardwareKeyboard: Flutter mapped keys (for non-Android platforms) ────────
-  // Does NOT touch _sJump/_sAttack/_sBlock/_sDodge — those belong to stream only.
+  // ─── HardwareKeyboard: Flutter mapped keys (non-Android platforms) ────────────
   bool _onHardwareKey(KeyEvent e) {
     final keys = HardwareKeyboard.instance.logicalKeysPressed;
     if (!connected.value && keys.any(_isHwGamepadKey)) connected.value = true;
@@ -209,7 +271,6 @@ class GamepadManager extends Component with KeyboardHandler {
   }
 
   void _updateHwButtons(Set<LogicalKeyboardKey> keys) {
-    // Flutter maps PS/Xbox buttons on macOS/iOS/Windows — not Android
     _hwJump   = keys.contains(LogicalKeyboardKey.gameButtonA);
     _hwAttack = keys.contains(LogicalKeyboardKey.gameButtonX)      ||
         keys.contains(LogicalKeyboardKey.gameButtonRight1) ||
@@ -219,12 +280,10 @@ class GamepadManager extends Component with KeyboardHandler {
         keys.contains(LogicalKeyboardKey.gameButtonLeft2);
     _hwDodge  = keys.contains(LogicalKeyboardKey.gameButtonB);
 
-    // D-pad via arrow keys (macOS/iOS maps PS dpad to arrows)
     final dpadX = (keys.contains(LogicalKeyboardKey.arrowLeft)  ? -1.0 : 0.0) +
         (keys.contains(LogicalKeyboardKey.arrowRight) ?  1.0 : 0.0);
     final dpadY = (keys.contains(LogicalKeyboardKey.arrowUp)    ? -1.0 : 0.0) +
         (keys.contains(LogicalKeyboardKey.arrowDown)  ?  1.0 : 0.0);
-    // Only override hwDpad if no stream dpad active
     if (_hwDpad.length < 0.1) {
       _hwDpad = Vector2(dpadX, dpadY);
     }
@@ -240,7 +299,9 @@ class GamepadManager extends Component with KeyboardHandler {
 
     _kbJump   = keys.contains(LogicalKeyboardKey.keyJ);
     _kbAttack = keys.contains(LogicalKeyboardKey.keyF) || keys.contains(LogicalKeyboardKey.space);
-    _kbBlock  = keys.contains(LogicalKeyboardKey.shiftLeft) || keys.contains(LogicalKeyboardKey.shiftRight) || keys.contains(LogicalKeyboardKey.keyI);
+    _kbBlock  = keys.contains(LogicalKeyboardKey.shiftLeft) ||
+        keys.contains(LogicalKeyboardKey.shiftRight) ||
+        keys.contains(LogicalKeyboardKey.keyI);
     _kbDodge  = keys.contains(LogicalKeyboardKey.keyK) || keys.contains(LogicalKeyboardKey.keyL);
   }
 

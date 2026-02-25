@@ -1,6 +1,7 @@
 import 'package:engine/engine.dart';
 import 'package:flutter/material.dart';
 import 'game_screen.dart';
+import 'package:gamepad/gamepad.dart';
 
 class LevelSelectionScreen extends StatefulWidget {
   final String selectedCharacterClass;
@@ -11,13 +12,43 @@ class LevelSelectionScreen extends StatefulWidget {
   State<LevelSelectionScreen> createState() => _LevelSelectionScreenState();
 }
 
-class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
+class _LevelSelectionScreenState extends State<LevelSelectionScreen>
+    with GamepadMenuController {
+
   bool enableMultiplayer = false;
+
+  static const _levels = ['level_1', 'level_2', 'level_3'];
+
+  @override
+  void initState() {
+    super.initState();
+    _rebuildItems();
+  }
+
+  void _rebuildItems() {
+    registerItems([
+      for (int i = 0; i < _levels.length; i++)
+        GamepadItem(
+          onSelect: () => _launch(_levels[i]),
+          column: i,
+          row: 0,
+        ),
+    ], columns: 3);
+  }
+
+  void _launch(String mapName) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => GameScreen(
+        selectedCharacterClass: widget.selectedCharacterClass,
+        mapName: mapName,
+        enableMultiplayer: enableMultiplayer,
+        gameMode: GameMode.survival,
+      ),
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
-    final levels = ['level_1', 'level_2', 'level_3'];
-
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -30,60 +61,48 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Header - Reduced padding
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+                padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, size: 28),
+                      icon: const Icon(Icons.arrow_back, size: 28, color: Colors.white),
                       onPressed: () => Navigator.pop(context),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
-                    const SizedBox(width: 15),
-                    Text(
-                      context.translate('select_map'),
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                    const SizedBox(width: 20),
+                    const Text(
+                      'SELECT LEVEL',
+                      style: TextStyle(
+                          fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                     const Spacer(),
-                    // Multiplayer toggle - Scaled down
-                    Transform.scale(
-                      scale: 0.85,
-                      child: _buildMultiplayerToggle(),
-                    ),
+                    _buildMultiplayerToggle(),
                   ],
                 ),
               ),
 
-              // Level grid - Optimized spacing
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return GridView.builder(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        physics: const NeverScrollableScrollPhysics(), // Prevent scrolling if it fits
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 15,
-                          mainAxisSpacing: 15,
-                          childAspectRatio: 2.2, // Increased ratio to make cards shorter
-                        ),
-                        itemCount: levels.length,
-                        itemBuilder: (context, index) {
-                          return _buildLevelCard(context, levels[index], index + 1);
-                        },
-                      );
-                    },
-                  ),
+                child: GridView.count(
+                  crossAxisCount: 3,
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                  crossAxisSpacing: 15,
+                  mainAxisSpacing: 15,
+                  childAspectRatio: 2.2,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: List.generate(_levels.length, (i) {
+                    return GamepadMenuItem(
+                      focused: isFocused(i),
+                      onTap: () => _launch(_levels[i]),
+                      borderRadius: BorderRadius.circular(15),
+                      child: _buildLevelCard(_levels[i], i + 1),
+                    );
+                  }),
                 ),
               ),
+
+              const GamepadHintBar(confirmLabel: 'Launch Level'),
             ],
           ),
         ),
@@ -92,67 +111,44 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
   }
 
   Widget _buildMultiplayerToggle() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: enableMultiplayer ? Colors.green : Colors.grey,
-          width: 1.5,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.people,
+    return GestureDetector(
+      onTap: () => setState(() { enableMultiplayer = !enableMultiplayer; }),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
             color: enableMultiplayer ? Colors.green : Colors.grey,
-            size: 20,
+            width: 1.5,
           ),
-          const SizedBox(width: 8),
-          Text(
-            context.translate('multiplayer'),
-            style: TextStyle(
-              color: enableMultiplayer ? Colors.green : Colors.grey,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(width: 4),
-          SizedBox(
-            height: 30,
-            child: Switch(
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.people,
+                color: enableMultiplayer ? Colors.green : Colors.grey, size: 20),
+            const SizedBox(width: 8),
+            Text('MULTIPLAYER',
+                style: TextStyle(
+                    color: enableMultiplayer ? Colors.green : Colors.grey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(width: 4),
+            Switch(
               value: enableMultiplayer,
-              onChanged: (value) {
-                setState(() {
-                  enableMultiplayer = value;
-                });
-              },
+              onChanged: (v) => setState(() { enableMultiplayer = v; }),
               activeColor: Colors.green,
               inactiveThumbColor: Colors.grey,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildLevelCard(BuildContext context, String mapName, int levelNum) {
+  Widget _buildLevelCard(String mapName, int levelNum) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => GameScreen(
-              selectedCharacterClass: widget.selectedCharacterClass,
-              mapName: mapName,
-              enableMultiplayer: enableMultiplayer,
-              gameMode: GameMode.survival,
-            ),
-          ),
-        );
-      },
+      onTap: () => _launch(mapName),
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -163,11 +159,7 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
           borderRadius: BorderRadius.circular(15),
           border: Border.all(color: Colors.white30, width: 2),
           boxShadow: [
-            BoxShadow(
-              color: Colors.blue.withOpacity(0.2),
-              blurRadius: 10,
-              spreadRadius: 1,
-            ),
+            BoxShadow(color: Colors.blue.withOpacity(0.2), blurRadius: 10, spreadRadius: 1),
           ],
         ),
         child: Column(
@@ -175,46 +167,10 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen> {
           children: [
             const Icon(Icons.map, size: 40, color: Colors.white),
             const SizedBox(height: 5),
-            Text(
-              '${context.translate('level')} $levelNum',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              mapName,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-              ),
-            ),
-            if (enableMultiplayer)
-              Container(
-                margin: const EdgeInsets.only(top: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.green, width: 1),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.wifi, color: Colors.green, size: 10),
-                    SizedBox(width: 4),
-                    Text(
-                      'ONLINE',
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            Text('Level $levelNum',
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(mapName, style: const TextStyle(color: Colors.white70, fontSize: 12)),
           ],
         ),
       ),

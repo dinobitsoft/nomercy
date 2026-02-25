@@ -1,5 +1,5 @@
-name: ui
-description: "ui"
+name: gamepad
+description: "gamepad"
 version: 1.0.0+1
 publish_to: 'none'
 
@@ -21,12 +21,6 @@ dependencies:
   font_awesome_flutter: ^10.7.0
   core:
     path: ../core
-  engine:
-    path: ../engine
-  service:
-    path: ../service
-  gamepad:
-    path: ../gamepad
 
 dev_dependencies:
   flutter_test:
