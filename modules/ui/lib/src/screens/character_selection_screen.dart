@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:engine/engine.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -12,11 +14,11 @@ class CharacterSelectionScreen extends StatefulWidget {
   const CharacterSelectionScreen({super.key});
 
   @override
-  State<CharacterSelectionScreen> createState() => _CharacterSelectionScreenState();
+  State<CharacterSelectionScreen> createState() =>
+      _CharacterSelectionScreenState();
 }
 
-class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
-    with GamepadMenuController<CharacterSelectionScreen> {
+class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
   String? selectedCharacterClass;
   late PageController _pageController;
   int _currentPage = 0;
@@ -32,28 +34,109 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
     TraderStats(),
   ];
 
+  // ── Gamepad state ─────────────────────────────────────────────────────────
   // Two focus zones: 'menu' (left) or 'characters' (right)
   bool _inCharacterZone = false;
+
+  // Index of focused menu item (0=SINGLE PLAYER, 1=MULTIPLAYER, 2=UPGRADE)
+  int _menuFocus = 0;
+
+  // Index of focused menu item (0=SINGLE PLAYER, 1=MULTIPLAYER, 2=UPGRADE)
+  static const int _menuCount = 3;
+
+  StreamSubscription<GamepadNavEvent>? _navSub;
 
   @override
   void initState() {
     super.initState();
     GamepadManager().checkConnection();
 
-    _pageController = PageController(
-      viewportFraction: 0.5,
-      initialPage: 0,
-    );
-
+    _pageController = PageController(viewportFraction: 0.5, initialPage: 0);
     selectedCharacterClass = characterOptions[0].name.toLowerCase();
-    _rebuildItems();
+
+    _navSub = GamepadNavService().events.listen(_onNav);
   }
 
   @override
   void dispose() {
+    _navSub?.cancel();
     _pageController.dispose();
-    _audioSystem.dispose();
     super.dispose();
+  }
+
+  void _onNav(GamepadNavEvent event) {
+    if (_inCharacterZone) {
+      _onNavCharZone(event);
+    } else {
+      _onNavMenuZone(event);
+    }
+  }
+
+  // ── Menu zone: up/down navigate, LEFT enters char zone, A/confirm selects ──
+  void _onNavMenuZone(GamepadNavEvent event) {
+    switch (event) {
+      case GamepadNavEvent.up:
+        setState(() => _menuFocus = (_menuFocus - 1 + _menuCount) % _menuCount);
+      case GamepadNavEvent.down:
+        setState(() => _menuFocus = (_menuFocus + 1) % _menuCount);
+      case GamepadNavEvent.left:
+        // Enter char zone — highlight current carousel page
+        setState(() => _inCharacterZone = true);
+      case GamepadNavEvent.confirm:
+        _activateMenuItem(_menuFocus);
+      case GamepadNavEvent.back:
+        Navigator.maybePop(context);
+      case GamepadNavEvent.start:
+        _startSinglePlayer(context);
+      default:
+        break;
+    }
+  }
+
+  // ── Char zone: left/right scroll carousel, A confirms, B goes back to menu ─
+  void _onNavCharZone(GamepadNavEvent event) {
+    switch (event) {
+      case GamepadNavEvent.left:
+        _scrollCarousel(-1);
+      case GamepadNavEvent.right:
+        _scrollCarousel(1);
+      case GamepadNavEvent.confirm:
+        // Confirm character → exit char zone, return to menu
+        setState(() {
+          selectedCharacterClass = characterOptions[_currentPage].name
+              .toLowerCase();
+          _inCharacterZone = false;
+        });
+      case GamepadNavEvent.back:
+        setState(() => _inCharacterZone = false);
+      default:
+        break;
+    }
+  }
+
+  void _scrollCarousel(int delta) {
+    final next = (_currentPage + delta).clamp(0, characterOptions.length - 1);
+    if (next == _currentPage) return;
+    setState(() {
+      _currentPage = next;
+      selectedCharacterClass = characterOptions[next].name.toLowerCase();
+    });
+    _pageController.animateToPage(
+      next,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _activateMenuItem(int index) {
+    switch (index) {
+      case 0:
+        _startSinglePlayer(context);
+      case 1:
+        _startMultiplayer(context);
+      case 2:
+        _openSettings(context);
+    }
   }
 
   @override
@@ -92,43 +175,29 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
                           ),
                           const SizedBox(height: 40),
                           _buildMenuItem(
+                            index: 0,
                             icon: FontAwesomeIcons.user,
                             label: 'SINGLE PLAYER',
                             color: Colors.blueAccent,
                             onTap: () => _startSinglePlayer(context),
-                            focused: !_inCharacterZone && isFocused(0),
                           ),
                           const SizedBox(height: 15),
                           _buildMenuItem(
+                            index: 1,
                             icon: FontAwesomeIcons.users,
                             label: 'MULTIPLAYER',
                             color: Colors.orangeAccent,
                             onTap: () => _startMultiplayer(context),
-                            focused: !_inCharacterZone && isFocused(1),
                           ),
                           const SizedBox(height: 15),
                           _buildMenuItem(
+                            index: 2,
                             icon: FontAwesomeIcons.gear,
                             label: 'SETTINGS',
                             color: Colors.grey[400]!,
                             onTap: () => _openSettings(context),
-                            focused: !_inCharacterZone && isFocused(2),
                           ),
                           const SizedBox(height: 15),
-                          _buildMenuItem(
-                            icon: FontAwesomeIcons.arrowUp,
-                            label: 'UPGRADE',
-                            color: Colors.greenAccent,
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Upgrade screen coming soon!'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            },
-                            focused: !_inCharacterZone && isFocused(3),
-                          ),
                         ],
                       ),
                     ),
@@ -143,7 +212,8 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
                       onPageChanged: (index) {
                         setState(() {
                           _currentPage = index;
-                          selectedCharacterClass = characterOptions[index].name.toLowerCase();
+                          selectedCharacterClass = characterOptions[index].name
+                              .toLowerCase();
                         });
                       },
                       itemBuilder: (context, index) {
@@ -169,7 +239,11 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
                               ),
                             );
                           },
-                          child: _buildCharacterCard(charClass, stats, index == _currentPage),
+                          child: _buildCharacterCard(
+                            charClass,
+                            stats,
+                            index == _currentPage,
+                          ),
                         );
                       },
                     ),
@@ -178,11 +252,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
               ),
 
               // Settings / Language Toggle
-              Positioned(
-                top: 20,
-                left: 20,
-                child: _buildLanguageToggle(),
-              ),
+              Positioned(top: 20, left: 20, child: _buildLanguageToggle()),
 
               // Gamepad Connection Indicator
               Positioned(
@@ -192,7 +262,10 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
                   valueListenable: GamepadManager().connected,
                   builder: (context, isConnected, child) {
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(20),
@@ -208,15 +281,6 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
                             Icons.videogame_asset_outlined,
                             color: isConnected ? Colors.green : Colors.grey,
                             size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            isConnected ? 'GAMEPAD READY' : 'NO GAMEPAD',
-                            style: TextStyle(
-                              color: isConnected ? Colors.green : Colors.grey,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
                           ),
                         ],
                       ),
@@ -255,7 +319,10 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
                 const SizedBox(width: 8),
                 Text(
                   currentLocale.languageCode.toUpperCase(),
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -276,30 +343,27 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
   }
 
   Widget _buildMenuItem({
+    required int index,
     required IconData icon,
     required String label,
     required Color color,
     required VoidCallback onTap,
-    required bool focused,
   }) {
+    final focused = !_inCharacterZone && _menuFocus == index;
     return GamepadMenuItem(
       focused: focused,
-      child:     Material(
+      onTap: onTap,
+      child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
             setState(() {
-              if (_inCharacterZone) { _inCharacterZone = false; _rebuildItems(); }
-              // update focus to tapped item
-              registerItems([
-                GamepadItem(onSelect: () => _startSinglePlayer(context)),
-                GamepadItem(onSelect: () => _startMultiplayer(context)),
-                GamepadItem(onSelect: () => _openSettings(context)),
-              ]);
+              _inCharacterZone = false;
+              _menuFocus = index;
             });
             onTap();
           },
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
             decoration: BoxDecoration(
@@ -331,27 +395,6 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
     );
   }
 
-  void _rebuildItems() {
-    if (_inCharacterZone) {
-      // Character carousel: left/right cycle through chars
-      registerItems([
-        for (int i = 0; i < characterOptions.length; i++)
-          GamepadItem(
-            onSelect: () => _confirmCharacter(i),
-            column: i,
-            row: 0,
-          ),
-      ], columns: characterOptions.length);
-    } else {
-      // Main menu
-      registerItems([
-        GamepadItem(onSelect: () => _startSinglePlayer(context)),
-        GamepadItem(onSelect: () => _startMultiplayer(context)),
-        GamepadItem(onSelect: () => _openSettings(context)),
-      ]);
-    }
-  }
-
   void _confirmCharacter(int index) {
     setState(() {
       _currentPage = index;
@@ -360,8 +403,11 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
     _startSinglePlayer(context);
   }
 
-
-  Widget _buildCharacterCard(String charClass, CharacterStats stats, bool isSelected) {
+  Widget _buildCharacterCard(
+    String charClass,
+    CharacterStats stats,
+    bool isSelected,
+  ) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
       decoration: BoxDecoration(
@@ -373,12 +419,12 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
         ),
         boxShadow: isSelected
             ? [
-          BoxShadow(
-            color: stats.color.withOpacity(0.5),
-            blurRadius: 30,
-            spreadRadius: 5,
-          )
-        ]
+                BoxShadow(
+                  color: stats.color.withOpacity(0.5),
+                  blurRadius: 30,
+                  spreadRadius: 5,
+                ),
+              ]
             : [],
       ),
       padding: const EdgeInsets.all(25),
@@ -399,7 +445,8 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
                 child: Image.asset(
                   'assets/images/$charClass.png',
                   fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: Colors.white, size: 100),
+                  errorBuilder: (context, error, stackTrace) =>
+                      const Icon(Icons.person, color: Colors.white, size: 100),
                 ),
               ),
             ),
@@ -417,7 +464,10 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
           const SizedBox(height: 5),
           Text(
             'Weapon: ${stats.weaponName}',
-            style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.7)),
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white.withOpacity(0.7),
+            ),
           ),
           const SizedBox(height: 20),
           Container(
@@ -473,10 +523,16 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
             SettingsScreen(audioSystem: _audioSystem),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(1.0, 0.0),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+            position:
+                Tween<Offset>(
+                  begin: const Offset(1.0, 0.0),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
             child: child,
           );
         },

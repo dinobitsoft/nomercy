@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:engine/engine.dart';
 import 'package:flutter/material.dart';
 import 'package:gamepad/gamepad.dart';
@@ -16,27 +17,58 @@ class ModeSelectionScreen extends StatefulWidget {
   State<ModeSelectionScreen> createState() => _ModeSelectionScreenState();
 }
 
-class _ModeSelectionScreenState extends State<ModeSelectionScreen>
-    with GamepadMenuController {
+class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
 
   static const _modes = [
-    (GameMode.survival,  Icons.shield,         'SURVIVAL',   'Endless waves\nof enemies', Colors.orange),
-    (GameMode.campaign,  Icons.book,            'CAMPAIGN',   'Story mode with\nboss fights', Colors.blue),
-    (GameMode.bossFight, Icons.dangerous,       'BOSS FIGHT', 'Face a powerful\nboss enemy', Colors.red),
-    (GameMode.training,  Icons.fitness_center,  'TRAINING',   'Practice mode\nPerfect your skills', Colors.green),
+    (GameMode.survival,  Icons.shield,        'SURVIVAL',   'Endless waves\nof enemies',           Colors.orange),
+    (GameMode.campaign,  Icons.book,           'CAMPAIGN',   'Story mode with\nboss fights',         Colors.blue),
+    (GameMode.bossFight, Icons.dangerous,      'BOSS FIGHT', 'Face a powerful\nboss enemy',          Colors.red),
+    (GameMode.training,  Icons.fitness_center, 'TRAINING',   'Practice mode\nPerfect your skills',  Colors.green),
   ];
+
+  // 2-column grid: row=i÷2, col=i%2
+  // Focus order: 0(top-left) 1(top-right) 2(bot-left) 3(bot-right)
+  int _focus = 0;
+  static const int _cols = 2;
+  static const int _rows = 2;
+
+  StreamSubscription<GamepadNavEvent>? _navSub;
 
   @override
   void initState() {
     super.initState();
-    registerItems([
-      for (final m in _modes)
-        GamepadItem(
-          onSelect: () => _navigate(m.$1),
-          column: _modes.indexOf(m) % 2,
-          row:    _modes.indexOf(m) ~/ 2,
-        ),
-    ], columns: 2);
+    _navSub = GamepadNavService().events.listen(_onNav);
+  }
+
+  @override
+  void dispose() {
+    _navSub?.cancel();
+    super.dispose();
+  }
+
+  void _onNav(GamepadNavEvent event) {
+    switch (event) {
+      case GamepadNavEvent.up:
+        _moveFocus(0, -1);
+      case GamepadNavEvent.down:
+        _moveFocus(0, 1);
+      case GamepadNavEvent.left:
+        _moveFocus(-1, 0);
+      case GamepadNavEvent.right:
+        _moveFocus(1, 0);
+      case GamepadNavEvent.confirm:
+        _navigate(_modes[_focus].$1);
+      case GamepadNavEvent.back:
+        Navigator.maybePop(context);
+      default:
+        break;
+    }
+  }
+
+  void _moveFocus(int dc, int dr) {
+    final col = (_focus % _cols + dc + _cols) % _cols;
+    final row = (_focus ~/ _cols + dr + _rows) % _rows;
+    setState(() => _focus = row * _cols + col);
   }
 
   void _navigate(GameMode mode) {
@@ -62,7 +94,6 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen>
         child: SafeArea(
           child: Column(
             children: [
-              // Header
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
                 child: Row(
@@ -83,10 +114,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen>
                 ),
               ),
 
-              // Mode grid
               Expanded(
                 child: GridView.count(
-                  crossAxisCount: 2,
+                  crossAxisCount: _cols,
                   padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
                   crossAxisSpacing: 15,
                   mainAxisSpacing: 15,
@@ -95,7 +125,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen>
                   children: List.generate(_modes.length, (i) {
                     final m = _modes[i];
                     return GamepadMenuItem(
-                      focused: isFocused(i),
+                      focused: _focus == i,
                       onTap: () => _navigate(m.$1),
                       borderRadius: BorderRadius.circular(15),
                       child: _buildModeCard(i, m.$1, m.$3, m.$4, m.$2, m.$5),
@@ -113,9 +143,12 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen>
   }
 
   Widget _buildModeCard(int index, GameMode mode, String title, String desc, IconData icon, Color color) {
-    final focused = isFocused(index);
+    final focused = _focus == index;
     return GestureDetector(
-      onTap: () => _navigate(mode),
+      onTap: () {
+        setState(() => _focus = index);
+        _navigate(mode);
+      },
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(

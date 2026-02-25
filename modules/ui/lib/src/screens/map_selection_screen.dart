@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:engine/engine.dart';
 import 'package:flutter/material.dart';
 import 'package:gamepad/gamepad.dart';
@@ -36,13 +38,15 @@ class MapSelectionScreen extends StatefulWidget {
   State<MapSelectionScreen> createState() => _MapSelectionScreenState();
 }
 
-class _MapSelectionScreenState extends State<MapSelectionScreen>
-    with GamepadMenuController<MapSelectionScreen> {
+class _MapSelectionScreenState extends State<MapSelectionScreen> {
 
   _MapMode      _mode       = _MapMode.procedural;
   MapStyle      _style      = MapStyle.balanced;
   MapDifficulty _difficulty = MapDifficulty.medium;
   int?          _customSeed;
+
+  int _focus = 0;
+  StreamSubscription<GamepadNavEvent>? _navSub;
 
   static final _styles = MapStyle.values;
   static final _diffs  = MapDifficulty.values;
@@ -58,55 +62,82 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
   @override
   void initState() {
     super.initState();
-    _rebuildItems();
+    _navSub = GamepadNavService().events.listen(_onNav);
   }
 
-  void _rebuildItems() {
-    switch (_mode) {
-      case _MapMode.procedural:
-        registerItems([
-          for (int i = 0; i < _kStyles; i++)
-            GamepadItem(
-              onSelect: () { setState(() => _style = _styles[i]); },
-              column: i, row: 0,
-            ),
-          for (int i = 0; i < _kDiffs; i++)
-            GamepadItem(
-              onSelect: () { setState(() => _difficulty = _diffs[i]); },
-              column: i, row: 1,
-            ),
-          GamepadItem(onSelect: _launch, column: 0, row: 2),
-        ], columns: _kStyles);
+  @override
+  void dispose() {
+    _navSub?.cancel();
+    super.dispose();
+  }
 
-      case _MapMode.premade:
-        registerItems([
-          for (int i = 0; i < _levels.length; i++)
-            GamepadItem(
-              onSelect: () => _launch(_levels[i]),
-              column: i, row: 0,
-            ),
-        ], columns: 3);
+  int get _itemCount => _mode == _MapMode.premade
+      ? _levels.length
+      : _kStyles + _kDiffs + 1; // styles + diffs + play button
 
-      case _MapMode.infinite:
-        registerItems([
-          for (int i = 0; i < _kStyles; i++)
-            GamepadItem(
-              onSelect: () { setState(() => _style = _styles[i]); },
-              column: i, row: 0,
-            ),
-          for (int i = 0; i < _kDiffs; i++)
-            GamepadItem(
-              onSelect: () { setState(() => _difficulty = _diffs[i]); },
-              column: i, row: 1,
-            ),
-          GamepadItem(onSelect: _launch, column: 0, row: 2),
-        ], columns: _kStyles);
+  // Grid dimensions for style+diff+play layout
+  // Row 0: styles (cols 0-5), Row 1: diffs (cols 0-3), Row 2: play (col 0)
+  void _onNav(GamepadNavEvent event) {
+    switch (event) {
+      case GamepadNavEvent.up:    _moveFocus(0, -1);
+      case GamepadNavEvent.down:  _moveFocus(0,  1);
+      case GamepadNavEvent.left:  _moveFocus(-1, 0);
+      case GamepadNavEvent.right: _moveFocus( 1, 0);
+      case GamepadNavEvent.confirm: _activate();
+      case GamepadNavEvent.back:  Navigator.maybePop(context);
+      default: break;
     }
   }
 
+  void _moveFocus(int dc, int dr) {
+    if (_mode == _MapMode.premade) {
+      final next = (_focus + dc + dr + _levels.length) % _levels.length;
+      setState(() => _focus = next);
+      return;
+    }
+
+    // Procedural / Infinite: 3-row layout
+    // Row 0: _kStyles cols (0-5)
+    // Row 1: _kDiffs  cols (0-3)
+    // Row 2: 1 col (play button)
+    int row, col;
+    if (_focus < _kStyles) {
+      row = 0; col = _focus;
+    } else if (_focus < _kStyles + _kDiffs) {
+      row = 1; col = _focus - _kStyles;
+    } else {
+      row = 2; col = 0;
+    }
+
+    row = (row + dr + 3) % 3;
+    final maxCol = row == 0 ? _kStyles : row == 1 ? _kDiffs : 1;
+    col = (col + dc + maxCol) % maxCol;
+
+    setState(() {
+      if (row == 0)      _focus = col;
+      else if (row == 1) _focus = _kStyles + col;
+      else               _focus = _kStyles + _kDiffs;
+    });
+  }
+
+  void _activate() {
+    if (_mode == _MapMode.premade) {
+      _launch(_levels[_focus]);
+      return;
+    }
+    if (_focus < _kStyles) {
+      setState(() => _style = _styles[_focus]);
+    } else if (_focus < _kStyles + _kDiffs) {
+      setState(() => _difficulty = _diffs[_focus - _kStyles]);
+    } else {
+      _launch();
+    }
+  }
+
+  bool _isFocused(int index) => _focus == index;
+
   void _setMode(_MapMode m) {
-    setState(() => _mode = m);
-    _rebuildItems();
+    setState(() { _mode = m; _focus = 0; });
   }
 
   // ── navigation ──────────────────────────────────────────────────────────────
@@ -248,7 +279,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
             selected:   _difficulty,
             colors:     _diffColors,
             focusStart: _kStyles,       // gamepad flat index of first diff item
-            isFocused:  isFocused,
+            isFocused:  _isFocused,
             onSelect:   (d) { setState(() => _difficulty = d); },
           ),
 
@@ -275,7 +306,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
                         child: Padding(
                           padding: EdgeInsets.only(left: i == 0 ? 0 : 6),
                           child: GamepadMenuItem(
-                            focused: isFocused(i),
+                            focused: _isFocused(i),
                             onTap: () => setState(() => _style = _styles[i]),
                             borderRadius: BorderRadius.circular(10),
                             child: StyleTile(style: _styles[i], selected: _style == _styles[i]),
@@ -318,7 +349,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
 
                 // Single PLAY button
                 GamepadMenuItem(
-                  focused: isFocused(_kIdxPlay),
+                  focused: _isFocused(_kIdxPlay),
                   onTap: _launch,
                   borderRadius: BorderRadius.circular(10),
                   child: LaunchBtn(
@@ -351,7 +382,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
         physics: const NeverScrollableScrollPhysics(),
         children: List.generate(_levels.length, (i) {
           return GamepadMenuItem(
-            focused: isFocused(i),
+            focused: _isFocused(i),
             onTap: () => _launch(_levels[i]),
             borderRadius: BorderRadius.circular(15),
             child: LevelCard(
