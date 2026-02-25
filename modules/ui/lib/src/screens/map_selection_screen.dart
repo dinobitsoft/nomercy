@@ -1,11 +1,11 @@
-import 'dart:async';
-
 import 'package:engine/engine.dart';
 import 'package:flutter/material.dart';
 import 'package:gamepad/gamepad.dart';
 import 'package:ui/ui.dart';
 
 import 'game_screen.dart';
+import 'dart:async';
+
 enum _MapMode { procedural, premade, infinite }
 
 // ── Index layout for procedural mode ─────────────────────────────────────────
@@ -22,7 +22,6 @@ enum _MapMode { procedural, premade, infinite }
 const int _kStyles    = 6;
 const int _kDiffs     = 4;
 const int _kIdxPlay   = _kStyles + _kDiffs;      // 10
-const int _kIdxInf    = _kStyles + _kDiffs + 1;  // 11
 
 class MapSelectionScreen extends StatefulWidget {
   final String selectedCharacterClass;
@@ -78,6 +77,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
   // Grid dimensions for style+diff+play layout
   // Row 0: styles (cols 0-5), Row 1: diffs (cols 0-3), Row 2: play (col 0)
   void _onNav(GamepadNavEvent event) {
+    if (ModalRoute.of(context)?.isCurrent != true) return;
     switch (event) {
       case GamepadNavEvent.up:    _moveFocus(0, -1);
       case GamepadNavEvent.down:  _moveFocus(0,  1);

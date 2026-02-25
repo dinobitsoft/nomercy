@@ -72,15 +72,15 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
     }
   }
 
-  // ── Menu zone: up/down navigate, LEFT enters char zone, A/confirm selects ──
+  // ── Menu zone: up/down navigate, RIGHT enters char zone, A/confirm selects ──
   void _onNavMenuZone(GamepadNavEvent event) {
     switch (event) {
       case GamepadNavEvent.up:
         setState(() => _menuFocus = (_menuFocus - 1 + _menuCount) % _menuCount);
       case GamepadNavEvent.down:
         setState(() => _menuFocus = (_menuFocus + 1) % _menuCount);
-      case GamepadNavEvent.left:
-        // Enter char zone — highlight current carousel page
+      case GamepadNavEvent.right:
+      // Enter char zone — highlight current carousel page
         setState(() => _inCharacterZone = true);
       case GamepadNavEvent.confirm:
         _activateMenuItem(_menuFocus);
