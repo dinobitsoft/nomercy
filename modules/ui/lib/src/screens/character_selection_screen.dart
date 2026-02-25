@@ -65,6 +65,8 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen> {
   }
 
   void _onNav(GamepadNavEvent event) {
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+
     if (_inCharacterZone) {
       _onNavCharZone(event);
     } else {
