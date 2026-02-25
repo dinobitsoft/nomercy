@@ -47,6 +47,7 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
   }
 
   void _onNav(GamepadNavEvent event) {
+    if (ModalRoute.of(context)?.isCurrent != true) return;
     switch (event) {
       case GamepadNavEvent.up:
         _moveFocus(0, -1);
