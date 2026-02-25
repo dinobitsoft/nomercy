@@ -19,7 +19,7 @@ enum _MapMode { procedural, premade, infinite }
 //   inf launch: 11
 const int _kStyles    = 6;
 const int _kDiffs     = 4;
-const int _kIdxGen    = _kStyles + _kDiffs;      // 10
+const int _kIdxPlay   = _kStyles + _kDiffs;      // 10
 const int _kIdxInf    = _kStyles + _kDiffs + 1;  // 11
 
 class MapSelectionScreen extends StatefulWidget {
@@ -75,23 +75,32 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
               onSelect: () { setState(() => _difficulty = _diffs[i]); },
               column: i, row: 1,
             ),
-          GamepadItem(onSelect: _launchProcedural, column: 0, row: 2),
-          GamepadItem(onSelect: _launchInfinite,   column: 1, row: 2),
+          GamepadItem(onSelect: _launch, column: 0, row: 2),
         ], columns: _kStyles);
 
       case _MapMode.premade:
         registerItems([
           for (int i = 0; i < _levels.length; i++)
             GamepadItem(
-              onSelect: () => _launchPremade(_levels[i]),
+              onSelect: () => _launch(_levels[i]),
               column: i, row: 0,
             ),
         ], columns: 3);
 
       case _MapMode.infinite:
         registerItems([
-          GamepadItem(onSelect: _launchInfinite),
-        ]);
+          for (int i = 0; i < _kStyles; i++)
+            GamepadItem(
+              onSelect: () { setState(() => _style = _styles[i]); },
+              column: i, row: 0,
+            ),
+          for (int i = 0; i < _kDiffs; i++)
+            GamepadItem(
+              onSelect: () { setState(() => _difficulty = _diffs[i]); },
+              column: i, row: 1,
+            ),
+          GamepadItem(onSelect: _launch, column: 0, row: 2),
+        ], columns: _kStyles);
     }
   }
 
@@ -101,34 +110,40 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
   }
 
   // ── navigation ──────────────────────────────────────────────────────────────
-  void _launchProcedural() => Navigator.push(context, MaterialPageRoute(
-    builder: (_) => GameScreen(
-      selectedCharacterClass: widget.selectedCharacterClass,
-      gameMode: widget.gameMode,
-      procedural: true,
-      mapConfig: MapGeneratorConfig(
-          style: _style, difficulty: _difficulty, seed: _customSeed),
-    ),
-  ));
-
-  void _launchInfinite() => Navigator.push(context, MaterialPageRoute(
-    builder: (_) => GameScreen(
-      selectedCharacterClass: widget.selectedCharacterClass,
-      gameMode: widget.gameMode,
-      procedural: false,
-      useInfiniteWorld: true,
-      mapConfig: MapGeneratorConfig(
-          style: _style, difficulty: _difficulty, seed: _customSeed),
-    ),
-  ));
-
-  void _launchPremade(String mapName) => Navigator.push(context, MaterialPageRoute(
-    builder: (_) => GameScreen(
-      selectedCharacterClass: widget.selectedCharacterClass,
-      mapName: mapName,
-      gameMode: widget.gameMode,
-    ),
-  ));
+  void _launch([String? premadeMap]) {
+    switch (_mode) {
+      case _MapMode.procedural:
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => GameScreen(
+            selectedCharacterClass: widget.selectedCharacterClass,
+            gameMode: widget.gameMode,
+            procedural: true,
+            mapConfig: MapGeneratorConfig(
+                style: _style, difficulty: _difficulty, seed: _customSeed),
+          ),
+        ));
+      case _MapMode.premade:
+        if (premadeMap == null) return;
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => GameScreen(
+            selectedCharacterClass: widget.selectedCharacterClass,
+            mapName: premadeMap,
+            gameMode: widget.gameMode,
+          ),
+        ));
+      case _MapMode.infinite:
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => GameScreen(
+            selectedCharacterClass: widget.selectedCharacterClass,
+            gameMode: widget.gameMode,
+            procedural: false,
+            useInfiniteWorld: true,
+            mapConfig: MapGeneratorConfig(
+                style: _style, difficulty: _difficulty, seed: _customSeed),
+          ),
+        ));
+    }
+  }
 
   // ── build ───────────────────────────────────────────────────────────────────
   @override
@@ -214,9 +229,9 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
 
   Widget _buildContent() {
     switch (_mode) {
-      case _MapMode.procedural: return _buildProcedural();
+      case _MapMode.procedural:
+      case _MapMode.infinite:   return _buildProcedural();
       case _MapMode.premade:    return _buildPremade();
-      case _MapMode.infinite:   return _buildInfinite();
     }
   }
 
@@ -250,19 +265,22 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
                         color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
 
-                // Style grid — 6 tiles, fixed height
+                // Style tiles — stretch full width equally
                 SizedBox(
-                  height: 84,
-                  child: GridView.count(
-                    crossAxisCount: _kStyles,
-                    crossAxisSpacing: 8,
-                    physics: const NeverScrollableScrollPhysics(),
+                  height: 80,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: List.generate(_styles.length, (i) {
-                      return GamepadMenuItem(
-                        focused: isFocused(i),
-                        onTap: () => setState(() => _style = _styles[i]),
-                        borderRadius: BorderRadius.circular(10),
-                        child: StyleTile(style: _styles[i], selected: _style == _styles[i]),
+                      return Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(left: i == 0 ? 0 : 6),
+                          child: GamepadMenuItem(
+                            focused: isFocused(i),
+                            onTap: () => setState(() => _style = _styles[i]),
+                            borderRadius: BorderRadius.circular(10),
+                            child: StyleTile(style: _styles[i], selected: _style == _styles[i]),
+                          ),
+                        ),
                       );
                     }),
                   ),
@@ -298,37 +316,17 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
 
                 const SizedBox(height: 10),
 
-                // Launch buttons row
-                Row(
-                  children: [
-                    Expanded(
-                      child: GamepadMenuItem(
-                        focused: isFocused(_kIdxGen),
-                        onTap: _launchProcedural,
-                        borderRadius: BorderRadius.circular(10),
-                        child: LaunchBtn(
-                          label: context.translate('generate_play'),
-                          color: Colors.green,
-                          icon: Icons.play_arrow,
-                          onTap: _launchProcedural,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: GamepadMenuItem(
-                        focused: isFocused(_kIdxInf),
-                        onTap: _launchInfinite,
-                        borderRadius: BorderRadius.circular(10),
-                        child: LaunchBtn(
-                          label: context.translate('infinite_play'),
-                          color: Colors.deepOrange,
-                          icon: Icons.all_inclusive,
-                          onTap: _launchInfinite,
-                        ),
-                      ),
-                    ),
-                  ],
+                // Single PLAY button
+                GamepadMenuItem(
+                  focused: isFocused(_kIdxPlay),
+                  onTap: _launch,
+                  borderRadius: BorderRadius.circular(10),
+                  child: LaunchBtn(
+                    label: 'PLAY',
+                    color: Colors.green,
+                    icon: Icons.play_arrow,
+                    onTap: _launch,
+                  ),
                 ),
 
                 const SizedBox(height: 8),
@@ -339,6 +337,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
       ),
     );
   }
+
 
   // ── PREMADE ─────────────────────────────────────────────────────────────────
   Widget _buildPremade() {
@@ -353,13 +352,13 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
         children: List.generate(_levels.length, (i) {
           return GamepadMenuItem(
             focused: isFocused(i),
-            onTap: () => _launchPremade(_levels[i]),
+            onTap: () => _launch(_levels[i]),
             borderRadius: BorderRadius.circular(15),
             child: LevelCard(
               mapName: _levels[i],
               levelNum: i + 1,
               label: context.translate('level'),
-              onTap: () => _launchPremade(_levels[i]),
+              onTap: () => _launch(_levels[i]),
             ),
           );
         }),
@@ -367,67 +366,4 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
     );
   }
 
-  // ── INFINITE ─────────────────────────────────────────────────────────────────
-  Widget _buildInfinite() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 500),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40),
-          child: GamepadMenuItem(
-            focused: isFocused(0),
-            onTap: _launchInfinite,
-            borderRadius: BorderRadius.circular(20),
-            child: GestureDetector(
-              onTap: _launchInfinite,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 40),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Colors.deepOrange[700]!, Colors.deepOrange[900]!],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white30, width: 2),
-                  boxShadow: [
-                    BoxShadow(color: Colors.deepOrange.withOpacity(0.3), blurRadius: 24),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.all_inclusive, size: 56, color: Colors.white),
-                    const SizedBox(height: 16),
-                    Text(context.translate('infinite_map'),
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 26,
-                            fontWeight: FontWeight.bold, letterSpacing: 2)),
-                    const SizedBox(height: 8),
-                    const Text('Endless procedural world — run as far as you can',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white70, fontSize: 13)),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: _launchInfinite,
-                      icon: const Icon(Icons.play_arrow),
-                      label: const Text('LAUNCH',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.deepOrange,
-                        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

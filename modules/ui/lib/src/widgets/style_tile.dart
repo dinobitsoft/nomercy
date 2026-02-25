@@ -6,7 +6,7 @@ class StyleTile extends StatelessWidget {
   final MapStyle style;
   final bool selected;
 
-  const StyleTile({super.key, required this.style, required this.selected});
+  const StyleTile({required this.style, required this.selected});
 
   static (IconData icon, String name) _info(MapStyle style) {
     switch (style) {
@@ -22,8 +22,9 @@ class StyleTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final info = _info(style);
-
     return Container(
+      width: double.infinity,
+      height: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -39,31 +40,14 @@ class StyleTile extends StatelessWidget {
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(info.$1, size: 24, color: Colors.white),
-          const SizedBox(height: 5),
-          Text(
-            context.translate(info.$2.toString().toLowerCase()),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            context.translate('${info.$2.toString().toLowerCase()}_desc'),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.grey[400],
-              fontSize: 8,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
+          Icon(info.$1, color: Colors.white, size: 20),
+          const SizedBox(height: 3),
+          Text(info.$2,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
         ],
       ),
     );
