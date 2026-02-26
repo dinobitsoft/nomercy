@@ -28,6 +28,8 @@ dependencies:
     path: modules/ui
   service:
     path: modules/service
+  gamepad:
+    path: modules/gamepad
 
 dev_dependencies:
   flutter_test:
