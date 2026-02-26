@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:engine/engine.dart';
 import 'package:flutter/material.dart';
 import 'package:gamepad/gamepad.dart';
@@ -17,56 +16,36 @@ class ModeSelectionScreen extends StatefulWidget {
   State<ModeSelectionScreen> createState() => _ModeSelectionScreenState();
 }
 
-class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
+class _ModeSelectionScreenState extends State<ModeSelectionScreen>
+    with GamepadRouteAware<ModeSelectionScreen> {
 
   static const _modes = [
-    (GameMode.survival,  Icons.shield,        'SURVIVAL',   'Endless waves\nof enemies',           Colors.orange),
-    (GameMode.campaign,  Icons.book,           'CAMPAIGN',   'Story mode with\nboss fights',         Colors.blue),
-    (GameMode.bossFight, Icons.dangerous,      'BOSS FIGHT', 'Face a powerful\nboss enemy',          Colors.red),
-    (GameMode.training,  Icons.fitness_center, 'TRAINING',   'Practice mode\nPerfect your skills',  Colors.green),
+    (GameMode.survival,  Icons.shield,        'SURVIVAL',   'Endless waves\nof enemies',          Colors.orange),
+    (GameMode.campaign,  Icons.book,           'CAMPAIGN',   'Story mode with\nboss fights',        Colors.blue),
+    (GameMode.bossFight, Icons.dangerous,      'BOSS FIGHT', 'Face a powerful\nboss enemy',         Colors.red),
+    (GameMode.training,  Icons.fitness_center, 'TRAINING',   'Practice mode\nPerfect your skills', Colors.green),
   ];
 
-  // 2-column grid: row=i÷2, col=i%2
-  // Focus order: 0(top-left) 1(top-right) 2(bot-left) 3(bot-right)
   int _focus = 0;
   static const int _cols = 2;
   static const int _rows = 2;
 
-  StreamSubscription<GamepadNavEvent>? _navSub;
-
+  // ── GamepadRouteAware override — only called when this route is active ───
   @override
-  void initState() {
-    super.initState();
-    _navSub = GamepadNavService().events.listen(_onNav);
-  }
-
-  @override
-  void dispose() {
-    _navSub?.cancel();
-    super.dispose();
-  }
-
-  void _onNav(GamepadNavEvent event) {
-    if (ModalRoute.of(context)?.isCurrent != true) return;
+  void onGamepadEvent(GamepadNavEvent event) {
     switch (event) {
       case GamepadNavEvent.up:
         _moveFocus(0, -1);
-        break;
       case GamepadNavEvent.down:
         _moveFocus(0, 1);
-        break;
       case GamepadNavEvent.left:
         _moveFocus(-1, 0);
-        break;
       case GamepadNavEvent.right:
         _moveFocus(1, 0);
-        break;
       case GamepadNavEvent.confirm:
         _navigate(_modes[_focus].$1);
-        break;
       case GamepadNavEvent.back:
         Navigator.maybePop(context);
-        break;
       default:
         break;
     }
@@ -106,7 +85,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, size: 28, color: Colors.white),
+                      icon: const Icon(Icons.arrow_back,
+                          size: 28, color: Colors.white),
                       onPressed: () => Navigator.pop(context),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -115,7 +95,9 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                     Text(
                       context.translate('select_mode'),
                       style: const TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
                     ),
                   ],
                 ),
@@ -124,7 +106,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
               Expanded(
                 child: GridView.count(
                   crossAxisCount: _cols,
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 40, vertical: 10),
                   crossAxisSpacing: 15,
                   mainAxisSpacing: 15,
                   childAspectRatio: 2.8,
@@ -135,7 +118,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                       focused: _focus == i,
                       onTap: () => _navigate(m.$1),
                       borderRadius: BorderRadius.circular(15),
-                      child: _buildModeCard(i, m.$1, m.$3, m.$4, m.$2, m.$5),
+                      child: _buildModeCard(
+                          i, m.$1, m.$3, m.$4, m.$2, m.$5),
                     );
                   }),
                 ),
@@ -149,7 +133,8 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
     );
   }
 
-  Widget _buildModeCard(int index, GameMode mode, String title, String desc, IconData icon, Color color) {
+  Widget _buildModeCard(int index, GameMode mode, String title, String desc,
+      IconData icon, Color color) {
     final focused = _focus == index;
     return GestureDetector(
       onTap: () {
@@ -162,15 +147,21 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              focused ? color.withOpacity(0.9) : color.withOpacity(0.8),
-              focused ? color.withOpacity(0.7) : color.withOpacity(0.6),
+              focused
+                  ? color.withOpacity(0.9)
+                  : color.withOpacity(0.8),
+              focused
+                  ? color.withOpacity(0.7)
+                  : color.withOpacity(0.6),
             ],
           ),
           borderRadius: BorderRadius.circular(15),
           border: Border.all(color: Colors.white30, width: 2),
           boxShadow: [
             BoxShadow(
-              color: focused ? color.withOpacity(0.5) : color.withOpacity(0.3),
+              color: focused
+                  ? color.withOpacity(0.5)
+                  : color.withOpacity(0.3),
               blurRadius: focused ? 18 : 10,
               spreadRadius: 1,
             ),
@@ -189,10 +180,13 @@ class _ModeSelectionScreenState extends State<ModeSelectionScreen> {
                 children: [
                   Text(title,
                       style: const TextStyle(
-                          color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
                   const SizedBox(height: 2),
                   Text(desc,
-                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 11),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis),
                 ],

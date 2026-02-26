@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:gamepads/gamepads.dart';
+import 'gamepad.dart';
 
 enum GamepadNavEvent { up, down, left, right, confirm, back, start }
 
@@ -26,7 +27,9 @@ class GamepadNavService {
   // Analog axis state (auto-learned, mirrors GamepadManager logic)
   String? _axisXKey;
   String? _axisYKey;
-  double _axisX = 0, _axisY = 0;
+  String? _axisZKey;
+  String? _axisRZKey;
+  double _axisX = 0, _axisY = 0, _axisZ = 0, _axisRZ = 0;
 
   // Button press states (stream-based)
   bool _sUp = false, _sDown = false, _sLeft = false, _sRight = false;
@@ -53,10 +56,13 @@ class GamepadNavService {
   // ─── Gamepad stream ──────────────────────────────────────────────────────────
   void _onGamepadEvent(GamepadEvent e) {
     final k = e.key.trim().toLowerCase();
-    if (e.type == KeyType.analog) {
-      _handleAnalog(k, e.value);
-    } else {
-      _handleButton(k, e.value > 0.5);
+    switch(e.type) {
+      case KeyType.analog:
+        _handleAnalog(k, e.value);
+        break;
+      case KeyType.button:
+        _handleButton(k, e.value);
+        break;
     }
     _evaluateState();
   }
@@ -71,21 +77,65 @@ class GamepadNavService {
   }
 
   void _handleAnalog(String k, double value) {
-    if (_isButtonKey(k)) { _handleButton(k, value > 0.5); return; }
 
-    if (_axisXKey == null) { _axisXKey = k; return; }
-    else if (_axisYKey == null && k != _axisXKey) { _axisYKey = k; return; }
+    final GamepadDevice gamepadDevice = GamepadDevice();
 
-    if (k == _axisXKey) { _axisX = _dz(value); return; }
-    if (k == _axisYKey) { _axisY = -_dz(value); return; } // PS invert
+    // D-pad
+    // if (_match(k, ['21', 'dpad_left',  'keycode_dpad_left'],  ['dpad left']))  {     gamepadDevice.dpadLeft = _sLeft    = pressed; return; }
+    // if (_match(k, ['22', 'dpad_right', 'keycode_dpad_right'], ['dpad right'])) { gamepadDevice.dpadRight = _sRight   = pressed; return; }
+    // if (_match(k, ['19', 'dpad_up',    'keycode_dpad_up'],    ['dpad up']))    { gamepadDevice.dpadUp = _sUp      = pressed; return; }
+    // if (_match(k, ['20', 'dpad_down',  'keycode_dpad_down'],  ['dpad down'])) { gamepadDevice.dpadDown = _sDown    = pressed; return; }
+
+    //Other PS2
+    if (_match(k, ['axis_hat_z',  'axis_z', 'axis_rz'], []))  { //axis_hat_y when d-pad down axis_y when joystick down
+      if (value < 0) {
+        _sLeft = true; return;
+      } else if (value > 0) {
+        _sRight = true; return;
+      } else if (value == 0) {
+        _sLeft = false;
+        _sRight = false;
+      }
+    }
+    if (_match(k, ['axis_hat_y',  'axis_y', 'axis_ry'], []))  { //axis_hat_y when d-pad down axis_y when joystick down
+      if (value < 0) {
+        _sDown = true; return;
+      } else if (value > 0) {
+        _sUp = true; return;
+      } else if (value == 0) {
+        _sUp = false;
+        _sDown = false;
+      }
+    }
+
+    // if (_isButtonKey(k)) {
+    //   _handleButton(k, value > 0.5); return;
+    // }
+    //
+    // if (_axisXKey == null) {
+    //   _axisXKey = k; return;
+    // }
+    // else if (_axisYKey == null && k != _axisXKey) { _axisYKey = k; return; }
+    // else if (_axisZKey == null && k != _axisXKey && k != _axisYKey) { _axisZKey = k; return; }
+    // else if (_axisRZKey == null && k != _axisYKey) { _axisRZKey = k; return; }
+    // else if (_axisRZKey == null && k != _axisYKey) { _axisRZKey = k; return; }
+    //
+    // if (k == _axisXKey) { _axisX = _dz(value); return; }
+    // if (k == _axisYKey) { _axisY = -_dz(value); return; } // PS invert
+    // if (k == _axisZKey) { _axisZ = _dz(value); return; }
+    // if (k == _axisRZKey) { _axisRZ = _dz(value); return; }
 
     // Hat / dpad axes
-    if (k.contains('hat x') || k == 'axis 6') {
-      if (value < -0.5) _sLeft = true; else if (value > 0.5) _sRight = true; else { _sLeft = false; _sRight = false; }
-    }
-    if (k.contains('hat y') || k == 'axis 7') {
-      if (value < -0.5) _sUp = true; else if (value > 0.5) _sDown = true; else { _sUp = false; _sDown = false; }
-    }
+    // if (k.contains('hat x') || k == 'axis 6') {
+    //   if (value < -0.5) {
+    //     _sLeft = true;
+    //   } else if (value > 0.5) _sRight = true; else { _sLeft = false; _sRight = false; }
+    // }
+    // if (k.contains('hat y') || k == 'axis 7') {
+    //   if (value < -0.5) {
+    //     _sUp = true;
+    //   } else if (value > 0.5) _sDown = true; else { _sUp = false; _sDown = false; }
+    // }
   }
 
   bool _match(String k, List<String> exact, List<String> frags) {
@@ -94,17 +144,72 @@ class GamepadNavService {
     return false;
   }
 
-  void _handleButton(String k, bool pressed) {
-    // D-pad
-    if (_match(k, ['21', 'dpad_left',  'keycode_dpad_left'],  ['dpad left']))  { _sLeft    = pressed; return; }
-    if (_match(k, ['22', 'dpad_right', 'keycode_dpad_right'], ['dpad right'])) { _sRight   = pressed; return; }
-    if (_match(k, ['19', 'dpad_up',    'keycode_dpad_up'],    ['dpad up']))    { _sUp      = pressed; return; }
-    if (_match(k, ['20', 'dpad_down',  'keycode_dpad_down'],  ['dpad down'])) { _sDown    = pressed; return; }
-    // Face: A=confirm, B=back, X=confirm, Start=start
-    if (_match(k, ['96','0'], ['button_a','cross','south']))   { _sConfirm = pressed; return; }
-    if (_match(k, ['97','1'], ['button_b','circle','east']))   { _sBack    = pressed; return; }
-    if (_match(k, ['99','2'], ['button_x','square','west']))   { _sConfirm = pressed; return; } // X also confirms
-    if (_match(k, ['108'],    ['start', 'keycode_button_start'])) { _sStart = pressed; return; }
+  void _handleButton(String k, double value) {
+
+    if (_match(k, ['keycode_button_b'], []))  { //keycode_button_b back button down
+      if (value < 0) {
+        _sBack = true; return;
+      } else if (value > 0) {
+        _sBack = true; return;
+      } else if (value == 0) {
+        _sBack = false;
+      }
+    }
+
+    if (_match(k, ['keycode_button_a'], []))  { //keycode_button_b back button down
+      if (value < 0) {
+        _sConfirm = true; return;
+      } else if (value > 0) {
+        _sConfirm = true; return;
+      } else if (value == 0) {
+        _sConfirm = false;
+      }
+    }
+
+    if (_match(k, ['keycode_button_x'], []))  { //keycode_button_b back button down
+      if (value < 0) {
+        _sStart = true; return;
+      } else if (value > 0) {
+        _sStart = true; return;
+      } else if (value == 0) {
+        _sStart = false;
+      }
+    }
+
+
+    if (_match(k, ['keycode_button_y'], []))  { //keycode_button_b back button down
+      if (value < 0) {
+        _sStart = true; return;
+      } else if (value > 0) {
+        _sStart = true; return;
+      } else if (value == 0) {
+        _sStart = false;
+      }
+    }
+
+    // // D-pad
+    // if (_match(k, ['21', 'dpad_left',  'keycode_dpad_left'],  ['dpad left']))  { _sLeft    = pressed; return; }
+    // if (_match(k, ['22', 'dpad_right', 'keycode_dpad_right'], ['dpad right'])) { _sRight   = pressed; return; }
+    // if (_match(k, ['19', 'dpad_up',    'keycode_dpad_up'],    ['dpad up']))    { _sUp      = pressed; return; }
+    // if (_match(k, ['20', 'dpad_down',  'keycode_dpad_down'],  ['dpad down'])) { _sDown    = pressed; return; }
+    // // Face: A=confirm, B=back, X=confirm, Start=start
+    // if (_match(k, ['96','0'], ['button_a','cross','south']))   { _sConfirm = pressed; return; }
+    // if (_match(k, ['97','1'], ['button_b','circle','east']))   { _sBack    = pressed; return; }
+    // if (_match(k, ['99','2'], ['button_x','square','west']))   { _sConfirm = pressed; return; } // X also confirms
+    // if (_match(k, ['108'],    ['start', 'keycode_button_start'])) { _sStart = pressed; return; }
+    // //Other
+    // if (_match(k, ['21', 'axis_hat_x',  'axis_x', 'axis_rz'], []))  {
+    //   _sDown    = pressed; return;
+    // }
+    // if (_match(k, ['21', 'axis_hat_y',  'axis_y', 'axis_ry'], []))  {
+    //   _sDown    = pressed; return;
+    // }
+    // if (_match(k, ['21', 'axis_ltrigger'], []))  {
+    //   _sLeft    = pressed; return;
+    // }
+    // if (_match(k, ['21', 'axis_rtrigger'], []))  {
+    //   _sRight    = pressed; return;
+    // }
   }
 
   // ─── Hardware keyboard ───────────────────────────────────────────────────────
@@ -124,10 +229,10 @@ class GamepadNavService {
   GamepadNavEvent? _currentHeld;
 
   void _evaluateState() {
-    final up      = _sUp    || _hwUp    || _axisY < -0.5;
-    final down    = _sDown  || _hwDown  || _axisY >  0.5;
-    final left    = _sLeft  || _hwLeft  || _axisX < -0.5;
-    final right   = _sRight || _hwRight || _axisX >  0.5;
+    final up      = _sUp;
+    final down    = _sDown;
+    final left    = _sLeft;
+    final right   = _sRight;
     final confirm = _sConfirm || _hwConfirm;
     final back    = _sBack    || _hwBack;
     final start   = _sStart;

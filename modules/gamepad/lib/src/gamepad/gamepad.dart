@@ -3,4 +3,7 @@ export 'gamepad_item.dart';
 export 'gamepad_menu_controller.dart';
 export 'gamepad_nav_service.dart';
 export 'gamepad_hint_bar.dart';
+export 'gamepad_route_aware.dart';
+export 'gamepad_device.dart';
+export 'gamepad_manager.dart';
 

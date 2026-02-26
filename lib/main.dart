@@ -1,6 +1,7 @@
 import 'package:engine/engine.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gamepad/gamepad.dart';
 import 'package:ui/ui.dart';
 
 void main() {
@@ -33,6 +34,8 @@ class GameApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: ThemeData.dark(),
           locale: LocalizationManager().locale,
+          // ── Register the route observer so GamepadRouteAware works ──────────
+          navigatorObservers: [gamepadRouteObserver],
           home: const CharacterSelectionScreen(),
         );
       },
