@@ -5,17 +5,16 @@ import 'gamepad_nav_service.dart';
 /// Singleton route observer — register in MaterialApp.navigatorObservers.
 final gamepadRouteObserver = RouteObserver<ModalRoute<void>>();
 
-/// Mixin for StatefulWidget screens that need reliable gamepad input.
+/// Mixin for [StatefulWidget] screens needing reliable gamepad input.
 ///
-/// Replaces the broken `ModalRoute.of(context)?.isCurrent` pattern.
-/// Uses Flutter's RouteObserver lifecycle to subscribe/unsubscribe
-/// the gamepad stream exactly when the route is visible and active.
+/// Key fix: subscribes on [didChangeDependencies] so the **home/initial route**
+/// (which never receives [didPush] from [RouteObserver]) also gets events.
+/// [didPushNext] / [didPop] unsubscribe when the route is not the top-most.
 ///
 /// Usage:
 /// ```dart
 /// class _MyScreenState extends State<MyScreen>
 ///     with GamepadRouteAware<MyScreen> {
-///
 ///   @override
 ///   void onGamepadEvent(GamepadNavEvent event) { … }
 /// }
@@ -23,6 +22,7 @@ final gamepadRouteObserver = RouteObserver<ModalRoute<void>>();
 mixin GamepadRouteAware<T extends StatefulWidget> on State<T>
 implements RouteAware {
   StreamSubscription<GamepadNavEvent>? _gamepadSub;
+  bool _subscribedToObserver = false;
 
   // ── RouteAware lifecycle ──────────────────────────────────────────────────
 
@@ -30,8 +30,13 @@ implements RouteAware {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final route = ModalRoute.of(context);
-    if (route != null) {
+    if (route != null && !_subscribedToObserver) {
+      _subscribedToObserver = true;
       gamepadRouteObserver.subscribe(this, route);
+      // Subscribe immediately — handles the home route where didPush is never
+      // called by RouteObserver (the initial route is not "pushed" onto an
+      // existing navigator, so the observer never fires didPush for it).
+      _subscribe();
     }
   }
 
@@ -42,7 +47,7 @@ implements RouteAware {
     super.dispose();
   }
 
-  /// Called when this route is pushed for the first time.
+  /// Called when this route is pushed for the first time (non-home routes).
   @override
   void didPush() => _subscribe();
 
@@ -50,7 +55,7 @@ implements RouteAware {
   @override
   void didPopNext() => _subscribe();
 
-  /// Called when this route is pushed over (another route appears on top).
+  /// Called when this route is covered by a new route pushed on top.
   @override
   void didPushNext() => _unsubscribe();
 
@@ -72,6 +77,7 @@ implements RouteAware {
     _gamepadSub = null;
   }
 
-  /// Override to handle gamepad events. Only called when this route is active.
+  /// Override to handle gamepad navigation events.
+  /// Only invoked while this route is the active top-most route.
   void onGamepadEvent(GamepadNavEvent event);
 }
