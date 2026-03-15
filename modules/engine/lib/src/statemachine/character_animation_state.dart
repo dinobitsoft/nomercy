@@ -1,6 +1,7 @@
 enum CharacterAnimState {
   idle,
   walking,
+  running,
   jumping,
   falling,
   landing,
