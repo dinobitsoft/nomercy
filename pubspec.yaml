@@ -46,6 +46,9 @@ flutter:
     - assets/images/knight_walk.png
     - assets/images/knight_idle.png
     - assets/images/knight_landing.png
+    - assets/images/warrior_walk_resized_left_leg_front.png
+    - assets/images/warrior_walk_resized_legs_together_left_knee_front.png
+    - assets/images/warrior_walk_resized_right_leg_front.png
     - assets/images/thief.png
     - assets/images/thief_attack.png
     - assets/images/thief_jump.png

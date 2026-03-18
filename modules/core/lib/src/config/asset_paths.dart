@@ -6,9 +6,9 @@ class AssetPaths {
   AssetPaths._(); // Private constructor - static class only
 
   // Base directories
-  static const String images = 'images/';
-  static const String audio = 'audio/';
-  static const String maps = 'maps/';
+  static const String images = '';
+  static const String audio = '';
+  static const String maps = '';
 
   /// Character sprite sheets
   /// Structure: characterName -> animationType -> path
@@ -16,20 +16,20 @@ class AssetPaths {
     'knight': {
       'idle':    '${images}knight_idle.png',
       'walk':    [
-        '${images}knight_walk_1.png',
-        '${images}knight_walk_2.png',
-        '${images}knight_walk_3.png',
-        '${images}knight_walk_4.png',
-        '${images}knight_walk_5.png',
-        '${images}knight_walk_6.png',
+        '${images}warrior_walk_resized_left_leg_front.png',
+        '${images}warrior_walk_resized_legs_together_left_knee_front.png',
+        '${images}warrior_walk_resized_right_leg_front.png',
+        '${images}warrior_walk_resized_left_leg_front.png',
+        '${images}warrior_walk_resized_legs_together_left_knee_front.png',
+        '${images}warrior_walk_resized_left_leg_front.png',
       ],
       'run':     [
-        '${images}knight_run_1.png',
-        '${images}knight_run_2.png',
-        '${images}knight_run_3.png',
-        '${images}knight_run_4.png',
-        '${images}knight_run_5.png',
-        '${images}knight_run_6.png',
+        '${images}warrior_walk_resized_left_leg_front.png',
+        '${images}warrior_walk_resized_legs_together_left_knee_front.png',
+        '${images}warrior_walk_resized_right_leg_front.png',
+        '${images}warrior_walk_resized_left_leg_front.png',
+        '${images}warrior_walk_resized_legs_together_left_knee_front.png',
+        '${images}warrior_walk_resized_left_leg_front.png',
       ],
       'attack':  '${images}knight_attack.png',
       'jump':    '${images}knight_jump.png',
@@ -38,20 +38,20 @@ class AssetPaths {
     'thief': {
       'idle':    '${images}thief_idle.png',
       'walk':    [
-        '${images}thief_walk_1.png',
-        '${images}thief_walk_2.png',
-        '${images}thief_walk_3.png',
-        '${images}thief_walk_4.png',
-        '${images}thief_walk_5.png',
-        '${images}thief_walk_6.png',
+        '${images}thief_idle.png',
+        '${images}thief_idle.png',
+        '${images}thief_idle.png',
+        '${images}thief_idle.png',
+        '${images}thief_idle.png',
+        '${images}thief_idle.png',
       ],
       'run':     [
-        '${images}thief_run_1.png',
-        '${images}thief_run_2.png',
-        '${images}thief_run_3.png',
-        '${images}thief_run_4.png',
-        '${images}thief_run_5.png',
-        '${images}thief_run_6.png',
+        '${images}thief_attack.png',
+        '${images}thief_attack.png',
+        '${images}thief_attack.png',
+        '${images}thief_attack.png',
+        '${images}thief_attack.png',
+        '${images}thief_attack.png',
       ],
       'attack':  '${images}thief_attack.png',
       'jump':    '${images}thief_jump.png',
@@ -60,20 +60,20 @@ class AssetPaths {
     'wizard': {
       'idle':    '${images}wizard_idle.png',
       'walk':    [
-        '${images}wizard_walk_1.png',
-        '${images}wizard_walk_2.png',
-        '${images}wizard_walk_3.png',
-        '${images}wizard_walk_4.png',
-        '${images}wizard_walk_5.png',
-        '${images}wizard_walk_6.png',
+        '${images}wizard_idle.png',
+        '${images}wizard_idle.png',
+        '${images}wizard_idle.png',
+        '${images}wizard_idle.png',
+        '${images}wizard_idle.png',
+        '${images}wizard_idle.png',
       ],
       'run':     [
-        '${images}wizard_run_1.png',
-        '${images}wizard_run_2.png',
-        '${images}wizard_run_3.png',
-        '${images}wizard_run_4.png',
-        '${images}wizard_run_5.png',
-        '${images}wizard_run_6.png',
+        '${images}wizard_attack.png',
+        '${images}wizard_attack.png',
+        '${images}wizard_attack.png',
+        '${images}wizard_attack.png',
+        '${images}wizard_attack.png',
+        '${images}wizard_attack.png',
       ],
       'attack':  '${images}wizard_attack.png',
       'jump':    '${images}wizard_jump.png',
@@ -82,20 +82,20 @@ class AssetPaths {
     'trader': {
       'idle':    '${images}trader_idle.png',
       'walk':    [
-        '${images}trader_walk_1.png',
-        '${images}trader_walk_2.png',
-        '${images}trader_walk_3.png',
-        '${images}trader_walk_4.png',
-        '${images}trader_walk_5.png',
-        '${images}trader_walk_6.png',
+        '${images}trader_idle.png',
+        '${images}trader_idle.png',
+        '${images}trader_idle.png',
+        '${images}trader_idle.png',
+        '${images}trader_idle.png',
+        '${images}trader_idle.png',
       ],
       'run':     [
-        '${images}trader_run_1.png',
-        '${images}trader_run_2.png',
-        '${images}trader_run_3.png',
-        '${images}trader_run_4.png',
-        '${images}trader_run_5.png',
-        '${images}trader_run_6.png',
+        '${images}trader_attack.png',
+        '${images}trader_attack.png',
+        '${images}trader_attack.png',
+        '${images}trader_attack.png',
+        '${images}trader_attack.png',
+        '${images}trader_attack.png',
       ],
       'attack':  '${images}trader_attack.png',
       'jump':    '${images}trader_jump.png',
