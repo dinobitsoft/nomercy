@@ -9,10 +9,10 @@ class Thief extends GameCharacter {
   double get jumpPower => -500;
 
   @override
-  ActionStrategy get actionStrategy => ThiefActionStrategy();
+  late final ActionStrategy actionStrategy = ThiefActionStrategy();
 
   @override
-  MovementStrategy get movementStrategy => throw ThiefMovementStrategy();
+  late final MovementStrategy movementStrategy = ThiefMovementStrategy();
 
   Thief({
     required super.position,

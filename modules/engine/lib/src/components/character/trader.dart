@@ -11,10 +11,10 @@ class Trader extends GameCharacter {
   double get jumpPower => -300;
 
   @override
-  ActionStrategy get actionStrategy => throw TraderActionStrategy();
+  late final ActionStrategy actionStrategy = TraderActionStrategy();
 
   @override
-  MovementStrategy get movementStrategy => throw TraderMovementStrategy();
+  late final MovementStrategy movementStrategy = TraderMovementStrategy();
 
   Trader({
     required super.position,

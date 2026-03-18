@@ -17,10 +17,10 @@ class Knight extends GameCharacter {
   );
 
   @override
-  ActionStrategy get actionStrategy => throw KnightActionStrategy();
+  late final ActionStrategy actionStrategy = KnightActionStrategy();
 
   @override
-  MovementStrategy get movementStrategy => KnightMovementStrategy();
+  late final MovementStrategy movementStrategy = KnightMovementStrategy();
 
   @override
   void updateBotControl(double dt) {
