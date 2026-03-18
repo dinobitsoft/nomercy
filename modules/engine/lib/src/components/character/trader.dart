@@ -10,6 +10,12 @@ class Trader extends GameCharacter {
   @override
   double get jumpPower => -300;
 
+  @override
+  ActionStrategy get actionStrategy => throw TraderActionStrategy();
+
+  @override
+  MovementStrategy get movementStrategy => throw TraderMovementStrategy();
+
   Trader({
     required super.position,
     required super.playerType,
@@ -19,58 +25,6 @@ class Trader extends GameCharacter {
     botTactic: botTactic ?? BalancedTactic(),
     stats: TraderStats(),
   );
-
-  @override
-  void updateHumanControl(double dt) {
-    if (characterState.isStunned || characterState.isLanding || characterState.isDodging) return;
-
-    // Unified input: Touch + Gamepad
-    final gamepad = game.gamepadManager;
-    Vector2 inputDelta = game.joystick.relativeDelta;
-
-    if (gamepad.isGamepadConnected && gamepad.hasMovementInput()) {
-      inputDelta = gamepad.getJoystickDirection();
-    }
-
-    final moveSpeed = stats.dexterity / 2;
-    final moveMultiplier = characterState.isAttackCommitted ? 0.4 : 1.0;
-
-    // MOVEMENT
-    if (inputDelta.x != 0 && !characterState.isBlocking) {
-      final direction = Vector2(inputDelta.x, 0);
-      performWalk(direction, moveSpeed * 100 * moveMultiplier);
-    } else if (!characterState.isAttackCommitted && !characterState.isBlocking) {
-      performStopWalk();
-    }
-
-    // BLOCK
-    bool blockInput = gamepad.isBlockPressed;
-    if (blockInput && characterState.groundPlatform != null) {
-      startBlock();
-      velocity.x = 0;
-    } else {
-      stopBlock();
-    }
-
-    // JUMP (Trader has balanced jump)
-    bool jumpInput = game.joystick.direction == JoystickDirection.up || gamepad.isJumpPressed;
-    if (!characterState.isBlocking && !characterState.isAttackCommitted) {
-      handleJumpInput(jumpInput);
-    } else {
-      prevJumpInput = jumpInput;
-    }
-
-    // DODGE
-    bool dodgeInput = (inputDelta.length > 0.5 && inputDelta.y < -0.5) ||
-        gamepad.isDodgePressed;
-
-    if (dodgeInput && characterState.groundPlatform != null && !characterState.isBlocking) {
-      final dodgeDirection = inputDelta.x != 0
-          ? Vector2(inputDelta.x, 0)
-          : Vector2(facingRight ? 1 : -1, 0);
-      dodge(dodgeDirection);
-    }
-  }
 
   @override
   void updateBotControl(double dt) {

@@ -9,6 +9,12 @@ class Wizard extends GameCharacter {
   @override
   double get jumpPower => -280;
 
+  @override
+  ActionStrategy get actionStrategy => throw WizardActionStrategy();
+
+  @override
+  MovementStrategy get movementStrategy => WizardMovementStrategy();
+
   Wizard({
     required super.position,
     required super.playerType,
@@ -18,54 +24,6 @@ class Wizard extends GameCharacter {
     botTactic: botTactic ?? DefensiveTactic(),
     stats: WizardStats(),
   );
-
-  @override
-  void updateHumanControl(double dt) {
-    if (characterState.isStunned || characterState.isLanding || characterState.isDodging) return;
-
-    final gamepad = game.gamepadManager;
-    Vector2 inputDelta = game.joystick.relativeDelta;
-
-    if (gamepad.isGamepadConnected && gamepad.hasMovementInput()) {
-      inputDelta = gamepad.getJoystickDirection();
-    }
-
-    final moveSpeed = stats.dexterity / 2;
-    final moveMultiplier = characterState.isAttackCommitted ? 0.2 : 1.0;
-
-    if (inputDelta.x != 0 && !characterState.isBlocking) {
-      final direction = Vector2(inputDelta.x, 0);
-      performWalk(direction, moveSpeed * 100 * moveMultiplier);
-    } else if (!characterState.isAttackCommitted && !characterState.isBlocking) {
-      performStopWalk();
-    }
-
-    bool blockInput = gamepad.isBlockPressed;
-    if (blockInput && characterState.groundPlatform != null) {
-      startBlock();
-      velocity.x = 0;
-    } else {
-      stopBlock();
-    }
-
-    //JUMP
-    bool jumpInput = game.joystick.direction == JoystickDirection.up || gamepad.isJumpPressed;
-    if (!characterState.isBlocking && !characterState.isAttackCommitted) {
-      handleJumpInput(jumpInput);
-    } else {
-      prevJumpInput = jumpInput;
-    }
-
-    bool dodgeInput = (inputDelta.length > 0.5 && inputDelta.y < -0.5) ||
-        gamepad.isDodgePressed;
-
-    if (dodgeInput && characterState.groundPlatform != null && !characterState.isBlocking) {
-      final dodgeDirection = inputDelta.x != 0
-          ? Vector2(inputDelta.x, 0)
-          : Vector2(facingRight ? 1 : -1, 0);
-      dodge(dodgeDirection);
-    }
-  }
 
   @override
   void updateBotControl(double dt) {

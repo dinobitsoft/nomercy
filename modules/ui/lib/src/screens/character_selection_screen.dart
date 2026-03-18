@@ -19,6 +19,7 @@ class CharacterSelectionScreen extends StatefulWidget {
 
 class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
     with GamepadRouteAware<CharacterSelectionScreen> {
+
   String? selectedCharacterClass;
   late PageController _pageController;
   int _currentPage = 0;
@@ -34,6 +35,9 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
 
   // ── Gamepad state ─────────────────────────────────────────────────────────
   bool _inCharacterZone = false;
+  // Swallows the confirm that caused zone-exit so it doesn't also
+  // trigger the focused menu item in the same press cycle.
+  bool _confirmConsumedByZoneExit = false;
   int _menuFocus = 0;
   static const int _menuCount = 3;
 
@@ -48,35 +52,16 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
   @override
   void dispose() {
     _pageController.dispose();
-    super.dispose(); // GamepadRouteAware.dispose unsubscribes the stream
+    super.dispose();
   }
 
-  // ── GamepadRouteAware override — no route guard needed ───────────────────
+  // ── Gamepad input ─────────────────────────────────────────────────────────
   @override
   void onGamepadEvent(GamepadNavEvent event) {
     if (_inCharacterZone) {
       _onNavCharZone(event);
     } else {
       _onNavMenuZone(event);
-    }
-  }
-
-  void _onNavMenuZone(GamepadNavEvent event) {
-    switch (event) {
-      case GamepadNavEvent.up:
-        setState(() => _menuFocus = (_menuFocus - 1 + _menuCount) % _menuCount);
-      case GamepadNavEvent.down:
-        setState(() => _menuFocus = (_menuFocus + 1) % _menuCount);
-      case GamepadNavEvent.right:
-        setState(() => _inCharacterZone = true);
-      case GamepadNavEvent.confirm:
-        _activateMenuItem(_menuFocus);
-      case GamepadNavEvent.back:
-        Navigator.maybePop(context);
-      case GamepadNavEvent.start:
-        _startSinglePlayer(context);
-      default:
-        break;
     }
   }
 
@@ -91,9 +76,35 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
           selectedCharacterClass =
               characterOptions[_currentPage].name.toLowerCase();
           _inCharacterZone = false;
+          _confirmConsumedByZoneExit = true;
         });
       case GamepadNavEvent.back:
         setState(() => _inCharacterZone = false);
+      default:
+        break;
+    }
+  }
+
+  void _onNavMenuZone(GamepadNavEvent event) {
+    if (event == GamepadNavEvent.confirm && _confirmConsumedByZoneExit) {
+      setState(() => _confirmConsumedByZoneExit = false);
+      return;
+    }
+    _confirmConsumedByZoneExit = false;
+
+    switch (event) {
+      case GamepadNavEvent.up:
+        setState(() => _menuFocus = (_menuFocus - 1 + _menuCount) % _menuCount);
+      case GamepadNavEvent.down:
+        setState(() => _menuFocus = (_menuFocus + 1) % _menuCount);
+      case GamepadNavEvent.right:
+        setState(() => _inCharacterZone = true);
+      case GamepadNavEvent.confirm:
+        _activateMenuItem(_menuFocus);
+      case GamepadNavEvent.back:
+        Navigator.maybePop(context);
+      case GamepadNavEvent.start:
+        _startSinglePlayer(context);
       default:
         break;
     }
@@ -116,34 +127,10 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
 
   void _activateMenuItem(int index) {
     switch (index) {
-      case 0:
-        _startSinglePlayer(context);
-      case 1:
-        _startMultiplayer(context);
-      case 2:
-        _openSettings(context);
+      case 0: _startSinglePlayer(context);
+      case 1: _startMultiplayer(context);
+      case 2: _openSettings(context);
     }
-  }
-
-  void _openSettings(BuildContext context) {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            SettingsScreen(audioSystem: _audioSystem),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(1.0, 0.0),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(
-                parent: animation, curve: Curves.easeOutCubic)),
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 350),
-      ),
-    );
   }
 
   void _startSinglePlayer(BuildContext context) {
@@ -151,7 +138,7 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ModeSelectionScreen(
+        builder: (_) => ModeSelectionScreen(
           selectedCharacterClass: selectedCharacterClass!,
         ),
       ),
@@ -162,17 +149,16 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => MultiplayerLobbyScreen(
+        builder: (_) => MultiplayerLobbyScreen(
           selectedCharacterClass: selectedCharacterClass!,
         ),
       ),
     );
-
     if (result != null && mounted) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => GameScreen(
+          builder: (_) => GameScreen(
             selectedCharacterClass: selectedCharacterClass!,
             enableMultiplayer: true,
             roomId: result['room_id'],
@@ -182,6 +168,26 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
     }
   }
 
+  void _openSettings(BuildContext context) {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, animation, __) =>
+            SettingsScreen(audioSystem: _audioSystem),
+        transitionsBuilder: (_, animation, __, child) => SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1.0, 0.0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(
+              parent: animation, curve: Curves.easeOutCubic)),
+          child: child,
+        ),
+        transitionDuration: const Duration(milliseconds: 350),
+      ),
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -198,11 +204,12 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
             children: [
               Row(
                 children: [
-                  // Left side - Main Menu
+                  // ── Left: menu ──────────────────────────────────────────
                   Expanded(
                     flex: 2,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 40),
+                      padding:
+                      const EdgeInsets.symmetric(horizontal: 40),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,25 +226,25 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
                           const SizedBox(height: 40),
                           _buildMenuItem(
                             index: 0,
-                            icon: FontAwesomeIcons.user,
-                            label: 'SINGLE PLAYER',
-                            color: Colors.blueAccent,
+                            icon: Icons.play_arrow,
+                            label: 'PLAY',
+                            color: Colors.green,
                             onTap: () => _startSinglePlayer(context),
                           ),
-                          const SizedBox(height: 15),
+                          const SizedBox(height: 16),
                           _buildMenuItem(
                             index: 1,
-                            icon: FontAwesomeIcons.users,
+                            icon: Icons.people,
                             label: 'MULTIPLAYER',
-                            color: Colors.orangeAccent,
+                            color: Colors.blue,
                             onTap: () => _startMultiplayer(context),
                           ),
-                          const SizedBox(height: 15),
+                          const SizedBox(height: 16),
                           _buildMenuItem(
                             index: 2,
-                            icon: FontAwesomeIcons.gear,
+                            icon: Icons.settings,
                             label: 'SETTINGS',
-                            color: Colors.grey[400]!,
+                            color: Colors.grey,
                             onTap: () => _openSettings(context),
                           ),
                         ],
@@ -245,62 +252,88 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
                     ),
                   ),
 
-                  // Right side - Character Carousel
+                  // ── Right: character carousel ───────────────────────────
                   Expanded(
                     flex: 3,
-                    child: PageView.builder(
-                      controller: _pageController,
-                      itemCount: characterOptions.length,
-                      onPageChanged: (index) {
-                        setState(() {
-                          _currentPage = index;
-                          selectedCharacterClass =
-                              characterOptions[index].name.toLowerCase();
-                        });
-                      },
-                      itemBuilder: (context, index) {
-                        final stats = characterOptions[index];
-                        final charClass = stats.name.toLowerCase();
-
-                        return AnimatedBuilder(
-                          animation: _pageController,
-                          builder: (context, child) {
-                            double value = 1.0;
-                            if (_pageController.position.haveDimensions) {
-                              value = _pageController.page! - index;
-                              value =
-                                  (1 - (value.abs() * 0.3)).clamp(0.7, 1.0);
-                            } else {
-                              value = index == 0 ? 1.0 : 0.7;
-                            }
-                            return Center(
-                              child: SizedBox(
-                                height: 450 * value,
-                                width: 350 * value,
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: _buildCharacterCard(
-                            charClass,
-                            stats,
-                            index == _currentPage,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          context.translate('select_character')
+                              .toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                            letterSpacing: 3,
                           ),
-                        );
-                      },
+                        ),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          height: 480,
+                          child: PageView.builder(
+                            controller: _pageController,
+                            onPageChanged: (i) => setState(() {
+                              _currentPage = i;
+                              selectedCharacterClass =
+                                  characterOptions[i].name.toLowerCase();
+                            }),
+                            itemCount: characterOptions.length,
+                            itemBuilder: (context, index) {
+                              final charClass = characterOptions[index]
+                                  .name
+                                  .toLowerCase();
+                              final stats = characterOptions[index];
+                              return AnimatedBuilder(
+                                animation: _pageController,
+                                builder: (context, child) {
+                                  double value = 1.0;
+                                  if (_pageController
+                                      .position.haveDimensions) {
+                                    value =
+                                        _pageController.page! - index;
+                                    value = (1 - (value.abs() * 0.3))
+                                        .clamp(0.7, 1.0);
+                                  } else {
+                                    value = index == 0 ? 1.0 : 0.7;
+                                  }
+                                  return Center(
+                                    child: SizedBox(
+                                      height: 450 * value,
+                                      width: 350 * value,
+                                      child: child,
+                                    ),
+                                  );
+                                },
+                                child: _buildCharacterCard(
+                                  charClass,
+                                  stats,
+                                  index == _currentPage,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        GamepadHintBar(
+                          showBack: _inCharacterZone,
+                          confirmLabel:
+                          _inCharacterZone ? 'Select' : 'Confirm',
+                          backLabel: 'Back',
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
 
-              Positioned(top: 20, left: 20, child: _buildLanguageToggle()),
+              Positioned(
+                  top: 20, left: 20, child: _buildLanguageToggle()),
 
               Positioned(
                 top: 20,
                 right: 20,
                 child: ValueListenableBuilder<bool>(
                   valueListenable: GamepadManager().connected,
-                  builder: (context, isConnected, child) {
+                  builder: (context, isConnected, _) {
                     return Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
@@ -308,19 +341,16 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
                         color: Colors.black.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: isConnected ? Colors.green : Colors.grey,
-                          width: 1,
+                          color: isConnected
+                              ? Colors.green
+                              : Colors.grey,
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.gamepad,
-                            color: isConnected ? Colors.green : Colors.grey,
-                            size: 20,
-                          ),
-                        ],
+                      child: Icon(
+                        Icons.gamepad,
+                        color:
+                        isConnected ? Colors.green : Colors.grey,
+                        size: 20,
                       ),
                     );
                   },
@@ -330,55 +360,6 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildLanguageToggle() {
-    return AnimatedBuilder(
-      animation: LocalizationManager(),
-      builder: (context, child) {
-        final currentLocale = LocalizationManager().locale;
-        return PopupMenuButton<Locale>(
-          initialValue: currentLocale,
-          onSelected: (Locale locale) {
-            LocalizationManager().setLocale(locale);
-          },
-          child: Container(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white24),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.language, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  currentLocale.languageCode.toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          itemBuilder: (BuildContext context) =>
-          <PopupMenuEntry<Locale>>[
-            const PopupMenuItem<Locale>(
-              value: Locale('en'),
-              child: Text('English'),
-            ),
-            const PopupMenuItem<Locale>(
-              value: Locale('tr'),
-              child: Text('Türkçe'),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -404,28 +385,35 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
             onTap();
           },
           borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 20, vertical: 15),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.white24),
+              border: Border.all(
+                color: focused ? color : Colors.white24,
+                width: focused ? 2 : 1,
+              ),
               borderRadius: BorderRadius.circular(15),
               color: focused
-                  ? color.withOpacity(0.25)
-                  : Colors.black.withOpacity(0.3),
+                  ? color.withOpacity(0.15)
+                  : Colors.white.withOpacity(0.05),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                FaIcon(icon, color: color, size: 20),
-                const SizedBox(width: 20),
+                Icon(icon,
+                    color: focused ? color : Colors.white54,
+                    size: 24),
+                const SizedBox(width: 16),
                 Text(
                   label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.5,
+                  style: TextStyle(
+                    color: focused ? Colors.white : Colors.white70,
+                    fontSize: 16,
+                    fontWeight: focused
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    letterSpacing: 2,
                   ),
                 ),
               ],
@@ -437,78 +425,81 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
   }
 
   Widget _buildCharacterCard(
-      String charClass,
-      CharacterStats stats,
-      bool isSelected,
-      ) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? stats.color.withOpacity(0.3)
-            : Colors.grey[800],
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(
-          color: isSelected ? stats.color : Colors.transparent,
-          width: 4,
-        ),
-        boxShadow: isSelected
-            ? [
-          BoxShadow(
-            color: stats.color.withOpacity(0.5),
-            blurRadius: 30,
-            spreadRadius: 5,
+      String charClass, CharacterStats stats, bool isSelected) {
+    return GestureDetector(
+      onTap: () => setState(() {
+        selectedCharacterClass = charClass;
+        _inCharacterZone = false;
+      }),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? stats.color.withOpacity(0.3)
+              : Colors.grey[800],
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(
+            color: isSelected ? stats.color : Colors.transparent,
+            width: 4,
           ),
-        ]
-            : [],
-      ),
-      padding: const EdgeInsets.all(25),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              clipBehavior: Clip.none,
-              child: Transform.scale(
-                scale: 2.2,
-                child: Image.asset(
-                  'assets/images/$charClass.png',
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: 100),
+          boxShadow: isSelected
+              ? [
+            BoxShadow(
+              color: stats.color.withOpacity(0.5),
+              blurRadius: 30,
+              spreadRadius: 5,
+            ),
+          ]
+              : [],
+        ),
+        padding: const EdgeInsets.all(25),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                clipBehavior: Clip.none,
+                child: Transform.scale(
+                  scale: 2.2,
+                  child: Image.asset(
+                    'assets/images/$charClass.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 100),
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            context.translate(stats.name.toLowerCase()).toUpperCase(),
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: 2,
+            const SizedBox(height: 20),
+            Text(
+              context.translate(stats.name.toLowerCase()).toUpperCase(),
+              style: const TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 2,
+              ),
             ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            'Weapon: ${stats.weaponName}',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.white.withOpacity(0.7),
+            const SizedBox(height: 5),
+            Text(
+              'Weapon: ${stats.weaponName}',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.7),
+              ),
             ),
-          ),
-          const SizedBox(height: 15),
-          _buildStatBars(stats),
-        ],
+            const SizedBox(height: 15),
+            _buildStatBars(stats),
+          ],
+        ),
       ),
     );
   }
@@ -551,6 +542,46 @@ class _CharacterSelectionScreenState extends State<CharacterSelectionScreen>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLanguageToggle() {
+    return AnimatedBuilder(
+      animation: LocalizationManager(),
+      builder: (context, _) {
+        final locale = LocalizationManager().locale;
+        return PopupMenuButton<Locale>(
+          initialValue: locale,
+          onSelected: LocalizationManager().setLocale,
+          child: Container(
+            padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white24),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.language,
+                    color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  locale.languageCode.toUpperCase(),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: Locale('en'), child: Text('English')),
+            PopupMenuItem(value: Locale('tr'), child: Text('Türkçe')),
+          ],
+        );
+      },
     );
   }
 }

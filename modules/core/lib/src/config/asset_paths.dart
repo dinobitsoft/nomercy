@@ -6,39 +6,99 @@ class AssetPaths {
   AssetPaths._(); // Private constructor - static class only
 
   // Base directories
-  static const String images = 'images/';
-  static const String audio = 'audio/';
-  static const String maps = 'maps/';
+  static const String images = '';
+  static const String audio = '';
+  static const String maps = '';
 
   /// Character sprite sheets
   /// Structure: characterName -> animationType -> path
-  static const Map<String, Map<String, String>> characterSprites = {
+  static const Map<String, Map<String, dynamic>> characterSprites = {
     'knight': {
-      'idle': '${images}knight_idle.png',
-      'walk': '${images}knight_walk.png',
-      'attack': '${images}knight_attack.png',
-      'jump': '${images}knight_jump.png',
+      'idle':    '${images}knight_idle.png',
+      'walk':    [
+        '${images}warrior_walk_resized_left_leg_front.png',
+        '${images}warrior_walk_resized_legs_together_left_knee_front.png',
+        '${images}warrior_walk_resized_right_leg_front.png',
+        '${images}warrior_walk_resized_left_leg_front.png',
+        '${images}warrior_walk_resized_legs_together_left_knee_front.png',
+        '${images}warrior_walk_resized_left_leg_front.png',
+      ],
+      'run':     [
+        '${images}warrior_walk_resized_left_leg_front.png',
+        '${images}warrior_walk_resized_legs_together_left_knee_front.png',
+        '${images}warrior_walk_resized_right_leg_front.png',
+        '${images}warrior_walk_resized_left_leg_front.png',
+        '${images}warrior_walk_resized_legs_together_left_knee_front.png',
+        '${images}warrior_walk_resized_left_leg_front.png',
+      ],
+      'attack':  '${images}knight_attack.png',
+      'jump':    '${images}knight_jump.png',
       'landing': '${images}knight_landing.png',
     },
     'thief': {
-      'idle': '${images}thief_idle.png',
-      'walk': '${images}thief_walk.png',
-      'attack': '${images}thief_attack.png',
-      'jump': '${images}thief_jump.png',
+      'idle':    '${images}thief_idle.png',
+      'walk':    [
+        '${images}thief_idle.png',
+        '${images}thief_idle.png',
+        '${images}thief_idle.png',
+        '${images}thief_idle.png',
+        '${images}thief_idle.png',
+        '${images}thief_idle.png',
+      ],
+      'run':     [
+        '${images}thief_attack.png',
+        '${images}thief_attack.png',
+        '${images}thief_attack.png',
+        '${images}thief_attack.png',
+        '${images}thief_attack.png',
+        '${images}thief_attack.png',
+      ],
+      'attack':  '${images}thief_attack.png',
+      'jump':    '${images}thief_jump.png',
       'landing': '${images}thief_landing.png',
     },
     'wizard': {
-      'idle': '${images}wizard_idle.png',
-      'walk': '${images}wizard_walk.png',
-      'attack': '${images}wizard_attack.png',
-      'jump': '${images}wizard_jump.png',
+      'idle':    '${images}wizard_idle.png',
+      'walk':    [
+        '${images}wizard_idle.png',
+        '${images}wizard_idle.png',
+        '${images}wizard_idle.png',
+        '${images}wizard_idle.png',
+        '${images}wizard_idle.png',
+        '${images}wizard_idle.png',
+      ],
+      'run':     [
+        '${images}wizard_attack.png',
+        '${images}wizard_attack.png',
+        '${images}wizard_attack.png',
+        '${images}wizard_attack.png',
+        '${images}wizard_attack.png',
+        '${images}wizard_attack.png',
+      ],
+      'attack':  '${images}wizard_attack.png',
+      'jump':    '${images}wizard_jump.png',
       'landing': '${images}wizard_landing.png',
     },
     'trader': {
-      'idle': '${images}trader_idle.png',
-      'walk': '${images}trader_walk.png',
-      'attack': '${images}trader_attack.png',
-      'jump': '${images}trader_jump.png',
+      'idle':    '${images}trader_idle.png',
+      'walk':    [
+        '${images}trader_idle.png',
+        '${images}trader_idle.png',
+        '${images}trader_idle.png',
+        '${images}trader_idle.png',
+        '${images}trader_idle.png',
+        '${images}trader_idle.png',
+      ],
+      'run':     [
+        '${images}trader_attack.png',
+        '${images}trader_attack.png',
+        '${images}trader_attack.png',
+        '${images}trader_attack.png',
+        '${images}trader_attack.png',
+        '${images}trader_attack.png',
+      ],
+      'attack':  '${images}trader_attack.png',
+      'jump':    '${images}trader_jump.png',
       'landing': '${images}trader_landing.png',
     },
   };

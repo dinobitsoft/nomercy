@@ -1,0 +1,1 @@
+enum GamepadNavEvent { up, down, left, right, confirm, back, start }

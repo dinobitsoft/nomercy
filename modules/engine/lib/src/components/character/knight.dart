@@ -17,62 +17,10 @@ class Knight extends GameCharacter {
   );
 
   @override
-  double get jumpPower => -350;
+  ActionStrategy get actionStrategy => throw KnightActionStrategy();
 
   @override
-  void updateHumanControl(double dt) {
-    if (characterState.isStunned || characterState.isLanding || characterState.isDodging) return;
-
-    final gamepad = game.gamepadManager;
-
-    Vector2 inputDelta = game.joystick.relativeDelta;
-    if (gamepad.isGamepadConnected && gamepad.hasMovementInput()) {
-      inputDelta = gamepad.getJoystickDirection();
-    }
-
-    final moveSpeed = stats.dexterity / 2;
-    final moveMultiplier = characterState.isAttackCommitted ? 0.3 : 1.0;
-
-    // MOVEMENT
-    if (inputDelta.x != 0 && !characterState.isBlocking) {
-      performWalk(Vector2(inputDelta.x, 0), moveSpeed * 100 * moveMultiplier);
-    } else if (!characterState.isAttackCommitted && !characterState.isBlocking) {
-      performStopWalk();
-    }
-
-    // BLOCK — Y button or down-stick; use continuous press (not edge)
-    final blockInput = gamepad.isBlockPressed;
-    if (blockInput && characterState.groundPlatform != null) {
-      startBlock();
-      velocity.x = 0;
-    } else {
-      stopBlock();
-    }
-
-    // JUMP — edge-detected via handleJumpInput
-    final jumpInput = game.joystick.direction == JoystickDirection.up ||
-        gamepad.isJumpPressed;
-    if (!characterState.isBlocking && !characterState.isAttackCommitted) {
-      handleJumpInput(jumpInput);
-    } else {
-      prevJumpInput = jumpInput;
-    }
-
-    // DODGE — B button (edge-detected) OR joystick flick down+direction
-    // inputDelta.y > 0.5 = stick pushed down (positive Y = down in game coords)
-    final stickDodge = inputDelta.length > 0.5 && inputDelta.y > 0.5;
-    final buttonDodge = gamepad.isDodgeJustPressed();
-
-    if ((stickDodge || buttonDodge) &&
-        characterState.groundPlatform != null &&
-        !characterState.isBlocking &&
-        characterState.dodgeCooldown <= 0) {
-      final dodgeDir = inputDelta.x != 0
-          ? Vector2(inputDelta.x, 0)
-          : Vector2(facingRight ? 1 : -1, 0);
-      dodge(dodgeDir);
-    }
-  }
+  MovementStrategy get movementStrategy => KnightMovementStrategy();
 
   @override
   void updateBotControl(double dt) {

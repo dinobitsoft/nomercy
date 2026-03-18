@@ -5,3 +5,5 @@ export 'tactic/tactics.dart';
 export 'thief.dart';
 export 'trader.dart';
 export 'wizard.dart';
+export 'movement/movement.dart';
+export 'action/action.dart';

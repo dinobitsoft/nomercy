@@ -4,6 +4,7 @@ import 'package:core/core.dart';
 import 'package:engine/engine.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
+import 'package:gamepad/gamepad.dart';
 
 typedef Player = GameCharacter;
 typedef Enemy = GameCharacter;
@@ -17,6 +18,13 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
   final CharacterStats stats;
   final PlayerType playerType;
   BotTactic? botTactic;
+
+  ActionStrategy get actionStrategy;
+  double get jumpPower => actionStrategy.jumpPower;
+  double get doubleJumpPower => actionStrategy.jumpPower * actionStrategy.doubleJumpMultiplier;
+
+
+  MovementStrategy get movementStrategy;
 
   // Event bus for actions
   final EventBus _eventBus = EventBus();
@@ -41,6 +49,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
   // Animation
   SpriteAnimation? idleAnimation;
   SpriteAnimation? walkAnimation;
+  SpriteAnimation? runAnimation;
   SpriteAnimation? attackAnimation;
   SpriteAnimation? jumpAnimation;
   SpriteAnimation? landingAnimation;
@@ -119,7 +128,18 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       }
 
       // === WALK ANIMATION ===
+
       try {
+        final walkFrames = await _loadFrameSequence(characterName, 'walk');
+        walkAnimation = SpriteAnimation.spriteList(walkFrames, stepTime: 0.1);
+        print('  ✅ Loaded walk frames (${walkFrames.length})');
+      } catch (e) {
+        walkAnimation = idleAnimation;
+        print('  ⚠️ Walk frames not found, using idle');
+      }
+
+
+/*      try {
         final walkImage = await game.images.load('${characterName}_walk.png');
 
         if (walkImage.width > walkImage.height * 1.5) {
@@ -144,6 +164,16 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
         // Fallback to idle animation
         walkAnimation = idleAnimation;
         print('  ⚠️ Walk sprite not found, using idle');
+      }*/
+
+      // === RUN ANIMATION ===
+      try {
+        final runFrames = await _loadFrameSequence(characterName, 'run');
+        runAnimation = SpriteAnimation.spriteList(runFrames, stepTime: 0.07);
+        print('  ✅ Loaded run frames (${runFrames.length})');
+      } catch (e) {
+        runAnimation = walkAnimation;
+        print('  ⚠️ Run frames not found, using walk');
       }
 
       // === ATTACK ANIMATION ===
@@ -233,6 +263,109 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       spritesLoaded = false;
     }
   }
+
+  void handleMovementInput(Vector2 inputDelta) {
+    if (inputDelta.x == 0 || characterState.isBlocking) {
+      if (!characterState.isAttackCommitted && !characterState.isBlocking) {
+        performStopWalk();
+      }
+      return;
+    }
+
+    final direction = Vector2(inputDelta.x, 0);
+    final baseSpeed = stats.dexterity / 2;
+    final speed = movementStrategy.resolveSpeed(
+      baseSpeed: baseSpeed,
+      inputMagnitude: inputDelta.x.abs(),
+      isAttackCommitted: characterState.isAttackCommitted,
+    );
+
+    if (movementStrategy.isRunning(inputDelta.x.abs()) && !characterState.isAttackCommitted) {
+      performRun(direction, speed);
+    } else {
+      performWalk(direction, speed);
+    }
+  }
+
+  void handleBlockInput(GamepadManager gamepad) {
+    if (gamepad.isBlockPressed && characterState.groundPlatform != null) {
+      startBlock();
+      velocity.x = 0;
+    } else {
+      stopBlock();
+    }
+  }
+
+  void handleJumpFromInput(GamepadManager gamepad) {
+    final jumpPressed = game.joystick.direction == JoystickDirection.up ||
+        gamepad.isJumpPressed;
+    if (!characterState.isBlocking && !characterState.isAttackCommitted) {
+      handleJumpInput(jumpPressed);
+    } else {
+      prevJumpInput = jumpPressed;
+    }
+  }
+
+  void handleDodgeInput(GamepadManager gamepad, Vector2 inputDelta) {
+    final stickDodge = inputDelta.length > actionStrategy.dodgeStickThreshold &&
+        (inputDelta.y * actionStrategy.dodgeStickYSign) > actionStrategy.dodgeStickThreshold;
+    final buttonDodge = actionStrategy.dodgeEdgeDetect
+        ? gamepad.isDodgeJustPressed()
+        : gamepad.isDodgePressed;
+
+    if ((stickDodge || buttonDodge) &&
+        characterState.groundPlatform != null &&
+        !characterState.isBlocking &&
+        characterState.dodgeCooldown <= 0) {
+      final dir = inputDelta.x != 0
+          ? Vector2(inputDelta.x, 0)
+          : Vector2(facingRight ? 1 : -1, 0);
+      dodge(dir);
+    }
+  }
+
+  void updateHumanControl(double dt) {
+    if (characterState.isStunned || characterState.isLanding || characterState.isDodging) return;
+
+    final gamepad = game.gamepadManager;
+    Vector2 inputDelta = game.joystick.relativeDelta;
+    if (gamepad.isGamepadConnected && gamepad.hasMovementInput()) {
+      inputDelta = gamepad.getJoystickDirection();
+    }
+
+    handleMovementInput(inputDelta);
+    handleBlockInput(gamepad);
+    handleJumpFromInput(gamepad);
+    handleDodgeInput(gamepad, inputDelta);
+  }
+
+  Future<List<Sprite>> _loadFrameSequence(String characterName, String animType) async {
+    final entry = AssetPaths.characterSprites[characterName]?[animType];
+
+    if (entry is List<dynamic>) {
+      final sprites = <Sprite>[];
+      for (final path in entry) {
+        final image = await game.images.load(path as String);
+        sprites.add(Sprite(image));
+      }
+      if (sprites.isEmpty) throw Exception('No frames loaded for $characterName/$animType');
+      return sprites;
+    }
+
+    // Fallback: numbered files knight_walk_1..6
+    final sprites = <Sprite>[];
+    for (int i = 1; i <= 6; i++) {
+      try {
+        final image = await game.images.load('${characterName}_${animType}_$i.png');
+        sprites.add(Sprite(image));
+      } catch (_) {
+        break;
+      }
+    }
+    if (sprites.isEmpty) throw Exception('No frames found for $characterName/$animType');
+    return sprites;
+  }
+
 
   @override
   void update(double dt) {
@@ -354,6 +487,9 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       case CharacterAnimState.walking:
         newAnimation = walkAnimation;
         break;
+      case CharacterAnimState.running:
+        newAnimation = runAnimation ?? walkAnimation;
+        break;
       case CharacterAnimState.jumping:
       case CharacterAnimState.falling:
         newAnimation = jumpAnimation;
@@ -384,7 +520,8 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
         previousAnimation: _currentAnimationState,
         newAnimation: stateString,
         isLooping: currentStateEnum == CharacterAnimState.idle ||
-            currentStateEnum == CharacterAnimState.walking,
+            currentStateEnum == CharacterAnimState.walking ||
+            currentStateEnum == CharacterAnimState.running,
       ));
 
       _currentAnimationState = stateString;
@@ -397,6 +534,26 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
 
     // Apply facing direction
     scale.x = facingRight ? 1 : -1;
+  }
+
+  void performRun(Vector2 direction, double speed) {
+    velocity.x = direction.x * speed;
+    facingRight = direction.x > 0;
+
+    if ((direction.x > 0 && !facingRight) || (direction.x < 0 && facingRight)) {
+      _eventBus.emit(CharacterTurnedEvent(
+        characterId: stats.name,
+        position: position.clone(),
+        nowFacingRight: direction.x > 0,
+      ));
+    }
+
+    _eventBus.emit(CharacterRunStartedEvent(
+      characterId: stats.name,
+      position: position.clone(),
+      direction: direction,
+      speed: speed,
+    ));
   }
 
   void applyPhysics(double dt) {
@@ -637,7 +794,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     _blockStartTime = null;
   }
 
-  void updateHumanControl(double dt);
   void updateBotControl(double dt);
   void attack();
 
@@ -753,12 +909,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       stunDuration: 0.5,
     ));
   }
-
-  /// Base jump power — subclasses override via [jumpPower] getter.
-  double get jumpPower => GameConfig.jumpVelocity;
-
-  /// 85 % of first jump for the double-jump burst.
-  double get doubleJumpPower => jumpPower * 0.85;
 
   /// Call from subclass updateHumanControl / bot AI.
   /// Pass the RAW (non-edge-detected) bool from input this frame.

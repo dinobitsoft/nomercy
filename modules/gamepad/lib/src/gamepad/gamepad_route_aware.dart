@@ -2,40 +2,48 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'gamepad_nav_service.dart';
 
-/// Singleton route observer — register in MaterialApp.navigatorObservers.
+/// Singleton route observer — must be registered in MaterialApp.navigatorObservers.
 final gamepadRouteObserver = RouteObserver<ModalRoute<void>>();
 
-/// Mixin for [StatefulWidget] screens needing reliable gamepad input.
+/// Mixin for [StatefulWidget] screens that need reliable gamepad navigation.
 ///
-/// Key fix: subscribes on [didChangeDependencies] so the **home/initial route**
-/// (which never receives [didPush] from [RouteObserver]) also gets events.
-/// [didPushNext] / [didPop] unsubscribe when the route is not the top-most.
+/// ## Why this exists
+/// [RouteObserver] never fires [didPush] for the **initial/home route** because
+/// that route is not pushed onto an existing navigator stack — it is the stack.
+/// The fix: subscribe to [GamepadNavService.events] eagerly inside
+/// [didChangeDependencies], where the [ModalRoute] is already available.
 ///
-/// Usage:
+/// For all subsequently pushed routes [didPush] is also called and re-subscribes
+/// (cancel + recreate) to ensure a fresh subscription after any transition.
+/// [didPushNext] / [didPop] pause and resume the subscription correctly.
+///
+/// ## Usage
 /// ```dart
 /// class _MyScreenState extends State<MyScreen>
 ///     with GamepadRouteAware<MyScreen> {
 ///   @override
-///   void onGamepadEvent(GamepadNavEvent event) { … }
+///   void onGamepadEvent(GamepadNavEvent event) {
+///     // handle event — only called when this route is the active top route
+///   }
 /// }
 /// ```
 mixin GamepadRouteAware<T extends StatefulWidget> on State<T>
 implements RouteAware {
-  StreamSubscription<GamepadNavEvent>? _gamepadSub;
-  bool _subscribedToObserver = false;
 
-  // ── RouteAware lifecycle ──────────────────────────────────────────────────
+  StreamSubscription<GamepadNavEvent>? _gamepadSub;
+  bool _observerRegistered = false;
+
+  // ── Flutter lifecycle ────────────────────────────────────────────────────────
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final route = ModalRoute.of(context);
-    if (route != null && !_subscribedToObserver) {
-      _subscribedToObserver = true;
+    if (route != null && !_observerRegistered) {
+      _observerRegistered = true;
       gamepadRouteObserver.subscribe(this, route);
-      // Subscribe immediately — handles the home route where didPush is never
-      // called by RouteObserver (the initial route is not "pushed" onto an
-      // existing navigator, so the observer never fires didPush for it).
+      // Subscribe immediately — [RouteObserver] never fires [didPush] for the
+      // home route, so this call ensures it receives events from the start.
       _subscribe();
     }
   }
@@ -47,23 +55,25 @@ implements RouteAware {
     super.dispose();
   }
 
-  /// Called when this route is pushed for the first time (non-home routes).
+  // ── RouteAware callbacks ─────────────────────────────────────────────────────
+
+  /// Route is now the top-most visible route (pushed for the first time).
   @override
   void didPush() => _subscribe();
 
-  /// Called when a route above this one is popped, revealing this route.
+  /// A route above this one was popped, making this route visible again.
   @override
   void didPopNext() => _subscribe();
 
-  /// Called when this route is covered by a new route pushed on top.
+  /// A new route was pushed on top of this one — pause input.
   @override
   void didPushNext() => _unsubscribe();
 
-  /// Called when this route is popped off the navigator.
+  /// This route was popped off the navigator.
   @override
   void didPop() => _unsubscribe();
 
-  // ── Stream management ─────────────────────────────────────────────────────
+  // ── Stream management ────────────────────────────────────────────────────────
 
   void _subscribe() {
     _gamepadSub?.cancel();
@@ -77,7 +87,8 @@ implements RouteAware {
     _gamepadSub = null;
   }
 
-  /// Override to handle gamepad navigation events.
-  /// Only invoked while this route is the active top-most route.
+  // ── Override point ───────────────────────────────────────────────────────────
+
+  /// Called with each [GamepadNavEvent] while this route is the active top route.
   void onGamepadEvent(GamepadNavEvent event);
 }
