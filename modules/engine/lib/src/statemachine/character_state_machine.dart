@@ -1,6 +1,7 @@
 // modules/core/lib/src/statemachine/character_state_machine.dart
 
 import 'package:core/core.dart';
+
 import 'character_animation_state.dart';
 import 'game_character_state.dart';
 

@@ -1,8 +1,5 @@
 import 'package:engine/engine.dart';
 
-import 'bot_decision.dart';
-import 'bot_state.dart';
-
 abstract class IntelligentBotAI {
   String get name;
   BotPersonality get personality;

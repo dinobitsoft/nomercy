@@ -2,9 +2,6 @@ import 'dart:math' as math;
 
 import 'package:engine/engine.dart';
 import 'package:flame/components.dart';
-import 'bot_decision.dart';
-import 'bot_state.dart';
-import 'intelligent_bot_ai.dart';
 
 class SmartBotAI implements IntelligentBotAI {
   @override

@@ -1,3 +1,5 @@
+import 'package:engine/engine.dart';
+
 abstract class ActionStrategy {
   double get jumpPower;
   double get doubleJumpMultiplier => 0.85;
@@ -20,4 +22,9 @@ abstract class ActionStrategy {
   // Computed step time given the number of frames in the loaded clip.
   double attackStepTime(int frameCount) =>
       frameCount > 0 ? attackDuration / frameCount : attackDuration;
+
+  /// Skills available to this character class.
+  /// Slot 0 = primary skill (L1 / shoulder button).
+  /// Slot 1 = secondary skill (R1 / shoulder button).
+  List<Skill> get skills;
 }
