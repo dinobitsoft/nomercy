@@ -152,26 +152,12 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
 
       // === ATTACK ANIMATION ===
       try {
-        final attackImage = await game.images.load('${characterName}_attack.png');
-        if (attackImage.width > attackImage.height * 1.5) {
-          final frameCount = (attackImage.width / attackImage.height).round();
-          attackAnimation = SpriteAnimation.fromFrameData(
-            attackImage,
-            SpriteAnimationData.sequenced(
-              amount: frameCount,
-              stepTime: 0.06,
-              textureSize: Vector2(attackImage.height.toDouble(), attackImage.height.toDouble()),
-              loop: false,
-            ),
-          );
-          print('  ✅ Loaded attack sprite sheet ($frameCount frames)');
-        } else {
-          attackAnimation = SpriteAnimation.spriteList([Sprite(attackImage)], stepTime: 0.1);
-          print('  ✅ Loaded attack sprite');
-        }
+        final attackFrames = await _loadFrameSequence(characterName, 'attack');
+        attackAnimation = SpriteAnimation.spriteList(attackFrames, stepTime: 0.15, loop: false);
+        print('  ✅ Loaded attack frames (${attackFrames.length})');
       } catch (e) {
         attackAnimation = idleAnimation;
-        print('  ⚠️ Attack sprite not found, using idle');
+        print('  ⚠️ Attack frames not found, using idle');
       }
 
       // === JUMP ANIMATION ===
