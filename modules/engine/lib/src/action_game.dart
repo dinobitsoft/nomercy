@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:core/core.dart';
 import 'package:engine/engine.dart';
 import 'package:flame/components.dart';
@@ -7,9 +8,9 @@ import 'package:flame/game.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gamepad/gamepad.dart';
 import 'package:service/service.dart';
 import 'package:ui/ui.dart';
-import 'package:gamepad/gamepad.dart';
 
 import 'components/platform/platform_factory.dart';
 import 'components/util/gamepad_debug_overlay.dart';

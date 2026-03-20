@@ -1,6 +1,5 @@
 // modules/engine/lib/src/map/platform_factory.dart
 
-import 'package:core/core.dart';
 import 'package:engine/engine.dart';
 import 'package:flame/components.dart';
 

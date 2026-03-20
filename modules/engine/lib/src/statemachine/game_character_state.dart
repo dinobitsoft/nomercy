@@ -1,9 +1,6 @@
 import 'package:core/core.dart';
 import 'package:engine/engine.dart';
 import 'package:flame/components.dart';
-import 'package:core/core.dart';
-import 'package:engine/engine.dart';
-import 'package:flame/components.dart';
 
 class GameCharacterState {
   // State
