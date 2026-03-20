@@ -75,13 +75,8 @@ class ItemSystem {
   // ==========================================
 
   void _onCharacterKilled(CharacterKilledEvent event) {
-    // Don't drop loot for player death
     if (event.victimId == game.character.stats.name) return;
-
-    // Drop loot if enabled
-    if (event.shouldDropLoot) {
-      dropLoot(event.deathPosition);
-    }
+    if (event.shouldDropLoot) dropLoot(event.deathPosition, victimId: event.victimId);
   }
 
   void _onItemDropped(ItemDroppedEvent event) {
@@ -158,24 +153,36 @@ class ItemSystem {
   // LOOT DROPPING
   // ==========================================
 
-  /// Drop loot at position
-  void dropLoot(Vector2 position) {
-    // Determine what to drop based on probabilities
+  /// Drop loot at [position]. If [victimId] is provided, the victim's equipped
+  /// weapon is included in the drop (50% chance) alongside the normal loot roll.
+  void dropLoot(Vector2 position, {String? victimId}) {
+    // Normal consumable drop
     final roll = _random.nextDouble();
-
-    if (roll < 0.5) {
-      // 50% - Health potion
-      final itemId = 'health_potion_${DateTime.now().millisecondsSinceEpoch}';
+    if (roll < 0.45) {
       _eventBus.emit(ItemDroppedEvent(
-        itemId: itemId,
+        itemId: 'health_potion_${DateTime.now().millisecondsSinceEpoch}',
         itemType: 'healthPotion',
         dropPosition: position.clone(),
       ));
-    } else if (roll < 0.75) {
-      // 25% - Random weapon
+    }
+
+    // Weapon drop — prefer victim's actual equipped weapon; fallback to class default
+    if (victimId != null && _random.nextDouble() < 0.65) {
+      final victim = game.findCharacterById(victimId);
+      final weapon = victim?.equippedWeapon ?? _defaultWeaponForVictim(victimId);
+      if (weapon != null) dropWeapon(weapon, position);
+    } else if (victimId == null && _random.nextDouble() < 0.25) {
       _dropRandomWeapon(position);
     }
-    // 25% - Nothing
+  }
+
+  /// Force-drop a specific [weapon] at [position].
+  void dropWeapon(Weapon weapon, Vector2 position) {
+    _eventBus.emit(ItemDroppedEvent(
+      itemId:       weapon.id,
+      itemType:     'weapon',
+      dropPosition: position.clone(),
+    ));
   }
 
   /// Drop random weapon
@@ -243,6 +250,14 @@ class ItemSystem {
 
     // Remove potion from inventory
     game.inventory.remove(potion);
+  }
+
+  Weapon? _defaultWeaponForVictim(String victimId) {
+    // Try to infer class from the unique ID prefix, e.g. "bot_knight_0"
+    for (final cls in ['knight','thief','wizard','trader']) {
+      if (victimId.toLowerCase().contains(cls)) return Weapon.defaultFor(cls);
+    }
+    return null;
   }
 
   // ==========================================

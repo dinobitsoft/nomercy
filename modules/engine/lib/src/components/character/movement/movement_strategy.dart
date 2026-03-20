@@ -4,6 +4,11 @@ abstract class MovementStrategy {
   double get runThreshold;
   double get attackMoveMultiplier;
 
+  // Animation step times (seconds per frame)
+  double get idleStepTime  => 0.18;
+  double get walkStepTime  => 0.12;
+  double get runStepTime   => 0.08;
+
   double resolveSpeed({
     required double baseSpeed,
     required double inputMagnitude,

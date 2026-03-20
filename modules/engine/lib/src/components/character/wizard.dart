@@ -6,124 +6,69 @@ import 'package:flutter/material.dart';
 class Wizard extends GameCharacter {
   final EventBus _eventBus = EventBus();
 
-  @override
-  double get jumpPower => -280;
-
-  @override
-  late final ActionStrategy actionStrategy = WizardActionStrategy();
-
-  @override
-  late final MovementStrategy movementStrategy = WizardMovementStrategy();
+  @override late final ActionStrategy  actionStrategy  = WizardActionStrategy();
+  @override late final MovementStrategy movementStrategy = WizardMovementStrategy();
 
   Wizard({
     required super.position,
     required super.playerType,
     BotTactic? botTactic,
     super.customId,
-  }) : super(
-    botTactic: botTactic ?? DefensiveTactic(),
-    stats: WizardStats(),
-  );
+  }) : super(botTactic: botTactic ?? DefensiveTactic(), stats: WizardStats());
 
   @override
   void updateBotControl(double dt) {
-    if (botTactic != null && !characterState.isStunned && !characterState.isLanding && characterState.health > 0) {
+    if (botTactic != null &&
+        !characterState.isStunned &&
+        !characterState.isLanding &&
+        characterState.health > 0) {
       botTactic!.execute(this, game.character, dt);
-      _botAdvancedMechanics(dt);
+      _botMechanics();
     }
   }
 
-  void _botAdvancedMechanics(double dt) {
-    final distanceToPlayer = position.distanceTo(game.character.position);
-    if (distanceToPlayer < 200 && game.character.characterState.isAttacking &&
-        !characterState.isDodging && characterState.stamina > 30) {
-      startBlock();
-    } else if (characterState.isBlocking && (!game.character.characterState.isAttacking || distanceToPlayer > 200)) {
-      stopBlock();
-    }
-
-    final nearbyProjectiles = game.projectiles.where((p) {
-      return p.owner != null &&
-          position.distanceTo(p.position) < 100 &&
-          characterState.dodgeCooldown <= 0;
-    }).toList();
-
-    if (nearbyProjectiles.isNotEmpty && characterState.stamina > 20 && !characterState.isBlocking) {
-      final projectile = nearbyProjectiles.first;
-      final dodgeDir = Vector2(
-          projectile.direction.x > 0 ? -1 : 1,
-          0
-      );
-      dodge(dodgeDir);
+  void _botMechanics() {
+    final dist = position.distanceTo(game.character.position);
+    if (dist < 200 && game.character.characterState.isAttacking &&
+        !characterState.isDodging && characterState.stamina > 30) { startBlock(); }
+    else if (characterState.isBlocking &&
+        (!game.character.characterState.isAttacking || dist > 200)) { stopBlock(); }
+    final projectiles = game.projectiles
+        .where((p) => p.owner != null && position.distanceTo(p.position) < 100 && characterState.dodgeCooldown <= 0)
+        .toList();
+    if (projectiles.isNotEmpty && characterState.stamina > 20 && !characterState.isBlocking) {
+      dodge(Vector2(projectiles.first.direction.x > 0 ? -1 : 1, 0));
     }
   }
 
   @override
   void attack() {
+    if (equippedWeapon != null) { performWeaponAttack(); return; }
     if (characterState.isBlocking || characterState.health <= 0) return;
-
     if (!prepareAttackWithEvent()) return;
 
-    characterState.stamina -= 5;
-
-    final damageMultiplier = 1.0 + (characterState.comboCount - 1) * 0.25;
-    final isPowerShot = characterState.comboCount >= 3;
-    final direction = facingRight ? Vector2(1, 0) : Vector2(-1, 0);
-
-    // CRITICAL FIX: Ensure projectile spawns at visible position
-    final spawnOffset = facingRight ? Vector2(40, 0) : Vector2(-40, 0);
-    final spawnPos = position + spawnOffset;
-
-    final projectile = Projectile(
-      position: spawnPos,
-      direction: direction,
-      damage: stats.attackDamage * damageMultiplier,
-      owner: playerType == PlayerType.human ? this : null,
-      enemyOwner: playerType == PlayerType.bot ? this : null,
-      color: isPowerShot ? Colors.blue : Colors.orange,
-      type: 'fireball',
+    final isPower = characterState.comboCount >= 3;
+    final origin  = position.clone() + (facingRight ? Vector2(40,0) : Vector2(-40,0));
+    final proj    = Projectile(
+      position:   origin,
+      direction:  facingRight ? Vector2(1,0) : Vector2(-1,0),
+      damage:     stats.attackDamage * (1.0 + (characterState.comboCount-1)*0.25),
+      owner:      isPlayer ? this : null,
+      enemyOwner: isBot    ? this : null,
+      color:      isPower ? Colors.blue : Colors.orange,
+      type:       'fireball',
     );
-
-    // CRITICAL: Set correct priority
-    projectile.priority = 75;
-
-    // CRITICAL: Add in correct order
-    game.add(projectile);
-    game.world.add(projectile);
-    game.projectiles.add(projectile);
-
-    print('🔮 Wizard ${playerType == PlayerType.bot ? "BOT" : "PLAYER"} created fireball at ${spawnPos.x.toInt()}, ${spawnPos.y.toInt()}');
-
-    _eventBus.emit(ProjectileFiredEvent(
-      shooterId: stats.name,
-      projectileType: 'fireball',
-      position: spawnPos,
-      direction: direction,
-      damage: projectile.damage,
-    ));
-
-    if (!characterState.isAirborne) {
-      velocity.x -= (facingRight ? 30 : -30);
-    }
-
+    proj.priority = 75;
+    game.add(proj); game.world.add(proj); game.projectiles.add(proj);
+    if (!characterState.isAirborne) velocity.x -= facingRight ? 30 : -30;
     _eventBus.emit(PlaySFXEvent(soundId: 'fireball_shot', volume: 0.8));
-
-    if (isPowerShot) {
-      print('${stats.name}: POWER FIREBALL!');
-    }
   }
 }
 
 class WizardStats extends CharacterStats {
   WizardStats() : super(
-    name: 'Wizard',
-    power: 6,
-    magic: 18,
-    dexterity: 7,
-    intelligence: 14,
-    weaponName: 'Fireball',
-    attackRange: 10.0,
-    attackDamage: 20,
+    name: 'Wizard', power: 6, magic: 18, dexterity: 7, intelligence: 14,
+    weaponName: 'Fireball', attackRange: 10.0, attackDamage: 20,
     color: Colors.purple,
   );
 }
