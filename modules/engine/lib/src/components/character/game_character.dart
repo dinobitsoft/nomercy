@@ -76,10 +76,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
 
   static int _idCounter = 0;
 
-  // Helper method to check if this is the player
   bool get isPlayer => playerType == PlayerType.human;
-
-  // Helper method to check if this is a bot
   bool get isBot => playerType == PlayerType.bot;
 
   @override
@@ -95,29 +92,35 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     try {
       // === IDLE ANIMATION ===
       try {
-        final idleImage = await game.images.load('${characterName}_idle.png');
-
-        // Check if it's a sprite sheet (width > height means multiple frames)
-        if (idleImage.width > idleImage.height * 1.5) {
-          // Sprite sheet detected
-          final frameCount = (idleImage.width / idleImage.height).round();
-          idleAnimation = SpriteAnimation.fromFrameData(
-            idleImage,
-            SpriteAnimationData.sequenced(
-              amount: frameCount,
-              stepTime: 0.2,
-              textureSize: Vector2(idleImage.height.toDouble(), idleImage.height.toDouble()),
-            ),
-          );
-          print('  ✅ Loaded idle sprite sheet ($frameCount frames)');
+        final idlePaths = AssetPaths.characterSprites[characterName]?['idle'];
+        if (idlePaths is List<dynamic> && idlePaths.isNotEmpty) {
+          final frames = <Sprite>[];
+          for (final path in idlePaths) {
+            final image = await game.images.load(path as String);
+            frames.add(Sprite(image));
+          }
+          idleAnimation = SpriteAnimation.spriteList(frames, stepTime: 0.2);
+          print('  ✅ Loaded idle frames (${frames.length})');
         } else {
-          // Single sprite
-          final idleSprite = Sprite(idleImage);
-          idleAnimation = SpriteAnimation.spriteList([idleSprite], stepTime: 0.5);
-          print('  ✅ Loaded idle sprite');
+          // Fallback: single image file
+          final idleImage = await game.images.load('${characterName}_idle.png');
+          if (idleImage.width > idleImage.height * 1.5) {
+            final frameCount = (idleImage.width / idleImage.height).round();
+            idleAnimation = SpriteAnimation.fromFrameData(
+              idleImage,
+              SpriteAnimationData.sequenced(
+                amount: frameCount,
+                stepTime: 0.2,
+                textureSize: Vector2(idleImage.height.toDouble(), idleImage.height.toDouble()),
+              ),
+            );
+            print('  ✅ Loaded idle sprite sheet ($frameCount frames)');
+          } else {
+            idleAnimation = SpriteAnimation.spriteList([Sprite(idleImage)], stepTime: 0.5);
+            print('  ✅ Loaded idle sprite');
+          }
         }
       } catch (e) {
-        // Fallback to base character sprite
         try {
           final baseSprite = await game.loadSprite('$characterName.png');
           idleAnimation = SpriteAnimation.spriteList([baseSprite], stepTime: 1.0);
@@ -128,7 +131,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       }
 
       // === WALK ANIMATION ===
-
       try {
         final walkFrames = await _loadFrameSequence(characterName, 'walk');
         walkAnimation = SpriteAnimation.spriteList(walkFrames, stepTime: 0.1);
@@ -137,34 +139,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
         walkAnimation = idleAnimation;
         print('  ⚠️ Walk frames not found, using idle');
       }
-
-
-/*      try {
-        final walkImage = await game.images.load('${characterName}_walk.png');
-
-        if (walkImage.width > walkImage.height * 1.5) {
-          // Walk sprite sheet
-          final frameCount = (walkImage.width / walkImage.height).round();
-          walkAnimation = SpriteAnimation.fromFrameData(
-            walkImage,
-            SpriteAnimationData.sequenced(
-              amount: frameCount,
-              stepTime: 0.1,  // Faster for smooth walk cycle
-              textureSize: Vector2(walkImage.height.toDouble(), walkImage.height.toDouble()),
-            ),
-          );
-          print('  ✅ Loaded walk sprite sheet ($frameCount frames)');
-        } else {
-          // Single walk sprite
-          final walkSprite = Sprite(walkImage);
-          walkAnimation = SpriteAnimation.spriteList([walkSprite], stepTime: 0.15);
-          print('  ✅ Loaded walk sprite');
-        }
-      } catch (e) {
-        // Fallback to idle animation
-        walkAnimation = idleAnimation;
-        print('  ⚠️ Walk sprite not found, using idle');
-      }*/
 
       // === RUN ANIMATION ===
       try {
@@ -178,34 +152,17 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
 
       // === ATTACK ANIMATION ===
       try {
-        final attackImage = await game.images.load('${characterName}_attack.png');
-
-        if (attackImage.width > attackImage.height * 1.5) {
-          final frameCount = (attackImage.width / attackImage.height).round();
-          attackAnimation = SpriteAnimation.fromFrameData(
-            attackImage,
-            SpriteAnimationData.sequenced(
-              amount: frameCount,
-              stepTime: 0.06,
-              textureSize: Vector2(attackImage.height.toDouble(), attackImage.height.toDouble()),
-              loop: false,  // Attack shouldn't loop
-            ),
-          );
-          print('  ✅ Loaded attack sprite sheet ($frameCount frames)');
-        } else {
-          final attackSprite = Sprite(attackImage);
-          attackAnimation = SpriteAnimation.spriteList([attackSprite], stepTime: 0.1);
-          print('  ✅ Loaded attack sprite');
-        }
+        final attackFrames = await _loadFrameSequence(characterName, 'attack');
+        attackAnimation = SpriteAnimation.spriteList(attackFrames, stepTime: 0.15, loop: false);
+        print('  ✅ Loaded attack frames (${attackFrames.length})');
       } catch (e) {
         attackAnimation = idleAnimation;
-        print('  ⚠️ Attack sprite not found, using idle');
+        print('  ⚠️ Attack frames not found, using idle');
       }
 
       // === JUMP ANIMATION ===
       try {
         final jumpImage = await game.images.load('${characterName}_jump.png');
-
         if (jumpImage.width > jumpImage.height * 1.5) {
           final frameCount = (jumpImage.width / jumpImage.height).round();
           jumpAnimation = SpriteAnimation.fromFrameData(
@@ -218,8 +175,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
           );
           print('  ✅ Loaded jump sprite sheet ($frameCount frames)');
         } else {
-          final jumpSprite = Sprite(jumpImage);
-          jumpAnimation = SpriteAnimation.spriteList([jumpSprite], stepTime: 0.1);
+          jumpAnimation = SpriteAnimation.spriteList([Sprite(jumpImage)], stepTime: 0.1);
           print('  ✅ Loaded jump sprite');
         }
       } catch (e) {
@@ -230,7 +186,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       // === LANDING ANIMATION ===
       try {
         final landingImage = await game.images.load('${characterName}_landing.png');
-
         if (landingImage.width > landingImage.height * 1.5) {
           final frameCount = (landingImage.width / landingImage.height).round();
           landingAnimation = SpriteAnimation.fromFrameData(
@@ -244,8 +199,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
           );
           print('  ✅ Loaded landing sprite sheet ($frameCount frames)');
         } else {
-          final landingSprite = Sprite(landingImage);
-          landingAnimation = SpriteAnimation.spriteList([landingSprite], stepTime: 0.1);
+          landingAnimation = SpriteAnimation.spriteList([Sprite(landingImage)], stepTime: 0.1);
           print('  ✅ Loaded landing sprite');
         }
       } catch (e) {
@@ -253,10 +207,8 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
         print('  ⚠️ Landing sprite not found, using idle');
       }
 
-      // Set initial animation
       animation = idleAnimation;
       spritesLoaded = true;
-
       print('✅ All sprites loaded for $characterName');
     } catch (e) {
       print('❌ Fatal error loading sprites for $characterName: $e');
@@ -371,33 +323,24 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
   void update(double dt) {
     super.update(dt);
 
-    // Skip all updates if dead
     if (characterState.health <= 0) {
       velocity = Vector2.zero();
       return;
     }
 
-    // Update state machine timer
     _stateMachine.update(dt);
 
-    // Sync live state to logical state
     characterState.wasGrounded = characterState.groundPlatform != null;
     characterState.velocity = velocity;
     characterState.groundPlatform = characterState.groundPlatform;
-    // Update timers first
-    _updateTimers(dt);
 
-    // Handle state-specific updates (stamina, dodge, etc.)
+    _updateTimers(dt);
     _handleStates(dt);
 
-    // Update based on type (skip if stunned)
     if (!characterState.isStunned && characterState.health > 0) {
-      // Landing allows limited control but not full actions
       if (characterState.isLanding && characterState.landingAnimationTimer > 0.1) {
-        // Can only apply friction during landing
         velocity.x *= GameConfig.landingFriction;
       } else {
-        // Full control
         if (playerType == PlayerType.human) {
           updateHumanControl(dt);
         } else {
@@ -406,13 +349,10 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       }
     }
 
-    // Apply physics BEFORE checking ground state
     applyPhysics(dt);
 
-    // NOW check ground state changes AFTER physics
     final isGroundedNow = characterState.groundPlatform != null;
 
-    // Detect takeoff (was grounded, now airborne)
     if (characterState.wasGrounded && !isGroundedNow && velocity.y < GameConfig.maxLandingUpwardVelocity) {
       characterState.jumpAnimationTimer = 0.3;
       characterState.isAirborne = true;
@@ -426,17 +366,15 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       ));
     }
 
-    // Detect landing (was airborne, now grounded)
     if (!characterState.wasGrounded && isGroundedNow && velocity.y > GameConfig.landingVelocityThreshold) {
       handleLandingWithEvent();
       characterState.landingAnimationTimer = 0.25;
       characterState.isLanding = true;
       characterState.isAirborne = false;
       characterState.isJumping = false;
-      characterState.hasDoubleJumped = false; // ← RESET double jump on land
+      characterState.hasDoubleJumped = false;
     }
 
-    // Update airborne state
     if (isGroundedNow) {
       characterState.isAirborne = false;
       characterState.airborneTime = 0;
@@ -446,13 +384,10 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       characterState.airborneTime += dt;
     }
 
-    // Update animation using state machine
     updateAnimationWithEvents();
 
-    // Update size
     size.y = characterState.isCrouching ? baseHeight / 2 : baseHeight;
 
-    // Emit idle event if truly idle
     if (isGroundedNow && velocity.x.abs() < GameConfig.stopThreshold && !characterState.isAttacking &&
         !characterState.isBlocking && !characterState.isDodging && !characterState.isJumping && !characterState.isAirborne) {
       if (_currentAnimationState != 'idle') {
@@ -464,20 +399,13 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     }
   }
 
-  /// Enhanced animation update with proper state machine integration
   void updateAnimationWithEvents() {
     if (!spritesLoaded) return;
 
-    // Evaluate what state we SHOULD be in
     final desiredState = _stateMachine.evaluateState(characterState);
-
-    // Try to change state (respects transition rules)
     final transitionSucceeded = _stateMachine.requestStateChange(desiredState);
-
-    // Get current state from machine
     final currentStateEnum = _stateMachine.currentState;
 
-    // Map state to animation
     SpriteAnimation? newAnimation;
 
     switch (currentStateEnum) {
@@ -503,14 +431,13 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       case CharacterAnimState.dodging:
       case CharacterAnimState.blocking:
       case CharacterAnimState.stunned:
-        newAnimation = idleAnimation; // Fallback
+        newAnimation = idleAnimation;
         break;
       case CharacterAnimState.dead:
         newAnimation = null;
         break;
     }
 
-    // Only emit event if state ACTUALLY changed
     if (transitionSucceeded) {
       final stateString = currentStateEnum.toString().split('.').last;
 
@@ -527,26 +454,26 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       _currentAnimationState = stateString;
     }
 
-    // Apply animation if different
     if (newAnimation != null && animation != newAnimation) {
       animation = newAnimation;
     }
 
-    // Apply facing direction
     scale.x = facingRight ? 1 : -1;
   }
 
   void performRun(Vector2 direction, double speed) {
-    velocity.x = direction.x * speed;
+    final wasRight = facingRight;
     facingRight = direction.x > 0;
 
-    if ((direction.x > 0 && !facingRight) || (direction.x < 0 && facingRight)) {
+    if (facingRight != wasRight) {
       _eventBus.emit(CharacterTurnedEvent(
         characterId: stats.name,
         position: position.clone(),
-        nowFacingRight: direction.x > 0,
+        nowFacingRight: facingRight,
       ));
     }
+
+    velocity.x = direction.x * speed;
 
     _eventBus.emit(CharacterRunStartedEvent(
       characterId: stats.name,
@@ -557,43 +484,22 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
   }
 
   void applyPhysics(double dt) {
-    // Apply gravity (only when not on ground and not climbing)
     if (characterState.groundPlatform == null && !characterState.isClimbing && !characterState.isDodging) {
       velocity.y += GameConfig.gravity * dt;
       velocity.y = math.min(velocity.y, GameConfig.maxFallSpeed);
     }
 
-    // Ground friction
     if (characterState.groundPlatform != null && !characterState.isAttackCommitted && !characterState.isDodging) {
       final currentFriction = characterState.isLanding ? GameConfig.landingFriction : GameConfig.groundFriction;
       velocity.x *= currentFriction;
       if (velocity.x.abs() < GameConfig.stopThreshold) velocity.x = 0;
     }
 
-    // Air resistance
     if (characterState.groundPlatform == null && !characterState.isDodging) {
       velocity.x *= GameConfig.airResistance;
     }
 
-    // ── collision ─────────────────────────────────────────────────────────────
-    // Use CURRENT position (not proposed) so we can snap from any starting
-    // offset — including spawning slightly above the surface.
-    //
-    // FIX: OLD code used `proposedPosition` for charBottom which meant a
-    // character spawned even 1px above platformTop produced distanceToPlatform < 0,
-    // failing the `>= 0` guard and letting gravity accumulate every frame.
-    //
-    // NEW approach:
-    //   1. Compute proposedPosition for horizontal movement.
-    //   2. For vertical collision, look at where the character's bottom WILL be
-    //      after this frame AND allow a small upward snap window (snapUp) so
-    //      a character standing 1–4 px above the surface is still treated as
-    //      grounded and pulled flush to the surface.
     final proposedPosition = position + velocity * dt;
-
-    // How far above the surface we're still willing to "snap" downward onto it.
-    // Large enough to absorb a missed frame but small enough not to pull the
-    // character through a thin platform from above.
     const double snapUp = 4.0;
 
     GamePlatform? newGroundPlatform;
@@ -611,22 +517,16 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
 
       final distanceToPlatform = charBottom - platformTop;
 
-      // Accept the collision when:
-      //   • velocity is downward (or zero) — not while jumping upward
-      //   • character bottom is within the detection window:
-      //       -snapUp  ..  platformDetectionRange
-      //     The negative side handles spawning / landing a few px above surface.
       if (velocity.y >= 0 &&
           distanceToPlatform > -snapUp &&
           distanceToPlatform < GameConfig.platformDetectionRange) {
-        position.y      = platformTop - size.y / 2;  // snap flush to surface
+        position.y      = platformTop - size.y / 2;
         velocity.y      = 0;
         newGroundPlatform = platform;
         break;
       }
     }
 
-    // Apply movement
     if (newGroundPlatform == null) {
       position.add(velocity * dt);
     } else {
@@ -833,15 +733,10 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       velocity.x += characterState.lastAttackDirection * 50;
     }
 
-    String attackType = 'melee';
-    if (stats.attackRange > 5) {
-      attackType = 'ranged';
-    }
-
     _eventBus.emit(CharacterAttackStartedEvent(
       characterId: stats.name,
       position: position.clone(),
-      attackType: attackType,
+      attackType: stats.attackRange > 5 ? 'ranged' : 'melee',
       comboCount: characterState.comboCount,
       staminaCost: characterState.isAirborne ? 20 : 15,
     ));
@@ -910,9 +805,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     ));
   }
 
-  /// Call from subclass updateHumanControl / bot AI.
   /// Pass the RAW (non-edge-detected) bool from input this frame.
-  /// Edge detection is handled here so subclasses stay simple.
   void handleJumpInput(bool jumpPressed) {
     final justPressed = jumpPressed && !prevJumpInput;
     prevJumpInput = jumpPressed;
@@ -924,7 +817,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     final isGrounded = characterState.groundPlatform != null;
     final stamina = characterState.stamina;
 
-    // Ground jump
     if (isGrounded && stamina >= GameConfig.jumpStaminaCost) {
       final power = customPower ?? jumpPower;
       velocity.y = power;
@@ -945,7 +837,6 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       return;
     }
 
-    // Double jump — airborne, hasn't used it yet, has stamina
     if (!isGrounded &&
         characterState.isAirborne &&
         characterState.canDoubleJump &&
@@ -968,6 +859,9 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
   }
 
   void performWalk(Vector2 direction, double speed) {
+    final wasRight = facingRight;
+    facingRight = direction.x > 0;
+
     if (velocity.x.abs() < GameConfig.stopThreshold && direction.x.abs() > 0) {
       _eventBus.emit(CharacterWalkStartedEvent(
         characterId: stats.name,
@@ -977,16 +871,15 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       ));
     }
 
-    velocity.x = direction.x * speed;
-    facingRight = direction.x > 0;
-
-    if ((direction.x > 0 && !facingRight) || (direction.x < 0 && facingRight)) {
+    if (facingRight != wasRight) {
       _eventBus.emit(CharacterTurnedEvent(
         characterId: stats.name,
         position: position.clone(),
-        nowFacingRight: direction.x > 0,
+        nowFacingRight: facingRight,
       ));
     }
+
+    velocity.x = direction.x * speed;
   }
 
   void performStopWalk() {
@@ -1001,13 +894,10 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
   }
 
   void takeDamage(double damage) {
-    if (characterState.isDodging) {
-      return;
-    }
+    if (characterState.isDodging) return;
 
     if (characterState.isBlocking && characterState.stamina > 0) {
-      final blockedDamage = damage * 0.3;
-      damage = blockedDamage;
+      damage *= 0.3;
       characterState.stamina -= GameConfig.blockStaminaDrain;
 
       if (characterState.stamina < 0) {
@@ -1030,59 +920,50 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     }
   }
 
+  // ── Rendering ────────────────────────────────────────────────────────────────
+  //
+  // Flame local-canvas coordinate system with Anchor.center:
+  //   (0, 0)              → top-left of component
+  //   (size.x/2, size.y/2)→ center (world position)
+  //   (size.x, size.y)    → bottom-right
+
   @override
   void render(Canvas canvas) {
-    // Immediately skip all rendering when dead — world.remove() may lag one frame
     if (isDead) return;
 
-    // Player death: ghost + skull (player is not removed, game-over handled separately)
+    // Player death: ghost + skull
     if (isPlayer && characterState.health <= 0) {
       canvas.saveLayer(
-        Rect.fromCenter(center: Offset.zero, width: size.x, height: size.y),
+        Rect.fromLTWH(0, 0, size.x, size.y),
         Paint()..color = Colors.white.withOpacity(0.3),
       );
-      super.render(canvas);
+      _renderSprite(canvas);
       canvas.restore();
 
       final textPainter = TextPainter(
-        text: const TextSpan(
-          text: '💀',
-          style: TextStyle(fontSize: 40),
-        ),
+        text: const TextSpan(text: '💀', style: TextStyle(fontSize: 40)),
         textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-      textPainter.paint(canvas, Offset(-textPainter.width / 2, -size.y / 2 - 50));
+      )..layout();
+      textPainter.paint(canvas, Offset(size.x / 2 - textPainter.width / 2, -50));
       return;
     }
 
-    // Bot with health <= 0: render nothing (isDead will be true by next frame,
-    // but guard here too so skull never flashes)
     if (isBot && characterState.health <= 0) return;
 
-    super.render(canvas);
-
-    if (!spritesLoaded) {
-      final paint = Paint()..color = stats.color;
-      canvas.drawRect(
-        Rect.fromCenter(center: Offset.zero, width: size.x, height: size.y),
-        paint,
-      );
-    }
+    _renderSprite(canvas);
 
     if (characterState.isStunned) _renderStunEffect(canvas);
     if (characterState.isDodging) _renderDodgeEffect(canvas);
     if (characterState.isBlocking) _renderBlockEffect(canvas);
 
     if (isBot && characterState.health > 0) {
-      final healthBarWidth = size.x;
       final healthPercent = (characterState.health / 100).clamp(0.0, 1.0);
       canvas.drawRect(
-        Rect.fromLTWH(-size.x / 2, -size.y / 2 - 20, healthBarWidth, 10),
+        Rect.fromLTWH(0, -20, size.x, 10),
         Paint()..color = Colors.red,
       );
       canvas.drawRect(
-        Rect.fromLTWH(-size.x / 2, -size.y / 2 - 20, healthBarWidth * healthPercent, 10),
+        Rect.fromLTWH(0, -20, size.x * healthPercent, 10),
         Paint()..color = Colors.green,
       );
     }
@@ -1091,11 +972,11 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
       final staminaPercent =
       (characterState.stamina / characterState.maxStamina).clamp(0.0, 1.0);
       canvas.drawRect(
-        Rect.fromLTWH(-size.x / 2, size.y / 2 + 5, size.x, 5),
+        Rect.fromLTWH(0, size.y + 5, size.x, 5),
         Paint()..color = Colors.grey.withOpacity(0.5),
       );
       canvas.drawRect(
-        Rect.fromLTWH(-size.x / 2, size.y / 2 + 5, size.x * staminaPercent, 5),
+        Rect.fromLTWH(0, size.y + 5, size.x * staminaPercent, 5),
         Paint()..color = Colors.yellow,
       );
     }
@@ -1103,42 +984,59 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
     if (characterState.comboCount > 1) _renderComboIndicator(canvas);
   }
 
+  void _renderSprite(Canvas canvas) {
+    final sprite = animationTicker?.getSprite();
+    if (sprite != null) {
+      sprite.render(canvas, size: size);
+    } else {
+      // Visible fallback — always shown until sprites are ready
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.x, size.y),
+        Paint()..color = stats.color.withOpacity(0.7),
+      );
+    }
+  }
+
   void _renderStunEffect(Canvas canvas) {
-    final starCount = 3;
-    final radius = 40.0;
+    const starCount = 3;
+    const radius = 30.0;
+    final cx = size.x / 2;
     final rotation = (DateTime.now().millisecondsSinceEpoch / 200) % (math.pi * 2);
+    final paint = Paint()..color = Colors.yellow;
 
     for (int i = 0; i < starCount; i++) {
       final angle = rotation + (i * math.pi * 2 / starCount);
-      final x = math.cos(angle) * radius;
-      final y = math.sin(angle) * radius - size.y / 2 - 20;
-
-      final paint = Paint()..color = Colors.yellow;
-      canvas.drawCircle(Offset(x, y), 5, paint);
+      canvas.drawCircle(
+        Offset(cx + math.cos(angle) * radius, -20 + math.sin(angle) * 12),
+        5,
+        paint,
+      );
     }
   }
 
   void _renderDodgeEffect(Canvas canvas) {
-    final opacity = (characterState.dodgeDuration / 0.3) * 0.5;
-    final paint = Paint()..color = stats.color.withOpacity(opacity);
+    final opacity = (characterState.dodgeDuration / 0.3).clamp(0.0, 1.0) * 0.5;
     canvas.drawRect(
-      Rect.fromCenter(center: Offset.zero, width: size.x, height: size.y),
-      paint,
+      Rect.fromLTWH(0, 0, size.x, size.y),
+      Paint()..color = stats.color.withOpacity(opacity),
     );
   }
 
   void _renderBlockEffect(Canvas canvas) {
-    final paint = Paint()
-      ..color = Colors.blue.withOpacity(0.3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
-    canvas.drawCircle(Offset.zero, size.x / 2 + 10, paint);
+    canvas.drawCircle(
+      Offset(size.x / 2, size.y / 2),
+      size.x / 2 + 10,
+      Paint()
+        ..color = Colors.blue.withOpacity(0.3)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
+    );
   }
 
   void _renderComboIndicator(Canvas canvas) {
     final textPainter = TextPainter(
       text: TextSpan(
-        text: 'x$characterState.comboCount',
+        text: 'x${characterState.comboCount}',
         style: const TextStyle(
           color: Colors.orange,
           fontSize: 24,
@@ -1147,8 +1045,7 @@ abstract class GameCharacter extends SpriteAnimationComponent with HasGameRefere
         ),
       ),
       textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-    textPainter.paint(canvas, Offset(-textPainter.width / 2, -size.y / 2 - 40));
+    )..layout();
+    textPainter.paint(canvas, Offset(size.x / 2 - textPainter.width / 2, -40));
   }
 }

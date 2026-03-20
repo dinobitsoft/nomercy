@@ -10,10 +10,10 @@ class Wizard extends GameCharacter {
   double get jumpPower => -280;
 
   @override
-  ActionStrategy get actionStrategy => throw WizardActionStrategy();
+  late final ActionStrategy actionStrategy = WizardActionStrategy();
 
   @override
-  MovementStrategy get movementStrategy => WizardMovementStrategy();
+  late final MovementStrategy movementStrategy = WizardMovementStrategy();
 
   Wizard({
     required super.position,
