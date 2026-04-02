@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gamepad/gamepad.dart';
 import 'package:service/service.dart';
-import 'package:ui/ui.dart';
 
 import 'components/platform/platform_factory.dart';
 import 'components/util/gamepad_debug_overlay.dart';

@@ -7,3 +7,4 @@ export 'src/manager/managers.dart';
 export 'src/map/maps.dart';
 export 'src/statemachine/sm.dart';
 export 'src/system/systems.dart';
+export 'src/action_game_3d.dart';

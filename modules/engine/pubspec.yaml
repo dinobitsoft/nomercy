@@ -21,8 +21,6 @@ dependencies:
   font_awesome_flutter: ^10.7.0
   core:
     path: ../core
-  ui:
-    path: ../ui
   service:
     path: ../service
   gamepad:

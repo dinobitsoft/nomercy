@@ -10,6 +10,8 @@ abstract class CharacterStats {
   String weaponName;
   double attackRange;
   double attackDamage;
+  double health;
+  double maxHealth;
   final Color color;
 
   CharacterStats({
@@ -22,6 +24,8 @@ abstract class CharacterStats {
     required this.weaponName,
     required this.attackRange,
     required this.attackDamage,
+    this.health = 100,
+    this.maxHealth = 100,
     required this.color,
   });
 

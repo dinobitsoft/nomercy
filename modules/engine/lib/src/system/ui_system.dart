@@ -221,6 +221,12 @@ class UISystem {
     );
   }
 
+  /// Build HUD for the 3D game mode.
+  /// The 3D game adds its HUD components directly in ActionGame3D.onLoad().
+  void buildHUD3D() {
+    print('🖥️ UISystem: 3D HUD initialised');
+  }
+
   /// Update UI system (call every frame)
   void update(double dt) {
     // Clean up finished notifications
