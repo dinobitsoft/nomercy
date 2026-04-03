@@ -223,7 +223,7 @@ class InfiniteGround3D extends PositionComponent
   void update(double dt) {
     super.update(dt);
     // Recentre around player so it never ends.
-    final pp = game.character.worldPos;
+    final pp = game.character3D.worldPos;
     final origin = game.worldOriginOnScreen;
     // Move Flame bounding box so culling doesn't remove us.
     final screenCenter = IsoProjection.projectXYZ(pp.x, 0, pp.z, screenOrigin: origin);
@@ -233,7 +233,7 @@ class InfiniteGround3D extends PositionComponent
   @override
   void render(Canvas canvas) {
     final origin  = game.worldOriginOnScreen;
-    final pp      = game.character.worldPos;
+    final pp      = game.character3D.worldPos;
     final ext     = _halfExtent;
 
     Vector2 proj(double wx, double wz) =>

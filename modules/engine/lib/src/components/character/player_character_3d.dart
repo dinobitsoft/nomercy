@@ -102,7 +102,7 @@ class EnemyCharacter3D extends GameCharacter3D {
     if (_aiTimer < _aiInterval) return;
     _aiTimer = 0;
 
-    final player = game.character;
+    final player = game.character3D;
     if (player.characterState.health <= 0) return;
 
     final dx = player.worldPos.x - worldPos.x;
