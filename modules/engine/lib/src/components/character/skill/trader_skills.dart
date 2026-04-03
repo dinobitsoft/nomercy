@@ -30,7 +30,6 @@ class PoisonArrow extends Skill {
       type:       'arrow',
     );
     proj.priority = 75;
-    character.game.add(proj);
     character.game.world.add(proj);
     character.game.projectiles.add(proj);
 
@@ -116,7 +115,6 @@ class BarrageShot extends Skill {
           type:       'arrow',
         );
         proj.priority = 75;
-        character.game.add(proj);
         character.game.world.add(proj);
         character.game.projectiles.add(proj);
       });

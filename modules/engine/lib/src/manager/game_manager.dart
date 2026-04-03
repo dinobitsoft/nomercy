@@ -222,7 +222,6 @@ class GameManager extends Component with HasGameReference<ActionGame> {
       // Scale difficulty
       _scaleEnemyDifficulty(enemy, waveNumber);
 
-      game.add(enemy);
       game.world.add(enemy);
       game.enemies.add(enemy);
 
@@ -247,7 +246,6 @@ class GameManager extends Component with HasGameReference<ActionGame> {
     miniBoss.characterState.maxStamina = 130;
     miniBoss.characterState.stamina = 130;
 
-    game.add(miniBoss);
     game.world.add(miniBoss);
     game.enemies.add(miniBoss);
     enemiesInWave++; // Count mini-boss
@@ -279,7 +277,6 @@ class GameManager extends Component with HasGameReference<ActionGame> {
 
     currentBoss = boss;
 
-    game.add(boss);
     game.world.add(boss);
     game.enemies.add(boss);
 
@@ -364,7 +361,6 @@ class GameManager extends Component with HasGameReference<ActionGame> {
         botTactic: config['tactic'] as BotTactic,
       );
 
-      game.add(enemy);
       game.world.add(enemy);
       game.enemies.add(enemy);
     }
@@ -450,7 +446,6 @@ class GameManager extends Component with HasGameReference<ActionGame> {
     // Dummy doesn't attack back (override in actual implementation)
     dummy.characterState.health = 1000; // Lots of health for practice
 
-    game.add(dummy);
     game.world.add(dummy);
     game.enemies.add(dummy);
 

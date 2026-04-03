@@ -55,7 +55,7 @@ class Thief extends GameCharacter {
         color:      Colors.grey,
         type:       'knife',
       );
-      game.add(proj); game.world.add(proj); game.projectiles.add(proj);
+      game.world.add(proj); game.projectiles.add(proj);
     }
     _eventBus.emit(PlaySFXEvent(soundId: 'dagger_shot', volume: 0.8));
   }
