@@ -3,6 +3,8 @@ import 'package:engine/engine.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
+import '../components/util/hud_3d.dart';
+
 class UISystem {
   final EventBus _eventBus = EventBus();
   final ActionGame game;
@@ -222,8 +224,9 @@ class UISystem {
   }
 
   /// Build HUD for the 3D game mode.
-  /// The 3D game adds its HUD components directly in ActionGame3D.onLoad().
   void buildHUD3D() {
+    final hud = HUD3D();
+    game.camera.viewport.add(hud);
     print('🖥️ UISystem: 3D HUD initialised');
   }
 
