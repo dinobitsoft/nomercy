@@ -58,6 +58,7 @@ class ActionGame extends FlameGame
   InfiniteWorldSystem? infiniteWorldSystem;
 
   bool useInfiniteWorld = true;   // Chunked world with platforms
+  bool skipWorldSetup = false;    // Set by ActionGame3D to skip 2D setup
 
   final GamepadManager gamepadManager = GamepadManager();
 
@@ -74,28 +75,33 @@ class ActionGame extends FlameGame
     this.enableMultiplayer = false,
   });
 
-  @override
-  Future<void> onLoad() async {
-    await super.onLoad();
-
+  /// Initialize core systems shared between 2D and 3D modes.
+  /// Called from [onLoad]; subclasses (e.g. ActionGame3D) can call this
+  /// directly and skip the 2D world setup.
+  @protected
+  void initializeSystems() {
     gameStartTime = DateTime.now();
-
-    // Initialize system
     combatSystem = CombatSystem();
     waveSystem = WaveSystem(game: this, gameMode: gameMode);
     audioSystem = AudioSystem();
     itemSystem = ItemSystem(game: this);
     uiSystem = UISystem(game: this);
-
-    // Setup event listeners
     _setupEventListeners();
-
-    // Add gamepad manager to game components
     add(gamepadManager);
+  }
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+
+    initializeSystems();
+
+    // ActionGame3D overrides onLoad and sets skipWorldSetup = true
+    // to avoid the 2D world setup below.
+    if (skipWorldSetup) return;
 
     // Setup camera
     camera.viewfinder.zoom = 1.2;
-// Add this BEFORE the existing "if (useInfiniteWorld)" block:
 
     if (useInfiniteWorld) {
       // ============================================

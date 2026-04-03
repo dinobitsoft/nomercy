@@ -1,115 +1,65 @@
 // modules/engine/lib/src/action_game_3d.dart
 
-import 'dart:math' as math;
-
 import 'package:core/core.dart';
 import 'package:engine/engine.dart';
 import 'package:flame/components.dart';
-import 'package:flame/events.dart';
-import 'package:flame/game.dart';
-import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:gamepad/gamepad.dart';
-import 'package:service/service.dart';
 
 import 'components/character/game_character_3d.dart';
 import 'components/character/player_character_3d.dart';
 import 'components/platform/game_platform_3d.dart';
 
-/// Top-level FlameGame for the 3D platformer.
+/// Top-level game for the 3D (isometric) platformer.
 ///
-/// Key differences from [ActionGame]:
-///   • [platforms3D] replaces [platforms] — 3D AABB boxes.
+/// Extends [ActionGame] so that all systems ([WaveSystem], [ItemSystem],
+/// [UISystem]) that hold a reference to `ActionGame` work without casts.
+///
+/// Key differences from the 2D mode:
+///   • [platforms3D] — 3D AABB boxes for physics.
 ///   • [PlayerCharacter3D] / [EnemyCharacter3D] hold a [WorldPos].
 ///   • [InfiniteWorldSystem3D] generates chunks along Z axis.
-///   • [worldOriginOnScreen] maps world (0,0,0) to a fixed screen point so
-///     the [IsoProjection] always aligns with camera position.
-///   • Camera follows the *projected* player position.
-class ActionGame3D extends FlameGame
-    with HasCollisionDetection, TapCallbacks, KeyboardEvents {
+///   • [worldOriginOnScreen] maps world (0,0,0) to a screen point so
+///     [IsoProjection] aligns with camera position.
+class ActionGame3D extends ActionGame {
 
-  // ── systems ────────────────────────────────────────────────────────────────
-  final EventBus    eventBus    = EventBus();
-  late CombatSystem combatSystem;
-  late WaveSystem   waveSystem;
-  late AudioSystem  audioSystem;
-  late ItemSystem   itemSystem;
-  late UISystem     uiSystem;
-
-  final List<EventSubscription> _subscriptions = [];
-
-  // ── game state ─────────────────────────────────────────────────────────────
-  final String selectedCharacterClass;
-  final String mapName;
-  final GameMode gameMode;
-  final bool procedural;
-  final MapGeneratorConfig? mapConfig;
-  final bool enableMultiplayer;
-
-  late PlayerCharacter3D character;
-  final List<EnemyCharacter3D>   enemies     = [];
-  final Map<String, GameCharacter3D> characterRegistry = {};
+  // ── 3D-specific state ─────────────────────────────────────────────────────
+  late PlayerCharacter3D character3D;
+  final List<EnemyCharacter3D>        enemies3D         = [];
+  final Map<String, GameCharacter3D>  characterRegistry3D = {};
 
   /// All 3D platforms — used for physics collision.
   final List<GamePlatform3D> platforms3D = [];
 
-  final List<Projectile> projectiles = [];
-  final List<Item>       inventory   = [];
-  Weapon? equippedWeapon;
-
-  late JoystickComponent joystick;
-
-  InfiniteWorldSystem3D? _worldSystem;
-
-  bool isGameOver   = false;
-  int  enemiesDefeated = 0;
-  DateTime? gameStartTime;
-
-  final GamepadManager gamepadManager = GamepadManager();
-
-  // ── camera 3D state ────────────────────────────────────────────────────────
+  InfiniteWorldSystem3D? _worldSystem3D;
 
   /// The screen position that maps to world (0,0,0).
-  /// Updated each frame as the camera follows the player.
   Vector2 worldOriginOnScreen = Vector2.zero();
 
-  /// Camera lag target — lerped toward projected player position.
-  Vector2 _cameraTarget = Vector2.zero();
-
   ActionGame3D({
-    required this.selectedCharacterClass,
-    required this.gameMode,
-    this.mapName     = 'level_1',
-    this.procedural  = false,
-    this.mapConfig   = null,
-    this.enableMultiplayer = false,
-  });
+    required super.selectedCharacterClass,
+    required super.gameMode,
+    super.mapName,
+    super.procedural,
+    super.mapConfig,
+    super.enableMultiplayer,
+  }) {
+    // Tell ActionGame.onLoad to skip the 2D world setup.
+    skipWorldSetup = true;
+  }
 
   // ── onLoad ─────────────────────────────────────────────────────────────────
 
   @override
   Future<void> onLoad() async {
+    // Calls FlameGame.onLoad + initializeSystems(), then returns early
+    // because skipWorldSetup is true — no 2D map/character creation.
     await super.onLoad();
-    gameStartTime = DateTime.now();
-
-    // Systems
-    combatSystem = CombatSystem();
-    waveSystem   = WaveSystem(game: this as dynamic, gameMode: gameMode);
-    audioSystem  = AudioSystem();
-    itemSystem   = ItemSystem(game: this as dynamic);
-    uiSystem     = UISystem(game: this as dynamic);
-
-    _setupEventListeners();
-    add(gamepadManager);
 
     // Camera: anchor at 50% X, 65% Y — player slightly below centre.
     camera.viewfinder.zoom   = 1.0;
     camera.viewfinder.anchor = const Anchor(0.5, 0.65);
 
-    // World origin starts at screen centre.
     worldOriginOnScreen = size / 2;
-    _cameraTarget       = worldOriginOnScreen.clone();
 
     // Background gradient.
     final bg = RectangleComponent(
@@ -124,20 +74,27 @@ class ActionGame3D extends FlameGame
 
     // Spawn player.
     final spawnPos = WorldPos(0, 0, 0);
-    final stats    = _statsForClass(selectedCharacterClass);
+    final stats    = _statsFor(selectedCharacterClass);
 
-    character = PlayerCharacter3D(
+    character3D = PlayerCharacter3D(
       characterClass: selectedCharacterClass,
       spawnPos:       spawnPos,
       stats:          stats,
     );
-    character.priority = IsoProjection.depthPriority(spawnPos) + 200;
-    world.add(character);
-    characterRegistry['player_main'] = character;
+    character3D.priority = IsoProjection.depthPriority(spawnPos) + 200;
+    world.add(character3D);
+    characterRegistry3D['player_main'] = character3D;
 
-    // 3D world.
-    _worldSystem = InfiniteWorldSystem3D(game: this);
-    _worldSystem!.initialize();
+    // Provide a 2D character reference for systems that read `game.character`.
+    character = Knight(
+      position: Vector2.zero(),
+      playerType: PlayerType.human,
+      customId: 'player_main',
+    );
+
+    // 3D world chunk system.
+    _worldSystem3D = InfiniteWorldSystem3D(game: this);
+    _worldSystem3D!.initialize();
 
     // On-screen joystick.
     joystick = JoystickComponent(
@@ -153,10 +110,10 @@ class ActionGame3D extends FlameGame
     );
     camera.viewport.add(joystick);
 
-    // HUD.
+    // HUD (3D variant — currently a no-op placeholder).
     uiSystem.buildHUD3D();
 
-    // Start music.
+    // Music.
     audioSystem.playMusic('battle_theme');
   }
 
@@ -167,17 +124,11 @@ class ActionGame3D extends FlameGame
     super.update(dt);
     if (isGameOver) return;
 
-    // Advance world chunks.
-    _worldSystem?.update(dt, character.worldPos);
-
-    // Camera: follow projected player position with lerp.
+    _worldSystem3D?.update(dt, character3D.worldPos);
     _updateCamera3D(dt);
-
-    // Combat hit detection.
     _processCombat3D(dt);
 
-    // Game-over check.
-    if (character.characterState.health <= 0 && !isGameOver) {
+    if (character3D.characterState.health <= 0 && !isGameOver) {
       isGameOver = true;
       eventBus.emit(GameOverEvent(
         reason: 'death',
@@ -195,43 +146,34 @@ class ActionGame3D extends FlameGame
   // ── camera ─────────────────────────────────────────────────────────────────
 
   void _updateCamera3D(double dt) {
-    // Project player to screen, then offset so they appear at 50%/65%.
-    final projectedPlayer = IsoProjection.project(character.worldPos);
-
-    // worldOriginOnScreen drifts so that projectedPlayer stays at
-    // (size.x * 0.5, size.y * 0.65).
-    final desiredOrigin = Vector2(
-      size.x * 0.5  - projectedPlayer.x,
-      size.y * 0.65 - projectedPlayer.y,
+    final projected = IsoProjection.project(character3D.worldPos);
+    final desired = Vector2(
+      size.x * 0.5  - projected.x,
+      size.y * 0.65 - projected.y,
     );
-
-    // Lerp for smooth follow.
+    final t = (GameConfig3D.cameraLerpSpeed * dt).clamp(0.0, 1.0);
     worldOriginOnScreen = Vector2(
-      _lerp(worldOriginOnScreen.x, desiredOrigin.x, GameConfig3D.cameraLerpSpeed * dt),
-      _lerp(worldOriginOnScreen.y, desiredOrigin.y, GameConfig3D.cameraLerpSpeed * dt),
+      worldOriginOnScreen.x + (desired.x - worldOriginOnScreen.x) * t,
+      worldOriginOnScreen.y + (desired.y - worldOriginOnScreen.y) * t,
     );
-
-    // Move Flame camera to match (camera at world origin in Flame space = 0,0).
     camera.moveTo(Vector2.zero());
   }
-
-  double _lerp(double a, double b, double t) => a + (b - a) * t.clamp(0, 1);
 
   // ── combat ─────────────────────────────────────────────────────────────────
 
   void _processCombat3D(double dt) {
-    if (!character.characterState.isAttacking) return;
+    if (!character3D.characterState.isAttacking) return;
 
     final attackAabb = AABB3D(
-      minX: character.worldPos.x - GameConfig3D.attackRangeX,
-      maxX: character.worldPos.x + GameConfig3D.attackRangeX,
-      minY: character.worldPos.y,
-      maxY: character.worldPos.y + GameConfig3D.characterSizeY,
-      minZ: character.worldPos.z - GameConfig3D.attackRangeZ / 2,
-      maxZ: character.worldPos.z + GameConfig3D.attackRangeZ,
+      minX: character3D.worldPos.x - GameConfig3D.attackRangeX,
+      maxX: character3D.worldPos.x + GameConfig3D.attackRangeX,
+      minY: character3D.worldPos.y,
+      maxY: character3D.worldPos.y + GameConfig3D.characterSizeY,
+      minZ: character3D.worldPos.z - GameConfig3D.attackRangeZ / 2,
+      maxZ: character3D.worldPos.z + GameConfig3D.attackRangeZ,
     );
 
-    for (final enemy in enemies) {
+    for (final enemy in enemies3D) {
       if (enemy.characterState.health <= 0) continue;
 
       final enemyAabb = AABB3D.fromCenter(
@@ -247,11 +189,11 @@ class ActionGame3D extends FlameGame
 
       if (attackAabb.overlapsXYZ(enemyAabb)) {
         enemy.takeDamage3D(
-          character.stats.attackDamage.toDouble(),
+          character3D.stats.attackDamage.toDouble(),
           knockback: WorldPos(
-            (enemy.worldPos.x - character.worldPos.x) * 0.5,
+            (enemy.worldPos.x - character3D.worldPos.x) * 0.5,
             200.0,
-            (enemy.worldPos.z - character.worldPos.z) * 0.5,
+            (enemy.worldPos.z - character3D.worldPos.z) * 0.5,
           ),
         );
       }
@@ -265,12 +207,12 @@ class ActionGame3D extends FlameGame
     required WorldPos spawnPos,
     double difficultyMult = 1.0,
   }) {
-    final stats = _statsForClass(characterClass)
+    final stats = _statsFor(characterClass)
       ..health    = (GameConfig.characterBaseHealth * difficultyMult).clamp(50, 300)
       ..maxHealth = (GameConfig.characterBaseHealth * difficultyMult).clamp(50, 300)
       ..attackDamage = (20 * difficultyMult).clamp(10, 80).toInt().toDouble();
 
-    final id    = '${characterClass}_${enemies.length}';
+    final id    = '${characterClass}_${enemies3D.length}';
     final enemy = EnemyCharacter3D(
       characterClass: characterClass,
       spawnPos:       spawnPos,
@@ -280,48 +222,20 @@ class ActionGame3D extends FlameGame
     enemy.priority = IsoProjection.depthPriority(spawnPos) + 200;
 
     world.add(enemy);
-    enemies.add(enemy);
-    characterRegistry[id] = enemy;
+    enemies3D.add(enemy);
+    characterRegistry3D[id] = enemy;
   }
-
-  // ── registration ───────────────────────────────────────────────────────────
 
   void registerCharacter3D(GameCharacter3D char) {
-    characterRegistry[char.uniqueId] = char;
+    characterRegistry3D[char.uniqueId] = char;
   }
 
-  CharacterStats _statsForClass(String cls) {
+  CharacterStats _statsFor(String cls) {
     switch (cls.toLowerCase()) {
       case 'thief':  return ThiefStats();
       case 'wizard': return WizardStats();
       case 'trader': return TraderStats();
       default:       return KnightStats();
     }
-  }
-
-  // ── input ──────────────────────────────────────────────────────────────────
-
-  @override
-  KeyEventResult onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keys) {
-    gamepadManager.onKeyEvent(event, keys);
-    return KeyEventResult.handled;
-  }
-
-  // ── events ─────────────────────────────────────────────────────────────────
-
-  void _setupEventListeners() {
-    _subscriptions.add(
-      eventBus.on<GameOverEvent>((e) => _handleGameOver(e)),
-    );
-  }
-
-  void _handleGameOver(GameOverEvent e) {
-    isGameOver = true;
-  }
-
-  @override
-  void onRemove() {
-    for (final s in _subscriptions) s.cancel();
-    super.onRemove();
   }
 }
