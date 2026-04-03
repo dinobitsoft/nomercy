@@ -59,7 +59,7 @@ class Wizard extends GameCharacter {
       type:       'fireball',
     );
     proj.priority = 75;
-    game.add(proj); game.world.add(proj); game.projectiles.add(proj);
+    game.world.add(proj); game.projectiles.add(proj);
     if (!characterState.isAirborne) velocity.x -= facingRight ? 30 : -30;
     _eventBus.emit(PlaySFXEvent(soundId: 'fireball_shot', volume: 0.8));
   }

@@ -58,7 +58,7 @@ class Trader extends GameCharacter {
       color:      isPower ? Colors.red : Colors.brown,
       type:       'arrow',
     );
-    game.add(proj); game.world.add(proj); game.projectiles.add(proj);
+    game.world.add(proj); game.projectiles.add(proj);
     if (!characterState.isAirborne) velocity.x -= facingRight ? 20 : -20;
     _eventBus.emit(PlaySFXEvent(soundId: 'arrow_shot', volume: 0.8));
   }

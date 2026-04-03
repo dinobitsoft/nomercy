@@ -199,7 +199,6 @@ abstract class GameCharacter extends SpriteAnimationComponent
         type:        weapon.projectileType,
       );
       proj.priority = 75;
-      game.add(proj);
       game.world.add(proj);
       game.projectiles.add(proj);
     }

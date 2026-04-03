@@ -92,7 +92,6 @@ class ItemSystem {
 
     // FIX: Set proper priority and add to world
     itemDrop.priority = 50; // Between platforms and character
-    game.add(itemDrop);
     game.world.add(itemDrop);
     game.itemDrops.add(itemDrop); // Add to tracking list
 
