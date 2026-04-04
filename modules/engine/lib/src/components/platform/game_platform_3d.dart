@@ -31,8 +31,7 @@ class GamePlatform3D extends PositionComponent
   Color frontColor= const Color(0xFF3d6b4a);
 
   bool _loaded = false;
-  ui.Image? _topTexture;
-  ui.Image? _sideTexture;
+  ui.Image? _tileTexture;   // tiled across top + faces
 
   GamePlatform3D({
     required this.worldPos,
@@ -71,12 +70,13 @@ class GamePlatform3D extends PositionComponent
     await super.onLoad();
     _applyPlatformColors();
 
-    try {
-      _topTexture  = await game.images.load('${platformType}_top.png');
-      _sideTexture = await game.images.load('${platformType}_side.png');
-      _loaded = true;
-    } catch (_) {
-      // Flat colour fallback — no-op.
+    // Try tile texture first (same assets as 2D TiledPlatform), then plain.
+    for (final name in ['${platformType}_tile.png', '$platformType.png']) {
+      try {
+        _tileTexture = await game.images.load(name);
+        _loaded = true;
+        break;
+      } catch (_) {}
     }
 
     _syncFlamePosition();
@@ -85,25 +85,25 @@ class GamePlatform3D extends PositionComponent
   void _applyPlatformColors() {
     switch (platformType) {
       case 'ground':
-        topColor   = const Color(0xFF5a8a4a);
-        sideColor  = const Color(0xFF3a5a2a);
-        frontColor = const Color(0xFF4a7a3a);
+        topColor   = const Color(0xFF6aaa54);
+        frontColor = const Color(0xFF3a6828);
+        sideColor  = const Color(0xFF2a5018);
       case 'brick':
-        topColor   = const Color(0xFFa07050);
-        sideColor  = const Color(0xFF704830);
-        frontColor = const Color(0xFF885840);
+        topColor   = const Color(0xFFc08860);
+        frontColor = const Color(0xFF804830);
+        sideColor  = const Color(0xFF603820);
       case 'stone':
-        topColor   = const Color(0xFF7a7a8a);
-        sideColor  = const Color(0xFF5a5a6a);
-        frontColor = const Color(0xFF6a6a7a);
+        topColor   = const Color(0xFF9090a8);
+        frontColor = const Color(0xFF505060);
+        sideColor  = const Color(0xFF383848);
       case 'ice':
-        topColor   = const Color(0xFFa0d0f0);
-        sideColor  = const Color(0xFF70a0c0);
-        frontColor = const Color(0xFF88b8d8);
+        topColor   = const Color(0xFFc8eaff);
+        frontColor = const Color(0xFF5090c0);
+        sideColor  = const Color(0xFF306888);
       default:
-        topColor   = const Color(0xFF6060a0);
-        sideColor  = const Color(0xFF404070);
-        frontColor = const Color(0xFF505090);
+        topColor   = const Color(0xFF8080c8);
+        frontColor = const Color(0xFF404090);
+        sideColor  = const Color(0xFF282860);
     }
   }
 
@@ -156,62 +156,108 @@ class GamePlatform3D extends PositionComponent
     final hx = sizeX / 2;
     final hz = sizeZ / 2;
 
-    // Helper: world → canvas-local (subtracts Flame position because Flame
-    // already translated the canvas to this component's top-left corner).
-    Vector2 p(double wx, double wy, double wz) {
-      final s = IsoProjection.projectXYZ(wx, wy, wz, screenOrigin: origin);
-      return s - position; // local canvas coords
-    }
+    Vector2 p(double wx, double wy, double wz) =>
+        IsoProjection.projectXYZ(wx, wy, wz, screenOrigin: origin) - position;
 
-    // ── Top face (visible from above) ──────────────────────────────────────
+    final tl  = p(worldPos.x - hx, topY,    worldPos.z - hz);
+    final tr  = p(worldPos.x + hx, topY,    worldPos.z - hz);
+    final tf  = p(worldPos.x + hx, topY,    worldPos.z + hz);
+    final tfl = p(worldPos.x - hx, topY,    worldPos.z + hz);
+    final bl  = p(worldPos.x - hx, bottomY, worldPos.z - hz);
+    final br  = p(worldPos.x + hx, bottomY, worldPos.z - hz);
+    final bf  = p(worldPos.x + hx, bottomY, worldPos.z + hz);
+
     final topPath = Path()
-      ..moveTo(p(worldPos.x - hx, topY, worldPos.z - hz).x, p(worldPos.x - hx, topY, worldPos.z - hz).y)
-      ..lineTo(p(worldPos.x + hx, topY, worldPos.z - hz).x, p(worldPos.x + hx, topY, worldPos.z - hz).y)
-      ..lineTo(p(worldPos.x + hx, topY, worldPos.z + hz).x, p(worldPos.x + hx, topY, worldPos.z + hz).y)
-      ..lineTo(p(worldPos.x - hx, topY, worldPos.z + hz).x, p(worldPos.x - hx, topY, worldPos.z + hz).y)
-      ..close();
+      ..moveTo(tl.x, tl.y) ..lineTo(tr.x, tr.y)
+      ..lineTo(tf.x, tf.y) ..lineTo(tfl.x, tfl.y) ..close();
+    final frontPath = Path()
+      ..moveTo(tl.x, tl.y) ..lineTo(tr.x, tr.y)
+      ..lineTo(br.x, br.y) ..lineTo(bl.x, bl.y) ..close();
+    final rightPath = Path()
+      ..moveTo(tr.x, tr.y) ..lineTo(tf.x, tf.y)
+      ..lineTo(bf.x, bf.y) ..lineTo(br.x, br.y) ..close();
 
-    if (_loaded && _topTexture != null) {
-      // TODO: apply image shader when assets are ready.
-      canvas.drawPath(topPath, Paint()..color = topColor);
+    if (_loaded && _tileTexture != null) {
+      final img = _tileTexture!;
+      final tw  = img.width.toDouble();
+      final th  = img.height.toDouble();
+      final src = Rect.fromLTWH(0, 0, tw, th);
+
+      // Tile across top face: map world sizeX × sizeZ using screen bounds.
+      _drawTiledFace(canvas, topPath, img, src,
+          _bounds(tl, tf), Colors.transparent);
+
+      // Front face: tiled with dark overlay.
+      _drawTiledFace(canvas, frontPath, img, src,
+          _bounds(tl, br), Colors.black.withOpacity(0.38));
+
+      // Right face: tiled with darker overlay.
+      _drawTiledFace(canvas, rightPath, img, src,
+          _bounds(tr, bf), Colors.black.withOpacity(0.55));
     } else {
-      canvas.drawPath(topPath, Paint()..color = topColor);
+      // Colour fallback.
+      canvas.drawPath(rightPath,  Paint()..color = sideColor);
+      canvas.drawPath(frontPath,  Paint()..color = frontColor);
+      canvas.drawPath(topPath,    Paint()..color = topColor);
     }
 
-    // Top face edge highlight
-    canvas.drawPath(topPath,
-        Paint()..color = Colors.white.withOpacity(0.15)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5);
+    // ── Edge outlines ─────────────────────────────────────────────────────
+    final edgePaint = Paint()
+      ..color = Colors.black.withOpacity(0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawPath(topPath,   edgePaint);
+    canvas.drawPath(frontPath, edgePaint);
+    canvas.drawPath(rightPath, edgePaint);
+    canvas.drawLine(Offset(tf.x, tf.y), Offset(bf.x, bf.y), edgePaint);
+    canvas.drawLine(Offset(bl.x, bl.y), Offset(br.x, br.y), edgePaint);
+  }
 
-    // ── Front face (near camera: -Z side) ─────────────────────────────────
-    final frontPath = Path()
-      ..moveTo(p(worldPos.x - hx, topY,    worldPos.z - hz).x, p(worldPos.x - hx, topY,    worldPos.z - hz).y)
-      ..lineTo(p(worldPos.x + hx, topY,    worldPos.z - hz).x, p(worldPos.x + hx, topY,    worldPos.z - hz).y)
-      ..lineTo(p(worldPos.x + hx, bottomY, worldPos.z - hz).x, p(worldPos.x + hx, bottomY, worldPos.z - hz).y)
-      ..lineTo(p(worldPos.x - hx, bottomY, worldPos.z - hz).x, p(worldPos.x - hx, bottomY, worldPos.z - hz).y)
-      ..close();
-    canvas.drawPath(frontPath, Paint()..color = frontColor);
+  /// Clip to [facePath], tile [img] filling [bounds], then overlay [shade].
+  void _drawTiledFace(
+      Canvas canvas, Path facePath, ui.Image img, Rect src,
+      Rect bounds, Color shade) {
+    canvas.save();
+    canvas.clipPath(facePath);
 
-    // ── Right face (+X side) ───────────────────────────────────────────────
-    final rightPath = Path()
-      ..moveTo(p(worldPos.x + hx, topY,    worldPos.z - hz).x, p(worldPos.x + hx, topY,    worldPos.z - hz).y)
-      ..lineTo(p(worldPos.x + hx, topY,    worldPos.z + hz).x, p(worldPos.x + hx, topY,    worldPos.z + hz).y)
-      ..lineTo(p(worldPos.x + hx, bottomY, worldPos.z + hz).x, p(worldPos.x + hx, bottomY, worldPos.z + hz).y)
-      ..lineTo(p(worldPos.x + hx, bottomY, worldPos.z - hz).x, p(worldPos.x + hx, bottomY, worldPos.z - hz).y)
-      ..close();
-    canvas.drawPath(rightPath, Paint()..color = sideColor);
+    final tw = src.width;
+    final th = src.height;
+    final paint = Paint();
+
+    final startX = (bounds.left / tw).floor() * tw;
+    final startY = (bounds.top  / th).floor() * th;
+
+    for (double y = startY; y < bounds.bottom + th; y += th) {
+      for (double x = startX; x < bounds.right + tw; x += tw) {
+        canvas.drawImageRect(img, src, Rect.fromLTWH(x, y, tw, th), paint);
+      }
+    }
+
+    // Lighting overlay (darken front/side faces).
+    if (shade.opacity > 0.01) {
+      canvas.drawPath(facePath, Paint()..color = shade);
+    }
+
+    canvas.restore();
   }
 }
 
+Rect _bounds(Vector2 a, Vector2 b) => Rect.fromLTRB(
+  a.x < b.x ? a.x : b.x,
+  a.y < b.y ? a.y : b.y,
+  a.x > b.x ? a.x : b.x,
+  a.y > b.y ? a.y : b.y,
+);
+
 // ── Infinite ground slab ──────────────────────────────────────────────────────
 
-/// Infinite flat ground rendered as a receding plane.
-/// Stays centred on the player's X and Z positions.
+/// Infinite flat ground rendered as a receding plane, tiled with ground_tile.png.
 class InfiniteGround3D extends PositionComponent
     with HasGameReference<ActionGame3D> {
 
-  static const double _halfExtent = 6000.0;  // visual half-width in X and Z
+  static const double _halfExtent = 6000.0;
+
+  ui.Image? _tileImg;
 
   InfiniteGround3D() : super(
     position: Vector2(-8000, -2000),
@@ -220,47 +266,77 @@ class InfiniteGround3D extends PositionComponent
   );
 
   @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    for (final name in ['ground_tile.png', 'ground.png']) {
+      try { _tileImg = await game.images.load(name); break; } catch (_) {}
+    }
+  }
+
+  @override
   void update(double dt) {
     super.update(dt);
-    // Recentre around player so it never ends.
-    final pp = game.character.worldPos;
+    final pp     = game.character.worldPos;
     final origin = game.worldOriginOnScreen;
-    // Move Flame bounding box so culling doesn't remove us.
-    final screenCenter = IsoProjection.projectXYZ(pp.x, 0, pp.z, screenOrigin: origin);
-    position = screenCenter - Vector2(8000, 4000);
+    final sc     = IsoProjection.projectXYZ(pp.x, 0, pp.z, screenOrigin: origin);
+    position = sc - Vector2(8000, 4000);
   }
 
   @override
   void render(Canvas canvas) {
-    final origin  = game.worldOriginOnScreen;
-    final pp      = game.character.worldPos;
-    final ext     = _halfExtent;
+    final origin = game.worldOriginOnScreen;
+    final pp     = game.character.worldPos;
+    final ext    = _halfExtent;
+    final gy     = GameConfig3D.infiniteGroundY;
 
     Vector2 proj(double wx, double wz) =>
-        IsoProjection.projectXYZ(wx, GameConfig3D.infiniteGroundY, wz,
-            screenOrigin: origin) - position;
+        IsoProjection.projectXYZ(wx, gy, wz, screenOrigin: origin) - position;
 
-    // Ground top face (very large quad centred on player).
-    final path = Path()
-      ..moveTo(proj(pp.x - ext, pp.z - ext).x, proj(pp.x - ext, pp.z - ext).y)
-      ..lineTo(proj(pp.x + ext, pp.z - ext).x, proj(pp.x + ext, pp.z - ext).y)
-      ..lineTo(proj(pp.x + ext, pp.z + ext).x, proj(pp.x + ext, pp.z + ext).y)
-      ..lineTo(proj(pp.x - ext, pp.z + ext).x, proj(pp.x - ext, pp.z + ext).y)
-      ..close();
+    final nw = proj(pp.x - ext, pp.z - ext);
+    final ne = proj(pp.x + ext, pp.z - ext);
+    final se = proj(pp.x + ext, pp.z + ext);
+    final sw = proj(pp.x - ext, pp.z + ext);
 
-    // Subtle grid pattern via shader-less approach: solid fill + grid lines.
-    canvas.drawPath(path, Paint()..color = const Color(0xFF2a4a2a));
+    final groundPath = Path()
+      ..moveTo(nw.x, nw.y) ..lineTo(ne.x, ne.y)
+      ..lineTo(se.x, se.y) ..lineTo(sw.x, sw.y) ..close();
 
-    // Horizon fog gradient overlay (optional visual polish).
-    final rect = Rect.fromLTWH(position.x - 8000, position.y - 4000, 16000, 8000);
+    canvas.save();
+    canvas.clipPath(groundPath);
+
+    if (_tileImg != null) {
+      final img   = _tileImg!;
+      final tw    = img.width.toDouble();
+      final th    = img.height.toDouble();
+      final src   = Rect.fromLTWH(0, 0, tw, th);
+      final paint = Paint();
+
+      final xs = [nw.x, ne.x, se.x, sw.x];
+      final ys = [nw.y, ne.y, se.y, sw.y];
+      final minX = xs.reduce((a, b) => a < b ? a : b);
+      final minY = ys.reduce((a, b) => a < b ? a : b);
+      final maxX = xs.reduce((a, b) => a > b ? a : b);
+      final maxY = ys.reduce((a, b) => a > b ? a : b);
+
+      for (double y = (minY / th).floor() * th; y < maxY + th; y += th) {
+        for (double x = (minX / tw).floor() * tw; x < maxX + tw; x += tw) {
+          canvas.drawImageRect(img, src, Rect.fromLTWH(x, y, tw, th), paint);
+        }
+      }
+    } else {
+      canvas.drawPath(groundPath, Paint()..color = const Color(0xFF1e3a1e));
+    }
+
+    canvas.restore();
+
+    // ── Horizon fog ───────────────────────────────────────────────────────
+    final fogY = nw.y;
     canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(0, position.y),
-          Offset(0, position.y - 2000),
-          [Colors.transparent, const Color(0x441a1a2e)],
-        ),
+      Rect.fromLTWH(-8000, fogY - 80, 16000, 320),
+      Paint()..shader = ui.Gradient.linear(
+        Offset(0, fogY - 80), Offset(0, fogY + 240),
+        [const Color(0x881a1a2e), Colors.transparent],
+      ),
     );
   }
 }

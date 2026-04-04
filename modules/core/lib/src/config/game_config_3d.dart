@@ -34,8 +34,8 @@ abstract final class GameConfig3D {
   // ── Platform geometry ─────────────────────────────────────────────────────
 
   /// Default depth (Z thickness) of a platform box.
-  static const double platformDepthZ   = 140.0;
-  static const double platformHeight   = 32.0;    // Y thickness
+  static const double platformDepthZ   = 160.0;
+  static const double platformHeight   = 80.0;    // Y thickness — tall enough to show 3D faces
   static const double groundSurfaceY   = 0.0;     // World Y of ground top face
 
   /// Snap window: character within this many world-units above a platform

@@ -32,10 +32,7 @@ class ActionGame3D extends FlameGame
   // ── systems ────────────────────────────────────────────────────────────────
   final EventBus    eventBus    = EventBus();
   late CombatSystem combatSystem;
-  late WaveSystem   waveSystem;
   late AudioSystem  audioSystem;
-  late ItemSystem   itemSystem;
-  late UISystem     uiSystem;
 
   final List<EventSubscription> _subscriptions = [];
 
@@ -95,17 +92,15 @@ class ActionGame3D extends FlameGame
 
     // Systems
     combatSystem = CombatSystem();
-    waveSystem   = WaveSystem(game: this as dynamic, gameMode: gameMode);
     audioSystem  = AudioSystem();
-    itemSystem   = ItemSystem(game: this as dynamic);
-    uiSystem     = UISystem(game: this as dynamic);
 
     _setupEventListeners();
     add(gamepadManager);
 
-    // Camera: anchor at 50% X, 65% Y — player slightly below centre.
+    // Camera: topLeft anchor so Flame world coords == screen coords (1:1).
+    // worldOriginOnScreen handles the logical centering via manual projection.
     camera.viewfinder.zoom   = 1.0;
-    camera.viewfinder.anchor = const Anchor(0.5, 0.65);
+    camera.viewfinder.anchor = Anchor.topLeft;
 
     // World origin starts at screen centre.
     worldOriginOnScreen = size / 2;
@@ -152,9 +147,6 @@ class ActionGame3D extends FlameGame
       margin: const EdgeInsets.only(left: 44, bottom: 44),
     );
     camera.viewport.add(joystick);
-
-    // HUD.
-    uiSystem.buildHUD3D();
 
     // Start music.
     audioSystem.playMusic('battle_theme');

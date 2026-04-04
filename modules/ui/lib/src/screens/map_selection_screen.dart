@@ -4,8 +4,9 @@ import 'package:gamepad/gamepad.dart';
 import 'package:ui/ui.dart';
 
 import 'game_screen.dart';
+import 'game_screen_3d.dart';
 
-enum _MapMode { procedural, premade, infinite }
+enum _MapMode { procedural, premade, infinite, mode3d }
 
 const int _kStyles  = 6;
 const int _kDiffs   = 4;
@@ -150,6 +151,15 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
                 style: _style, difficulty: _difficulty, seed: _customSeed),
           ),
         ));
+      case _MapMode.mode3d:
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => GameScreen3D(
+            characterClass: widget.selectedCharacterClass,
+            gameMode: widget.gameMode,
+            mapConfig: MapGeneratorConfig(
+                style: _style, difficulty: _difficulty, seed: _customSeed),
+          ),
+        ));
     }
   }
 
@@ -209,6 +219,12 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
                           context.translate('infinite_map'),
                           Icons.all_inclusive,
                           _MapMode.infinite)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                      child: _tab(
+                          '3D MODE',
+                          Icons.view_in_ar,
+                          _MapMode.mode3d)),
                 ]),
               ),
 
@@ -257,6 +273,8 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
         return _buildProcedural();
       case _MapMode.premade:
         return _buildPremade();
+      case _MapMode.mode3d:
+        return _build3D();
     }
   }
 
@@ -361,6 +379,45 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
 
                 const SizedBox(height: 8),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _build3D() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.view_in_ar, size: 72, color: Colors.white54),
+          const SizedBox(height: 16),
+          const Text(
+            '3D CORRIDOR MODE',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Infinite procedural world.\nRun forward, survive waves.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white54, fontSize: 13),
+          ),
+          const SizedBox(height: 32),
+          GamepadMenuItem(
+            focused: _isFocused(_kIdxPlay),
+            onTap: _launch,
+            borderRadius: BorderRadius.circular(10),
+            child: LaunchBtn(
+              label: 'PLAY 3D',
+              color: Colors.deepPurple,
+              icon: Icons.play_arrow,
+              onTap: _launch,
             ),
           ),
         ],

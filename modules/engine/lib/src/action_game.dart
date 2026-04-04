@@ -13,6 +13,7 @@ import 'package:service/service.dart';
 
 import 'components/platform/platform_factory.dart';
 import 'components/util/gamepad_debug_overlay.dart';
+import 'components/util/hud.dart';
 
 class ActionGame extends FlameGame
     with HasCollisionDetection, TapCallbacks, KeyboardEvents {

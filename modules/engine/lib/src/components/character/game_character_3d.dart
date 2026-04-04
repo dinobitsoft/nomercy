@@ -8,6 +8,7 @@ import 'package:engine/engine.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
+import '../../utils/sprite_utils.dart';
 import '../platform/game_platform_3d.dart';
 
 /// Base class for all 3D characters.
@@ -30,8 +31,11 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
   /// Facing angle in XZ plane (radians, 0 = +X right, π/2 = +Z forward).
   double facingAngle = math.pi / 2;   // default: facing toward camera (-Z)
 
-  /// Current platform the character stands on (null = airborne).
+  /// Current platform the character stands on (null = airborne or on floor).
   GamePlatform3D? groundPlatform;
+
+  /// True when the character is resting on the infinite ground floor (Y=0).
+  bool _onInfiniteFloor = false;
 
   // ── stats & state machine ─────────────────────────────────────────────────
   final GameCharacterState characterState;
@@ -68,8 +72,7 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
         animations: animations ?? {},
         current: CharacterAnimState.idle,
         anchor: Anchor.bottomCenter,
-        size: Vector2(GameConfig3D.characterSizeX * 2.5,
-            GameConfig3D.characterSizeY * 1.2),
+        size: Vector2(GameConfig.characterWidth, GameConfig.characterHeight),
       ) {
     worldPos = initialPos.clone();
   }
@@ -86,38 +89,30 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
 
   Future<void> _loadAnimations() async {
     final charName = stats.name.toLowerCase();
+    final ms       = movementStrategy;
+    final as_      = actionStrategy;
+
+    SpriteAnimation fb() => SpriteAnimation.spriteList([], stepTime: 0.2);
+
+    final idle  = await loadAnim(game, charName, 'idle',    stepTime: ms.idleStepTime, loop: true)  ?? fb();
+    final walk  = await loadAnim(game, charName, 'walk',    stepTime: ms.walkStepTime, loop: true,  fallback: idle) ?? idle;
+    final run   = await loadAnim(game, charName, 'run',     stepTime: ms.runStepTime,  loop: true,  fallback: walk) ?? walk;
+    final jump  = await loadAnim(game, charName, 'jump',    stepTime: as_.jumpStepTime,    loop: true,  fallback: idle) ?? idle;
+    final land  = await loadAnim(game, charName, 'landing', stepTime: as_.landingStepTime, loop: false, fallback: idle) ?? idle;
+    final atk   = await loadAnimDynamic(game, charName, 'attack',
+        totalDuration: as_.attackDuration, loop: false, fallback: idle) ?? idle;
+
     animations = {
-      CharacterAnimState.idle:     await _loadAnim(charName, 'idle',    0.20) ?? _fallbackAnim(),
-      CharacterAnimState.walking:  await _loadAnim(charName, 'walk',    0.12) ?? _fallbackAnim(),
-      CharacterAnimState.running:  await _loadAnim(charName, 'run',     0.08) ?? _fallbackAnim(),
-      CharacterAnimState.jumping:  await _loadAnim(charName, 'jump',    0.15, loop: false) ?? _fallbackAnim(),
-      CharacterAnimState.falling:  await _loadAnim(charName, 'jump',    0.15) ?? _fallbackAnim(),
-      CharacterAnimState.landing:  await _loadAnim(charName, 'landing', 0.10, loop: false) ?? _fallbackAnim(),
-      CharacterAnimState.attacking:await _loadAnim(charName, 'attack',  0.08, loop: false) ?? _fallbackAnim(),
-      CharacterAnimState.dead:     await _loadAnim(charName, 'idle',    0.30) ?? _fallbackAnim(),
+      CharacterAnimState.idle:      idle,
+      CharacterAnimState.walking:   walk,
+      CharacterAnimState.running:   run,
+      CharacterAnimState.jumping:   jump,
+      CharacterAnimState.falling:   jump,
+      CharacterAnimState.landing:   land,
+      CharacterAnimState.attacking: atk,
+      CharacterAnimState.dead:      idle,
     };
   }
-
-  Future<SpriteAnimation?> _loadAnim(
-      String charName, String animType, double stepTime, {bool loop = true}) async {
-    try {
-      final entry = AssetPaths.characterSprites[charName]?[animType];
-      if (entry is List<dynamic> && entry.isNotEmpty) {
-        final frames = <Sprite>[];
-        for (final path in entry) {
-          frames.add(Sprite(await game.images.load(path as String)));
-        }
-        return SpriteAnimation.spriteList(frames, stepTime: stepTime, loop: loop);
-      }
-      if (entry is String) {
-        final img = await game.images.load(entry);
-        return SpriteAnimation.spriteList([Sprite(img)], stepTime: stepTime, loop: loop);
-      }
-    } catch (_) {}
-    return null;
-  }
-
-  SpriteAnimation _fallbackAnim() => SpriteAnimation.spriteList([], stepTime: 0.2);
 
   // ── update ────────────────────────────────────────────────────────────────
 
@@ -130,7 +125,7 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
       return;
     }
 
-    characterState.wasGrounded = groundPlatform != null;
+    characterState.wasGrounded = groundPlatform != null || _onInfiniteFloor;
 
     _updateTimers(dt);
 
@@ -149,7 +144,7 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
   // ── physics ───────────────────────────────────────────────────────────────
 
   void _applyPhysics3D(double dt) {
-    final grounded = groundPlatform != null;
+    final grounded = groundPlatform != null || _onInfiniteFloor;
 
     // Gravity
     if (!grounded) {
@@ -206,6 +201,15 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
       }
     }
 
+    // Infinite ground floor at Y=0 — snap character so it never falls through.
+    if (newGround == null && proposed.y <= GameConfig3D.groundSurfaceY && velocity.y <= 0) {
+      proposed.y      = GameConfig3D.groundSurfaceY;
+      velocity.y      = 0;
+      _onInfiniteFloor = true;
+    } else if (proposed.y > GameConfig3D.groundSurfaceY) {
+      _onInfiniteFloor = false;
+    }
+
     worldPos.setFrom(proposed);
     groundPlatform             = newGround;
     // Note: characterState.groundPlatform is typed GamePlatform? (2D), not used in 3D path.
@@ -214,7 +218,7 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
   // ── landing / takeoff events ──────────────────────────────────────────────
 
   void _detectLandingTakeoff() {
-    final grounded = groundPlatform != null;
+    final grounded = groundPlatform != null || _onInfiniteFloor;
 
     if (characterState.wasGrounded && !grounded) {
       characterState
@@ -247,12 +251,13 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
   // ── actions ───────────────────────────────────────────────────────────────
 
   void performJump3D({double? customPower}) {
-    final grounded = groundPlatform != null;
+    final grounded = groundPlatform != null || _onInfiniteFloor;
     final stamina  = characterState.stamina;
 
     if (grounded && stamina >= GameConfig3D.jumpStaminaCost) {
-      velocity.y = customPower ?? jumpPower;
-      groundPlatform = null;
+      velocity.y       = customPower ?? jumpPower;
+      groundPlatform   = null;
+      _onInfiniteFloor = false;
       characterState
         ..groundPlatform = null
         ..stamina -= GameConfig3D.jumpStaminaCost
@@ -294,14 +299,9 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
     if (characterState.isStunned || characterState.isLanding ||
         characterState.isDodging) return;
 
-    final gp = game.gamepadManager;
-    Vector2 stick;
-
-    if (gp.isGamepadConnected && gp.hasMovementInput()) {
-      stick = gp.getJoystickDirection();
-    } else {
-      stick = game.joystick.relativeDelta;
-    }
+    final gp    = game.gamepadManager;
+    final gpDir = gp.joystickDelta;
+    final stick = gpDir.length > 0.1 ? gpDir : game.joystick.relativeDelta;
 
     // In the 3D corridor runner:
     //   joystick.x → world X (strafe)

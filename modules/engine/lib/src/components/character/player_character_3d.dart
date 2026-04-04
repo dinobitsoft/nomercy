@@ -33,14 +33,9 @@ class PlayerCharacter3D extends GameCharacter3D {
     if (characterState.isStunned || characterState.isLanding ||
         characterState.isDodging) return;
 
-    final gp = game.gamepadManager;
-    Vector2 stick;
-
-    if (gp.isGamepadConnected && gp.hasMovementInput()) {
-      stick = gp.getJoystickDirection();
-    } else {
-      stick = game.joystick.relativeDelta;
-    }
+    final gp      = game.gamepadManager;
+    final gpDir   = gp.joystickDelta;
+    final stick   = gpDir.length > 0.1 ? gpDir : game.joystick.relativeDelta;
 
     final isRun = stick.length > 0.65;
 
