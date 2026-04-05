@@ -82,6 +82,13 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
   @override
   Future<void> onLoad() async {
     await super.onLoad();
+    // Scale sprite so the character occupies the same visual fraction of the
+    // screen as in 2D mode (which uses a virtual 1280/1.2 ≈ 1067 px canvas).
+    final screenW = game.size.x;
+    final scale3d = screenW / (1280.0 / 1.2);
+    final w = GameConfig.characterWidth  * scale3d;
+    final h = GameConfig.characterHeight * scale3d;
+    size = Vector2(w, h);
     await _loadAnimations();
     spritesLoaded = true;
     _syncScreenPosition();

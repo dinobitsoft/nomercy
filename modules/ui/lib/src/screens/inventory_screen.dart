@@ -26,7 +26,13 @@ class InventoryScreen extends StatefulWidget {
 }
 
 class _InventoryScreenState extends State<InventoryScreen> {
-  int selectedTab = 0; // 0: Inventory, 1: Shop
+  final _selectedTab = ValueNotifier<int>(0); // 0: Inventory, 1: Shop
+
+  @override
+  void dispose() {
+    _selectedTab.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,17 +41,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header
+            // Header — never depends on tab, never rebuilds
             _buildHeader(),
 
-            // Tab selector
-            _buildTabSelector(),
+            // Tab selector — rebuild only when tab changes
+            ValueListenableBuilder<int>(
+              valueListenable: _selectedTab,
+              builder: (_, tab, __) => _buildTabSelector(tab),
+            ),
 
-            // Content
+            // Content — rebuild only when tab changes
             Expanded(
-              child: selectedTab == 0
-                  ? _buildInventoryTab()
-                  : _buildShopTab(),
+              child: ValueListenableBuilder<int>(
+                valueListenable: _selectedTab,
+                builder: (_, tab, __) => tab == 0
+                    ? _buildInventoryTab()
+                    : _buildShopTab(),
+              ),
             ),
           ],
         ),
@@ -96,27 +108,27 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  Widget _buildTabSelector() {
+  Widget _buildTabSelector(int currentTab) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
           Expanded(
-            child: _buildTab('INVENTORY', 0, Icons.backpack),
+            child: _buildTab('INVENTORY', 0, Icons.backpack, currentTab),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: _buildTab('SHOP', 1, Icons.store),
+            child: _buildTab('SHOP', 1, Icons.store, currentTab),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTab(String label, int index, IconData icon) {
-    final isSelected = selectedTab == index;
+  Widget _buildTab(String label, int index, IconData icon, int currentTab) {
+    final isSelected = currentTab == index;
     return GestureDetector(
-      onTap: () => setState(() => selectedTab = index),
+      onTap: () => _selectedTab.value = index,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(

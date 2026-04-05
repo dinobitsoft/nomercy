@@ -102,7 +102,7 @@ class ActionGame3D extends FlameGame
     camera.viewfinder.zoom   = 1.0;
     camera.viewfinder.anchor = Anchor.topLeft;
 
-    // World origin starts at screen centre.
+    // World origin starts at screen centre (virtual 640×360).
     worldOriginOnScreen = size / 2;
     _cameraTarget       = worldOriginOnScreen.clone();
 

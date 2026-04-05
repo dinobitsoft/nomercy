@@ -409,15 +409,18 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
             style: TextStyle(color: Colors.white54, fontSize: 13),
           ),
           const SizedBox(height: 32),
-          GamepadMenuItem(
-            focused: _isFocused(_kIdxPlay),
-            onTap: _launch,
-            borderRadius: BorderRadius.circular(10),
-            child: LaunchBtn(
-              label: 'PLAY 3D',
-              color: Colors.deepPurple,
-              icon: Icons.play_arrow,
+          SizedBox(
+            width: double.infinity,
+            child: GamepadMenuItem(
+              focused: _isFocused(_kIdxPlay),
               onTap: _launch,
+              borderRadius: BorderRadius.circular(10),
+              child: LaunchBtn(
+                label: 'PLAY 3D',
+                color: Colors.deepPurple,
+                icon: Icons.play_arrow,
+                onTap: _launch,
+              ),
             ),
           ),
         ],

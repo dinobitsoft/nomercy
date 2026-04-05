@@ -282,6 +282,9 @@ class InfiniteGround3D extends PositionComponent
     position = sc - Vector2(8000, 4000);
   }
 
+  // Fixed display size for each tile in screen pixels — keep this small.
+  static const double _displayTile = 64.0;
+
   @override
   void render(Canvas canvas) {
     final origin = game.worldOriginOnScreen;
@@ -294,33 +297,34 @@ class InfiniteGround3D extends PositionComponent
 
     final nw = proj(pp.x - ext, pp.z - ext);
     final ne = proj(pp.x + ext, pp.z - ext);
-    final se = proj(pp.x + ext, pp.z + ext);
-    final sw = proj(pp.x - ext, pp.z + ext);
 
+    // Viewport bounds in local canvas coordinates.
+    final vpX = -position.x;
+    final vpY = -position.y;
+    final vpW = game.size.x;
+    final vpH = game.size.y;
+
+    // Clip to a rectangle that starts at the horizon line and fills the entire
+    // screen below it — ensures tiles cover the full visible ground area.
+    final horizonY = (nw.y < ne.y ? nw.y : ne.y) - 2;
     final groundPath = Path()
-      ..moveTo(nw.x, nw.y) ..lineTo(ne.x, ne.y)
-      ..lineTo(se.x, se.y) ..lineTo(sw.x, sw.y) ..close();
+      ..addRect(Rect.fromLTRB(vpX - 10, horizonY, vpX + vpW + 10, vpY + vpH + 10));
 
     canvas.save();
     canvas.clipPath(groundPath);
 
     if (_tileImg != null) {
       final img   = _tileImg!;
-      final tw    = img.width.toDouble();
-      final th    = img.height.toDouble();
-      final src   = Rect.fromLTWH(0, 0, tw, th);
+      final src   = Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble());
+      final td    = _displayTile;
       final paint = Paint();
 
-      final xs = [nw.x, ne.x, se.x, sw.x];
-      final ys = [nw.y, ne.y, se.y, sw.y];
-      final minX = xs.reduce((a, b) => a < b ? a : b);
-      final minY = ys.reduce((a, b) => a < b ? a : b);
-      final maxX = xs.reduce((a, b) => a > b ? a : b);
-      final maxY = ys.reduce((a, b) => a > b ? a : b);
+      final startX = (vpX / td).floor() * td;
+      final startY = (vpY / td).floor() * td;
 
-      for (double y = (minY / th).floor() * th; y < maxY + th; y += th) {
-        for (double x = (minX / tw).floor() * tw; x < maxX + tw; x += tw) {
-          canvas.drawImageRect(img, src, Rect.fromLTWH(x, y, tw, th), paint);
+      for (double y = startY; y < vpY + vpH + td; y += td) {
+        for (double x = startX; x < vpX + vpW + td; x += td) {
+          canvas.drawImageRect(img, src, Rect.fromLTWH(x, y, td, td), paint);
         }
       }
     } else {
@@ -332,7 +336,7 @@ class InfiniteGround3D extends PositionComponent
     // ── Horizon fog ───────────────────────────────────────────────────────
     final fogY = nw.y;
     canvas.drawRect(
-      Rect.fromLTWH(-8000, fogY - 80, 16000, 320),
+      Rect.fromLTWH(-position.x, fogY - 80, game.size.x, 320),
       Paint()..shader = ui.Gradient.linear(
         Offset(0, fogY - 80), Offset(0, fogY + 240),
         [const Color(0x881a1a2e), Colors.transparent],

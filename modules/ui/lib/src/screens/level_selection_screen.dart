@@ -15,7 +15,7 @@ class LevelSelectionScreen extends StatefulWidget {
 class _LevelSelectionScreenState extends State<LevelSelectionScreen>
     with GamepadMenuController {
 
-  bool enableMultiplayer = false;
+  final _enableMultiplayer = ValueNotifier<bool>(false);
 
   static const _levels = ['level_1', 'level_2', 'level_3'];
 
@@ -36,12 +36,18 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen>
     ], columns: 3);
   }
 
+  @override
+  void dispose() {
+    _enableMultiplayer.dispose();
+    super.dispose();
+  }
+
   void _launch(String mapName) {
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => GameScreen(
         selectedCharacterClass: widget.selectedCharacterClass,
         mapName: mapName,
-        enableMultiplayer: enableMultiplayer,
+        enableMultiplayer: _enableMultiplayer.value,
         gameMode: GameMode.survival,
       ),
     ));
@@ -111,36 +117,39 @@ class _LevelSelectionScreenState extends State<LevelSelectionScreen>
   }
 
   Widget _buildMultiplayerToggle() {
-    return GestureDetector(
-      onTap: () => setState(() { enableMultiplayer = !enableMultiplayer; }),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: enableMultiplayer ? Colors.green : Colors.grey,
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.people,
-                color: enableMultiplayer ? Colors.green : Colors.grey, size: 20),
-            const SizedBox(width: 8),
-            Text('MULTIPLAYER',
-                style: TextStyle(
-                    color: enableMultiplayer ? Colors.green : Colors.grey,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(width: 4),
-            Switch(
-              value: enableMultiplayer,
-              onChanged: (v) => setState(() { enableMultiplayer = v; }),
-              activeColor: Colors.green,
-              inactiveThumbColor: Colors.grey,
+    return ValueListenableBuilder<bool>(
+      valueListenable: _enableMultiplayer,
+      builder: (_, enabled, __) => GestureDetector(
+        onTap: () => _enableMultiplayer.value = !_enableMultiplayer.value,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: enabled ? Colors.green : Colors.grey,
+              width: 1.5,
             ),
-          ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.people,
+                  color: enabled ? Colors.green : Colors.grey, size: 20),
+              const SizedBox(width: 8),
+              Text('MULTIPLAYER',
+                  style: TextStyle(
+                      color: enabled ? Colors.green : Colors.grey,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(width: 4),
+              Switch(
+                value: enabled,
+                onChanged: (v) => _enableMultiplayer.value = v,
+                activeColor: Colors.green,
+                inactiveThumbColor: Colors.grey,
+              ),
+            ],
+          ),
         ),
       ),
     );
