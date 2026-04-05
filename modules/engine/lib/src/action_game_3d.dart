@@ -148,6 +148,9 @@ class ActionGame3D extends FlameGame
     );
     camera.viewport.add(joystick);
 
+    // On-screen attack button (bottom-right).
+    camera.viewport.add(_AttackButton3D(game: this));
+
     // Start music.
     audioSystem.playMusic('battle_theme');
   }
@@ -315,5 +318,95 @@ class ActionGame3D extends FlameGame
   void onRemove() {
     for (final s in _subscriptions) s.cancel();
     super.onRemove();
+  }
+}
+
+// ── On-screen attack button ───────────────────────────────────────────────────
+
+class _AttackButton3D extends PositionComponent
+    with TapCallbacks, HasGameReference<ActionGame3D> {
+
+  static const double _radius = 40.0;
+  static const double _margin = 50.0;
+
+  bool _pressed = false;
+
+  _AttackButton3D({required ActionGame3D game})
+      : super(
+          anchor: Anchor.center,
+          size: Vector2.all(_radius * 2),
+          priority: 200,
+        );
+
+  @override
+  void onGameResize(Vector2 gameSize) {
+    super.onGameResize(gameSize);
+    position = Vector2(gameSize.x - _margin - _radius, gameSize.y - _margin - _radius);
+  }
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    _pressed = true;
+    game.character.performAttack3D();
+  }
+
+  @override
+  void onTapUp(TapUpEvent event) => _pressed = false;
+
+  @override
+  void onTapCancel(TapCancelEvent event) => _pressed = false;
+
+  @override
+  void render(Canvas canvas) {
+    final cs = game.character.characterState;
+    final ready = cs.attackCooldown <= 0 && cs.stamina >= 15;
+
+    // Glow ring when ready.
+    if (ready) {
+      canvas.drawCircle(
+        Offset(_radius, _radius),
+        _radius + 6,
+        Paint()..color = Colors.red.withOpacity(_pressed ? 0.6 : 0.25),
+      );
+    }
+
+    // Button background.
+    canvas.drawCircle(
+      Offset(_radius, _radius),
+      _radius,
+      Paint()..color = (_pressed
+          ? Colors.red.withOpacity(0.85)
+          : Colors.red.withOpacity(ready ? 0.65 : 0.30)),
+    );
+
+    // Sword icon (drawn as a simple cross shape).
+    final iconPaint = Paint()
+      ..color = Colors.white.withOpacity(ready ? 0.95 : 0.5)
+      ..strokeWidth = 4
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final cx = _radius;
+    final cy = _radius;
+    // Blade (vertical).
+    canvas.drawLine(Offset(cx, cy - 20), Offset(cx, cy + 22), iconPaint);
+    // Guard (horizontal).
+    canvas.drawLine(Offset(cx - 13, cy + 2), Offset(cx + 13, cy + 2), iconPaint);
+
+    // Cooldown arc overlay.
+    if (cs.attackCooldown > 0) {
+      final maxCd = GameConfig.attackCooldown;
+      final sweep = (cs.attackCooldown / maxCd).clamp(0.0, 1.0) * math.pi * 2;
+      canvas.drawArc(
+        Rect.fromCircle(center: Offset(cx, cy), radius: _radius),
+        -math.pi / 2,
+        sweep,
+        false,
+        Paint()
+          ..color = Colors.white.withOpacity(0.25)
+          ..strokeWidth = 5
+          ..style = PaintingStyle.stroke,
+      );
+    }
   }
 }

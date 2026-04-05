@@ -86,44 +86,66 @@ class InfiniteWorldSystem3D {
     final zStart = chunk.index * chunkDepth;
     final zEnd   = zStart + chunkDepth;
 
-    // Number of platforms scales with distance (more challenge further out).
-    final count = 3 + math.min(_rng.nextInt(4) + (chunk.index.abs() ~/ 5), 7);
+    // Ground-level box obstacles — the primary corridor hazards.
+    _addGroundObstacles(chunk, zStart, zEnd);
 
-    // Guarantee at least one "safe path" platform per column of 600 Z units.
-    _addSafePath(chunk, zStart, zEnd);
-
-    // Additional challenge platforms.
-    for (int i = 0; i < count; i++) {
-      final z       = zStart + 200 + _rng.nextDouble() * (chunkDepth - 400);
-      final x       = (_rng.nextDouble() - 0.5) * chunkWidth * 0.8;
-      final y       = GameConfig3D.infiniteGroundY +
-          80 + _rng.nextDouble() * 380;          // Y above ground
-      final sizeX   = 120 + _rng.nextDouble() * 200;
-      final sizeZ   = GameConfig3D.platformDepthZ;
-      final type    = _pickType();
+    // Elevated platforms to jump on (keep a few for vertical gameplay).
+    final elevatedCount = 1 + _rng.nextInt(3);
+    for (int i = 0; i < elevatedCount; i++) {
+      final z     = zStart + 400 + _rng.nextDouble() * (chunkDepth - 800);
+      final x     = (_rng.nextDouble() - 0.5) * chunkWidth * 0.6;
+      final y     = GameConfig3D.infiniteGroundY + 200 + _rng.nextDouble() * 200;
+      final sizeX = 160 + _rng.nextDouble() * 160;
 
       _spawnPlatform(chunk,
         worldPos: WorldPos(x, y, z),
-        sizeX: sizeX, sizeY: GameConfig3D.platformHeight, sizeZ: sizeZ,
-        type: type,
+        sizeX: sizeX,
+        sizeY: GameConfig3D.platformHeight,
+        sizeZ: GameConfig3D.platformDepthZ,
+        type: _pickType(),
       );
     }
   }
 
-  /// One guaranteed accessible platform near the centre X, reachable from
-  /// the ground or previous safe platform.
-  void _addSafePath(WorldChunk3D chunk, double zStart, double zEnd) {
-    final z    = zStart + chunkDepth * 0.5;
-    final y    = GameConfig3D.infiniteGroundY + 100 + _rng.nextDouble() * 180;
-    const sizeX = 260.0;
+  /// Ground-level box obstacles — sit ON the ground, player must jump over.
+  /// Placed in a staggered pattern so there is always a viable path.
+  void _addGroundObstacles(WorldChunk3D chunk, double zStart, double zEnd) {
+    // Scale count with distance for increasing difficulty.
+    final base  = 2 + (chunk.index.abs() ~/ 3).clamp(0, 4);
+    final count = base + _rng.nextInt(3);
 
-    _spawnPlatform(chunk,
-      worldPos: WorldPos(0, y, z),
-      sizeX: sizeX,
-      sizeY: GameConfig3D.platformHeight,
-      sizeZ: GameConfig3D.platformDepthZ,
-      type: 'ground',
-    );
+    // Divide chunk into Z slots so obstacles are evenly spaced.
+    final slotDepth = (chunkDepth - 600) / count;
+
+    for (int i = 0; i < count; i++) {
+      // Z: one per slot with a little jitter.
+      final z = zStart + 300 + i * slotDepth + _rng.nextDouble() * slotDepth * 0.5;
+
+      // Stagger X: alternate left / right / centre so one lane is always free.
+      final xOptions = [-chunkWidth * 0.28, 0.0, chunkWidth * 0.28];
+      // Block 1 or 2 lanes, leave at least one open.
+      final blockedCount = 1 + _rng.nextInt(2);
+      final shuffled = List.of(xOptions)..shuffle(_rng);
+      for (int b = 0; b < blockedCount; b++) {
+        final x = shuffled[b];
+
+        // Obstacle height: same as platform height so player can jump over.
+        final boxH  = GameConfig3D.platformHeight * (0.9 + _rng.nextDouble() * 0.6);
+        // worldPos.y = top face Y.
+        final topY  = GameConfig3D.groundSurfaceY + boxH;
+        final sizeX = 120 + _rng.nextDouble() * 120;
+        final sizeZ = GameConfig3D.platformDepthZ * (0.7 + _rng.nextDouble() * 0.5);
+        final type  = _pickObstacleType();
+
+        _spawnPlatform(chunk,
+          worldPos: WorldPos(x, topY, z),
+          sizeX: sizeX,
+          sizeY: boxH,
+          sizeZ: sizeZ,
+          type: type,
+        );
+      }
+    }
   }
 
   void _spawnPlatform(WorldChunk3D chunk, {
@@ -145,7 +167,13 @@ class InfiniteWorldSystem3D {
   }
 
   String _pickType() {
-    const types = ['brick', 'stone', 'ice', 'brick', 'ground', 'stone'];
+    const types = ['brick', 'stone', 'ice', 'brick', 'stone'];
+    return types[_rng.nextInt(types.length)];
+  }
+
+  /// Obstacle types — heavier/denser look for ground boxes.
+  String _pickObstacleType() {
+    const types = ['brick', 'brick', 'stone', 'stone', 'ground'];
     return types[_rng.nextInt(types.length)];
   }
 
