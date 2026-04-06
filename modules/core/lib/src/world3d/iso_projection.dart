@@ -5,7 +5,7 @@ import 'package:flame/components.dart';
 
 import 'world_pos.dart';
 
-/// Cabinet / oblique projection for a "corridor runner" 3D platformer.
+/// Oblique projection for a "corridor runner" 3D platformer.
 ///
 /// World axes:
 ///   X → right on screen
@@ -13,25 +13,33 @@ import 'world_pos.dart';
 ///   Z → depth (into screen / forward)
 ///
 /// Projection:
-///   screenX = worldX
-///   screenY = −worldY  +  worldZ × kZ
+///   screenX = worldX  +  worldZ × kZX
+///   screenY = −worldY +  worldZ × kZY
 ///
-/// [kZ] controls how much depth recedes vertically (default 0.40).
-/// Increase for a higher camera angle, decrease for flatter perspective.
+/// [kZX] = −0.30: depth shifts left on screen (camera is to the upper-right).
+/// [kZY] = +0.40: depth shifts down on screen (floor recedes toward horizon).
+///
+/// With both components, the three world axes project to three distinct
+/// screen directions — X→right, Y→up, Z→lower-left — so all box faces
+/// (top, front, right) occupy different screen regions and a 3D parallelepiped
+/// is clearly visible.
 ///
 /// Depth sort: higher worldZ (further from camera) is drawn first (lower
 /// Flame priority value).  We also factor in worldX to avoid z-fighting
 /// on diagonally placed platforms.
 class IsoProjection {
-  static const double kZ = 0.40;
+  /// Horizontal screen shift per world-unit of Z (negative = leftward).
+  static const double kZX = -0.30;
+  /// Vertical screen shift per world-unit of Z (positive = downward).
+  static const double kZY =  0.40;
 
   /// Project a world position to screen (Flame world-space) coordinates.
   /// [screenOrigin] is where worldPos(0,0,0) maps on the Flame canvas.
   static Vector2 project(WorldPos wp, {Vector2? screenOrigin}) {
     final base = screenOrigin ?? Vector2.zero();
     return Vector2(
-      base.x + wp.x,
-      base.y - wp.y + wp.z * kZ,
+      base.x + wp.x + wp.z * kZX,
+      base.y - wp.y + wp.z * kZY,
     );
   }
 
@@ -39,7 +47,7 @@ class IsoProjection {
   static Vector2 projectXYZ(double wx, double wy, double wz,
       {Vector2? screenOrigin}) {
     final base = screenOrigin ?? Vector2.zero();
-    return Vector2(base.x + wx, base.y - wy + wz * kZ);
+    return Vector2(base.x + wx + wz * kZX, base.y - wy + wz * kZY);
   }
 
   /// Flame render priority for depth sorting.
@@ -49,11 +57,12 @@ class IsoProjection {
       (wp.z * 100 + wp.x * 0.5).round();
 
   /// Inverse: given a screen delta (dx, dy), compute world (dx, dz).
-  /// Used for touch / mouse picking.
+  /// Used for touch / mouse picking (flat ground, worldY = 0).
   static (double worldDX, double worldDZ) unprojectXZ(double sdx, double sdy) {
-    // screenX = worldX → worldDX = sdx
-    // screenY = -worldY + worldZ*kZ → for flat ground (Y=0): worldZ = sdy/kZ
-    return (sdx, sdy / kZ);
+    // screenY = wz * kZY  →  wz = sdy / kZY
+    // screenX = wx + wz * kZX  →  wx = sdx - wz * kZX
+    final wz = sdy / kZY;
+    return (sdx - wz * kZX, wz);
   }
 
   // ── Sprite flipping helpers ──────────────────────────────────────────────

@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import '../../utils/sprite_utils.dart';
 import '../platform/game_platform_3d.dart';
+import '../projectile/projectile_3d.dart';
 
 /// Base class for all 3D characters.
 ///
@@ -30,6 +31,9 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
 
   /// Facing angle in XZ plane (radians, 0 = +X right, π/2 = +Z forward).
   double facingAngle = math.pi / 2;   // default: facing toward camera (-Z)
+
+  /// Last non-zero XZ move direction (unit vector), used for projectile aim.
+  WorldPos _lastMoveDir = WorldPos(0, 0, 1);
 
   /// Current platform the character stands on (null = airborne or on floor).
   GamePlatform3D? groundPlatform;
@@ -338,7 +342,60 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
       ..isAttacking          = true
       ..attackAnimationTimer = actionStrategy.attackDuration
       ..attackCooldown       = GameConfig.attackCooldown;
+
+    // Ranged characters (attackRange > 3.0) fire a projectile in 3D space.
+    if (stats.attackRange > 3.0) {
+      _spawnProjectile3D();
+    }
   }
+
+  void _spawnProjectile3D() {
+    // Spawn from character chest height.
+    final spawnPos = WorldPos(
+      worldPos.x,
+      worldPos.y + GameConfig3D.characterSizeY * 0.65,
+      worldPos.z,
+    );
+
+    // Direction: follow the character's last move direction.
+    // Enemies override this to always aim at the player.
+    WorldPos vel;
+    if (playerType == PlayerType.human) {
+      vel = WorldPos(
+        _lastMoveDir.x * Projectile3D.speed,
+        0,
+        _lastMoveDir.z * Projectile3D.speed,
+      );
+    } else {
+      final target = game.character.worldPos;
+      final dx = target.x - worldPos.x;
+      final dz = target.z - worldPos.z;
+      final len = math.sqrt(dx * dx + dz * dz);
+      if (len > 0.1) {
+        vel = WorldPos(dx / len * Projectile3D.speed, 0, dz / len * Projectile3D.speed);
+      } else {
+        vel = WorldPos(_lastMoveDir.x * Projectile3D.speed, 0, _lastMoveDir.z * Projectile3D.speed);
+      }
+    }
+
+    final proj = Projectile3D(
+      spawnPos:   spawnPos,
+      velocity3D: vel,
+      damage:     stats.attackDamage,
+      fromPlayer: playerType == PlayerType.human,
+      type:       _projectileType(),
+      color:      stats.color,
+    );
+    game.world.add(proj);
+    game.projectiles3D.add(proj);
+  }
+
+  String _projectileType() => switch (stats.weaponName.toLowerCase()) {
+    'fireball'          => 'fireball',
+    'throwing knives'   => 'knife',
+    'bow & arrow'       => 'arrow',
+    _                   => 'default',
+  };
 
   // ── timers ────────────────────────────────────────────────────────────────
 
@@ -382,6 +439,13 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
     }
 
     if (current != next) current = next;
+
+    // Track last move direction for projectile aiming.
+    final vx = velocity.x, vz = velocity.z;
+    final vlen = math.sqrt(vx * vx + vz * vz);
+    if (vlen > GameConfig3D.stopThreshold) {
+      _lastMoveDir = WorldPos(vx / vlen, 0, vz / vlen);
+    }
 
     // Flip sprite based on X movement direction
     if (velocity.x.abs() > GameConfig3D.stopThreshold) {

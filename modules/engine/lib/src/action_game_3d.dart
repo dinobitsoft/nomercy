@@ -16,6 +16,7 @@ import 'package:service/service.dart';
 import 'components/character/game_character_3d.dart';
 import 'components/character/player_character_3d.dart';
 import 'components/platform/game_platform_3d.dart';
+import 'components/projectile/projectile_3d.dart';
 
 /// Top-level FlameGame for the 3D platformer.
 ///
@@ -49,7 +50,9 @@ class ActionGame3D extends FlameGame
   final Map<String, GameCharacter3D> characterRegistry = {};
 
   /// All 3D platforms — used for physics collision.
-  final List<GamePlatform3D> platforms3D = [];
+  final List<GamePlatform3D>  platforms3D  = [];
+  /// Live 3D projectiles.
+  final List<Projectile3D>    projectiles3D = [];
 
   final List<Projectile> projectiles = [];
   final List<Item>       inventory   = [];

@@ -183,21 +183,25 @@ class GamePlatform3D extends PositionComponent
       final th  = img.height.toDouble();
       final src = Rect.fromLTWH(0, 0, tw, th);
 
-      // Tile across top face: map world sizeX × sizeZ using screen bounds.
-      _drawTiledFace(canvas, topPath, img, src,
-          _bounds(tl, tf), Colors.transparent);
+      // Draw back-to-front: front → right → top (top face drawn last so it
+      // sits on top in the overlap region and shows the 3D box clearly).
 
-      // Front face: tiled with dark overlay.
+      // Front face: darkest (faces away from the light/camera angle).
       _drawTiledFace(canvas, frontPath, img, src,
-          _bounds(tl, br), Colors.black.withOpacity(0.38));
+          _bounds(tl, br), Colors.black.withOpacity(0.45));
 
-      // Right face: tiled with darker overlay.
+      // Right face: medium shading (side-lit from camera direction).
       _drawTiledFace(canvas, rightPath, img, src,
-          _bounds(tr, bf), Colors.black.withOpacity(0.55));
+          _bounds(tr, bf), Colors.black.withOpacity(0.25));
+
+      // Top face: brightest — drawn last so it overlays the other faces.
+      // Use tfl..tr (opposite diagonal corners) for full-width tiling bounds.
+      _drawTiledFace(canvas, topPath, img, src,
+          _bounds(tfl, tr), Colors.transparent);
     } else {
       // Colour fallback.
-      canvas.drawPath(rightPath,  Paint()..color = sideColor);
       canvas.drawPath(frontPath,  Paint()..color = frontColor);
+      canvas.drawPath(rightPath,  Paint()..color = sideColor);
       canvas.drawPath(topPath,    Paint()..color = topColor);
     }
 
