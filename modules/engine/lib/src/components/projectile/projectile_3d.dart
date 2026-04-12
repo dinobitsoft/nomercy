@@ -99,7 +99,8 @@ class Projectile3D extends PositionComponent with HasGameReference<ActionGame3D>
 
   double _dist(WorldPos other) {
     final dx = worldPos.x - other.x;
-    final dy = worldPos.y - other.y + GameConfig3D.characterSizeY * 0.5;
+    // other.y is the character's bottom; measure to centre of body.
+    final dy = worldPos.y - (other.y + GameConfig3D.characterSizeY * 0.5);
     final dz = worldPos.z - other.z;
     return math.sqrt(dx * dx + dy * dy + dz * dz);
   }
