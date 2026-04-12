@@ -15,6 +15,7 @@ import 'package:service/service.dart';
 
 import 'components/character/game_character_3d.dart';
 import 'components/character/player_character_3d.dart';
+import 'components/obstacle/obstacle_3d.dart';
 import 'components/platform/game_platform_3d.dart';
 import 'components/projectile/projectile_3d.dart';
 
@@ -49,8 +50,12 @@ class ActionGame3D extends FlameGame
   final List<EnemyCharacter3D>   enemies     = [];
   final Map<String, GameCharacter3D> characterRegistry = {};
 
-  /// All 3D platforms — used for physics collision.
+  /// All 3D platforms — used for physics collision (top-landing only).
   final List<GamePlatform3D>  platforms3D  = [];
+
+  /// All 3D obstacles — solid boxes; block lateral (XZ) movement AND top-landing.
+  final List<Obstacle3D>      obstacles3D  = [];
+
   /// Live 3D projectiles.
   final List<Projectile3D>    projectiles3D = [];
 
@@ -151,8 +156,9 @@ class ActionGame3D extends FlameGame
     );
     camera.viewport.add(joystick);
 
-    // On-screen attack button (bottom-right).
+    // On-screen attack button (bottom-right) and jump button (left of it).
     camera.viewport.add(_AttackButton3D(game: this));
+    camera.viewport.add(_JumpButton3D(game: this));
 
     // Start music.
     audioSystem.playMusic('battle_theme');
@@ -409,6 +415,132 @@ class _AttackButton3D extends PositionComponent
           ..color = Colors.white.withOpacity(0.25)
           ..strokeWidth = 5
           ..style = PaintingStyle.stroke,
+      );
+    }
+  }
+}
+
+// ── On-screen jump button ─────────────────────────────────────────────────────
+
+class _JumpButton3D extends PositionComponent
+    with TapCallbacks, HasGameReference<ActionGame3D> {
+
+  static const double _radius = 40.0;
+  static const double _margin = 50.0;
+  // Sits directly to the left of the attack button with a small gap.
+  static const double _gap    = 20.0;
+
+  bool _pressed = false;
+
+  _JumpButton3D({required ActionGame3D game})
+      : super(
+          anchor: Anchor.center,
+          size: Vector2.all(_radius * 2),
+          priority: 200,
+        );
+
+  @override
+  void onGameResize(Vector2 gameSize) {
+    super.onGameResize(gameSize);
+    // Mirror the attack button X, then step one button-width + gap further left.
+    position = Vector2(
+      gameSize.x - _margin - _radius - _gap - _radius * 2,
+      gameSize.y - _margin - _radius,
+    );
+  }
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    _pressed = true;
+    game.character.performJump3D();
+  }
+
+  @override
+  void onTapUp(TapUpEvent event) => _pressed = false;
+
+  @override
+  void onTapCancel(TapCancelEvent event) => _pressed = false;
+
+  @override
+  void render(Canvas canvas) {
+    final cs       = game.character.characterState;
+    final grounded = game.character.groundPlatform != null ||
+        game.character.groundObstacle != null ||
+        // ignore private _onInfiniteFloor — proxy via isAirborne instead
+        !cs.isAirborne;
+    final canJump  = (grounded || (!cs.hasDoubleJumped && cs.canDoubleJump)) &&
+        cs.stamina >= GameConfig3D.jumpStaminaCost;
+
+    final cx = _radius;
+    final cy = _radius;
+
+    // Outer glow when jump is available.
+    if (canJump) {
+      canvas.drawCircle(
+        Offset(cx, cy),
+        _radius + 6,
+        Paint()..color = Colors.cyanAccent.withOpacity(_pressed ? 0.7 : 0.28),
+      );
+    }
+
+    // Button background — cyan/blue family to distinguish from red attack.
+    canvas.drawCircle(
+      Offset(cx, cy),
+      _radius,
+      Paint()..color = _pressed
+          ? const Color(0xFF00bcd4).withOpacity(0.90)
+          : const Color(0xFF0288d1).withOpacity(canJump ? 0.65 : 0.28),
+    );
+
+    // Up-arrow icon.
+    final iconPaint = Paint()
+      ..color      = Colors.white.withOpacity(canJump ? 0.95 : 0.45)
+      ..strokeWidth = 4.0
+      ..style      = PaintingStyle.stroke
+      ..strokeCap  = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final arrowPath = Path()
+      ..moveTo(cx - 13, cy + 10)   // bottom-left
+      ..lineTo(cx,      cy - 14)   // apex
+      ..lineTo(cx + 13, cy + 10)   // bottom-right
+      ..moveTo(cx,      cy - 14)   // stem top
+      ..lineTo(cx,      cy + 14);  // stem bottom
+    canvas.drawPath(arrowPath, iconPaint);
+
+    // Double-jump indicator: small dot above the arrow when airborne + can still jump.
+    if (!grounded && !cs.hasDoubleJumped && cs.canDoubleJump) {
+      canvas.drawCircle(
+        Offset(cx, cy - 26),
+        4,
+        Paint()..color = Colors.cyanAccent.withOpacity(0.85),
+      );
+    }
+
+    // Stamina arc (mirrors the cooldown arc on the attack button).
+    final staminaFrac = (cs.stamina / cs.maxStamina).clamp(0.0, 1.0);
+    if (staminaFrac < 1.0) {
+      // Grey background ring.
+      canvas.drawArc(
+        Rect.fromCircle(center: Offset(cx, cy), radius: _radius),
+        -math.pi / 2,
+        math.pi * 2,
+        false,
+        Paint()
+          ..color      = Colors.white.withOpacity(0.10)
+          ..strokeWidth = 4
+          ..style      = PaintingStyle.stroke,
+      );
+      // Filled portion.
+      canvas.drawArc(
+        Rect.fromCircle(center: Offset(cx, cy), radius: _radius),
+        -math.pi / 2,
+        staminaFrac * math.pi * 2,
+        false,
+        Paint()
+          ..color      = Colors.cyanAccent.withOpacity(0.45)
+          ..strokeWidth = 4
+          ..style      = PaintingStyle.stroke,
       );
     }
   }

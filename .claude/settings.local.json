@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep:*)",
+      "Bash(find ./modules -name \"*.dart\" -exec grep -l \"obstacle\" {} \\\\;)",
+      "Bash(flutter analyze:*)",
+      "Bash(/c/Users/digit/fvm/versions/stable/bin/flutter analyze:*)",
+      "Bash(where flutter:*)",
+      "Bash(find /c /d -name \"flutter.bat\")",
+      "Bash(cmd /c \"where flutter\")",
+      "Bash(cmd /c \"dart analyze 2>&1\")",
+      "Bash(cmd /c \"dart analyze modules/engine 2>&1\")",
+      "Bash(cmd /c \"cd modules\\\\\\\\engine && dart analyze . 2>&1\")",
+      "Bash(cmd /c \"dart analyze modules/engine/ 2>&1\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(cmd /c \"dart analyze . 2>&1\")",
+      "Bash(cmd /c \"dart pub get 2>&1 && echo PUB_OK\")",
+      "Bash(cmd /c \"dart analyze lib/ 2>&1 && echo DONE\")",
+      "Bash(powershell -Command \"Set-Location 'C:\\\\Users\\\\digit\\\\Projects\\\\nomercy'; dart analyze 2>&1 | Select-Object -First 50\")"
+    ]
+  }
+}

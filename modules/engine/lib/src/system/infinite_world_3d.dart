@@ -6,6 +6,7 @@ import 'package:core/core.dart';
 import 'package:engine/engine.dart';
 import 'package:flame/components.dart';
 
+import '../components/obstacle/obstacle_3d.dart';
 import '../components/platform/game_platform_3d.dart';
 
 /// Generates the infinite 3D world in Z-direction chunks.
@@ -107,8 +108,11 @@ class InfiniteWorldSystem3D {
     }
   }
 
-  /// Ground-level box obstacles — sit ON the ground, player must jump over.
-  /// Placed in a staggered pattern so there is always a viable path.
+  /// Ground-level solid obstacles — sit ON the ground, player must jump over
+  /// or navigate around.  Spawned as [Obstacle3D] so they block lateral
+  /// movement in addition to supporting top-landing.
+  ///
+  /// Always leaves at least one X-lane open so there is a viable path forward.
   void _addGroundObstacles(WorldChunk3D chunk, double zStart, double zEnd) {
     // Scale count with distance for increasing difficulty.
     final base  = 2 + (chunk.index.abs() ~/ 3).clamp(0, 4);
@@ -118,31 +122,26 @@ class InfiniteWorldSystem3D {
     final slotDepth = (chunkDepth - 600) / count;
 
     for (int i = 0; i < count; i++) {
-      // Z: one per slot with a little jitter.
       final z = zStart + 300 + i * slotDepth + _rng.nextDouble() * slotDepth * 0.5;
 
-      // Stagger X: alternate left / right / centre so one lane is always free.
-      final xOptions = [-chunkWidth * 0.28, 0.0, chunkWidth * 0.28];
-      // Block 1 or 2 lanes, leave at least one open.
+      // Three X lanes; block 1 or 2, always leave at least one open.
+      final xOptions     = [-chunkWidth * 0.28, 0.0, chunkWidth * 0.28];
       final blockedCount = 1 + _rng.nextInt(2);
-      final shuffled = List.of(xOptions)..shuffle(_rng);
+      final shuffled     = List.of(xOptions)..shuffle(_rng);
+
       for (int b = 0; b < blockedCount; b++) {
-        final x = shuffled[b];
+        final x    = shuffled[b];
+        final boxH = GameConfig3D.platformHeight * (0.9 + _rng.nextDouble() * 0.6);
+        final topY = GameConfig3D.groundSurfaceY + boxH;
+        final szX  = 120 + _rng.nextDouble() * 120;
+        final szZ  = GameConfig3D.platformDepthZ * (0.7 + _rng.nextDouble() * 0.5);
 
-        // Obstacle height: same as platform height so player can jump over.
-        final boxH  = GameConfig3D.platformHeight * (0.9 + _rng.nextDouble() * 0.6);
-        // worldPos.y = top face Y.
-        final topY  = GameConfig3D.groundSurfaceY + boxH;
-        final sizeX = 120 + _rng.nextDouble() * 120;
-        final sizeZ = GameConfig3D.platformDepthZ * (0.7 + _rng.nextDouble() * 0.5);
-        final type  = _pickObstacleType();
-
-        _spawnPlatform(chunk,
+        _spawnObstacle(chunk,
           worldPos: WorldPos(x, topY, z),
-          sizeX: sizeX,
-          sizeY: boxH,
-          sizeZ: sizeZ,
-          type: type,
+          sizeX:    szX,
+          sizeY:    boxH,
+          sizeZ:    szZ,
+          type:     _pickObstacleType(),
         );
       }
     }
@@ -164,6 +163,26 @@ class InfiniteWorldSystem3D {
     game.world.add(p);
     game.platforms3D.add(p);
     chunk.platforms.add(p);
+  }
+
+  /// Spawn a solid [Obstacle3D] — registered in both [game.obstacles3D] and
+  /// the chunk so it is recycled with the chunk lifecycle.
+  void _spawnObstacle(WorldChunk3D chunk, {
+    required WorldPos worldPos,
+    required double sizeX, required double sizeY, required double sizeZ,
+    required String type,
+  }) {
+    final o = Obstacle3D(
+      worldPos:     worldPos,
+      sizeX:        sizeX,
+      sizeY:        sizeY,
+      sizeZ:        sizeZ,
+      obstacleType: type,
+      priority:     IsoProjection.depthPriority(worldPos) + 10,
+    );
+    game.world.add(o);
+    game.obstacles3D.add(o);
+    chunk.obstacles.add(o);
   }
 
   String _pickType() {
@@ -227,6 +246,14 @@ class InfiniteWorldSystem3D {
           ? IsoProjection.depthPriority(platform.worldPos)
           : -9999;
     }
+    for (final obs in game.obstacles3D) {
+      final dz = (obs.worldPos.z - playerPos.z).abs();
+      final dx = (obs.worldPos.x - playerPos.x).abs();
+      final visible = dz < cullZ && dx < chunkWidth * 1.5;
+      obs.priority = visible
+          ? IsoProjection.depthPriority(obs.worldPos) + 10
+          : -9999;
+    }
   }
 
   // ── unload ─────────────────────────────────────────────────────────────────
@@ -247,6 +274,13 @@ class InfiniteWorldSystem3D {
       game.platforms3D.remove(p);
     }
     chunk.platforms.clear();
+
+    for (final o in chunk.obstacles) {
+      if (o.isMounted) o.removeFromParent();
+      game.obstacles3D.remove(o);
+    }
+    chunk.obstacles.clear();
+
     _pool.add(chunk);
   }
 }
@@ -257,11 +291,13 @@ class WorldChunk3D {
   final int id;
   int index;
   final List<GamePlatform3D> platforms = [];
+  final List<Obstacle3D>     obstacles = [];
 
   WorldChunk3D({required this.id, required this.index});
 
   void reset(int newIndex) {
     index = newIndex;
     platforms.clear();
+    obstacles.clear();
   }
 }

@@ -9,6 +9,7 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
 import '../../utils/sprite_utils.dart';
+import '../obstacle/obstacle_3d.dart';
 import '../platform/game_platform_3d.dart';
 import '../projectile/projectile_3d.dart';
 
@@ -37,6 +38,9 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
 
   /// Current platform the character stands on (null = airborne or on floor).
   GamePlatform3D? groundPlatform;
+
+  /// Current obstacle the character stands on top of (null if not on one).
+  Obstacle3D? groundObstacle;
 
   /// True when the character is resting on the infinite ground floor (Y=0).
   bool _onInfiniteFloor = false;
@@ -155,7 +159,7 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
   // ── physics ───────────────────────────────────────────────────────────────
 
   void _applyPhysics3D(double dt) {
-    final grounded = groundPlatform != null || _onInfiniteFloor;
+    final grounded = groundPlatform != null || groundObstacle != null || _onInfiniteFloor;
 
     // Gravity
     if (!grounded) {
@@ -187,8 +191,9 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
     );
 
     GamePlatform3D? newGround;
+    Obstacle3D?    newObstGround;
 
-    // AABB of character at proposed position
+    // AABB of character at proposed position (XZ footprint for platform checks)
     final charAabb = AABB3D.fromCenter(
       center: WorldPos(proposed.x, proposed.y + GameConfig3D.characterSizeY / 2, proposed.z),
       sizeX: GameConfig3D.characterSizeX,
@@ -196,40 +201,100 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
       sizeZ: GameConfig3D.characterSizeZ,
     );
 
+    // ── Platform top-landing (unchanged) ──────────────────────────────────
     for (final platform in game.platforms3D) {
       if (!platform.footprintOverlaps(charAabb)) continue;
 
-      final charBottom = proposed.y; // worldPos.y = bottom of character
-      final platTop    = platform.topY;
-      final dist       = charBottom - platTop;
+      final charBottom = proposed.y;
+      final dist       = charBottom - platform.topY;
 
       if (velocity.y <= 0 && dist > -GameConfig3D.landSnapWindow && dist < 16) {
-        // Land on this platform
-        proposed.y  = platTop;
-        velocity.y  = 0;
-        newGround   = platform;
+        proposed.y = platform.topY;
+        velocity.y = 0;
+        newGround  = platform;
         break;
       }
     }
 
-    // Infinite ground floor at Y=0 — snap character so it never falls through.
-    if (newGround == null && proposed.y <= GameConfig3D.groundSurfaceY && velocity.y <= 0) {
-      proposed.y      = GameConfig3D.groundSurfaceY;
-      velocity.y      = 0;
+    // ── Obstacle collision (top-landing + lateral wall push-back) ─────────
+    for (final obs in game.obstacles3D) {
+      // -- TOP LANDING: same snap logic as platforms ----------------------
+      if (newGround == null && obs.footprintOverlaps(charAabb)) {
+        final dist = proposed.y - obs.topY;
+        if (velocity.y <= 0 && dist > -GameConfig3D.landSnapWindow && dist < 16) {
+          proposed.y  = obs.topY;
+          velocity.y  = 0;
+          newObstGround = obs;
+          continue; // standing on top — skip lateral check for this obstacle
+        }
+      }
+
+      // -- LATERAL WALL: full XYZ AABB overlap → MTD push-back -----------
+      //
+      // Build character AABB at proposed position (full height, not just
+      // footprint) so we detect side-entry correctly.
+      final hcx = GameConfig3D.characterSizeX / 2;
+      final hcz = GameConfig3D.characterSizeZ / 2;
+      final charFull = AABB3D(
+        minX: proposed.x - hcx,
+        maxX: proposed.x + hcx,
+        minY: proposed.y,
+        maxY: proposed.y + GameConfig3D.characterSizeY,
+        minZ: proposed.z - hcz,
+        maxZ: proposed.z + hcz,
+      );
+
+      final ob = obs.aabb;
+      if (!charFull.overlapsXYZ(ob)) continue;
+
+      // Minimum Translation Distance on X and Z axes.
+      final penXLeft  = charFull.maxX - ob.minX;   // char entered from -X side
+      final penXRight = ob.maxX - charFull.minX;    // char entered from +X side
+      final penZNear  = charFull.maxZ - ob.minZ;    // char entered from -Z side
+      final penZFar   = ob.maxZ - charFull.minZ;    // char entered from +Z side
+
+      final penX = math.min(penXLeft,  penXRight);
+      final penZ = math.min(penZNear,  penZFar);
+
+      if (penX < penZ) {
+        // Resolve along X axis
+        if (proposed.x < ob.centerX) {
+          proposed.x = ob.minX - hcx;   // push left
+        } else {
+          proposed.x = ob.maxX + hcx;   // push right
+        }
+        velocity.x = 0;
+      } else {
+        // Resolve along Z axis
+        if (proposed.z < ob.centerZ) {
+          proposed.z = ob.minZ - hcz;   // push toward camera (-Z)
+        } else {
+          proposed.z = ob.maxZ + hcz;   // push away from camera (+Z)
+        }
+        velocity.z = 0;
+      }
+    }
+
+    // ── Infinite ground floor ─────────────────────────────────────────────
+    if (newGround == null && newObstGround == null &&
+        proposed.y <= GameConfig3D.groundSurfaceY && velocity.y <= 0) {
+      proposed.y       = GameConfig3D.groundSurfaceY;
+      velocity.y       = 0;
       _onInfiniteFloor = true;
     } else if (proposed.y > GameConfig3D.groundSurfaceY) {
       _onInfiniteFloor = false;
     }
 
     worldPos.setFrom(proposed);
-    groundPlatform             = newGround;
+    groundPlatform = newGround;
+    groundObstacle = newObstGround;
     // Note: characterState.groundPlatform is typed GamePlatform? (2D), not used in 3D path.
   }
 
   // ── landing / takeoff events ──────────────────────────────────────────────
 
   void _detectLandingTakeoff() {
-    final grounded = groundPlatform != null || _onInfiniteFloor;
+    final grounded = groundPlatform != null || groundObstacle != null || _onInfiniteFloor;
 
     if (characterState.wasGrounded && !grounded) {
       characterState
@@ -253,6 +318,7 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
         ..isAirborne   = false
         ..airborneTime = 0
         ..isJumping    = false;
+      groundObstacle ??= null; // keep; already set in _applyPhysics3D
     } else {
       characterState.isAirborne  = true;
       characterState.airborneTime += 0.016; // dt not available here; safe approx
@@ -262,12 +328,13 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
   // ── actions ───────────────────────────────────────────────────────────────
 
   void performJump3D({double? customPower}) {
-    final grounded = groundPlatform != null || _onInfiniteFloor;
+    final grounded = groundPlatform != null || groundObstacle != null || _onInfiniteFloor;
     final stamina  = characterState.stamina;
 
     if (grounded && stamina >= GameConfig3D.jumpStaminaCost) {
       velocity.y       = customPower ?? jumpPower;
       groundPlatform   = null;
+      groundObstacle   = null;
       _onInfiniteFloor = false;
       characterState
         ..groundPlatform = null
