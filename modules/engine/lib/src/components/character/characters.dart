@@ -1,8 +1,11 @@
 export 'action/action.dart';
 export 'character_stats.dart';
 export 'game_character.dart';
+export 'game_character_3d.dart';
 export 'knight.dart';
 export 'movement/movement.dart';
+export 'movement_strategy_3d.dart';
+export 'player_character_3d.dart';
 export 'skill/skills.dart';
 export 'tactic/tactics.dart';
 export 'thief.dart';

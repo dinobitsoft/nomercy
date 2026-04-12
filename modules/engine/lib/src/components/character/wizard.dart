@@ -14,7 +14,7 @@ class Wizard extends GameCharacter {
     required super.playerType,
     BotTactic? botTactic,
     super.customId,
-  }) : super(botTactic: botTactic ?? DefensiveTactic(), stats: WizardStats());
+  }) : super(botTactic: botTactic, stats: WizardStats());
 
   @override
   void updateBotControl(double dt) {

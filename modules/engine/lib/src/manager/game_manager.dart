@@ -193,13 +193,13 @@ class GameManager extends Component with HasGameReference<ActionGame> {
     print('Spawning $enemiesInWave enemies...');
 
     // Define available tactics (unlock more as waves progress)
-    final availableTactics = <BotTactic>[
-      AggressiveTactic(),
-      if (waveNumber >= 2) BalancedTactic(),
-      if (waveNumber >= 3) DefensiveTactic(),
-      if (waveNumber >= 4) TacticalTactic(),
-      if (waveNumber >= 6) BerserkerTactic(),
-    ];
+    final availableTactics = AiTacticProvider.createAll([
+      'aggressive',
+      if (waveNumber >= 2) 'balanced',
+      if (waveNumber >= 3) 'defensive',
+      if (waveNumber >= 4) 'tactical',
+      if (waveNumber >= 6) 'berserker',
+    ]);
 
     final availableClasses = ['knight', 'thief', 'wizard', 'trader'];
 
@@ -238,7 +238,7 @@ class GameManager extends Component with HasGameReference<ActionGame> {
       randomClass,
       Vector2(950, 400), // Center top
       PlayerType.bot,
-      botTactic: BerserkerTactic(),
+      botTactic: AiTacticProvider.create('berserker')!,
     );
 
     // Mini-boss stats (2x health, 1.3x damage)
@@ -266,7 +266,7 @@ class GameManager extends Component with HasGameReference<ActionGame> {
     final boss = Knight(
       position: Vector2(950, 400),
       playerType: PlayerType.bot,
-      botTactic: BerserkerTactic(),
+      botTactic: AiTacticProvider.create('berserker')!,
     );
 
     // Boss stats (3x health, 1.5x damage, more stamina)
@@ -314,32 +314,32 @@ class GameManager extends Component with HasGameReference<ActionGame> {
       case 1:
         print('CAMPAIGN WAVE 1: Tutorial - 2 Basic Knights');
         _spawnSpecificEnemies([
-          {'class': 'knight', 'tactic': AggressiveTactic(), 'pos': 0},
-          {'class': 'knight', 'tactic': AggressiveTactic(), 'pos': 1},
+          {'class': 'knight', 'tactic': AiTacticProvider.create('aggressive')!, 'pos': 0},
+          {'class': 'knight', 'tactic': AiTacticProvider.create('aggressive')!, 'pos': 1},
         ]);
         break;
       case 2:
         print('CAMPAIGN WAVE 2: Ranged Challenge - 3 Thieves');
         _spawnSpecificEnemies([
-          {'class': 'thief', 'tactic': BalancedTactic(), 'pos': 0},
-          {'class': 'thief', 'tactic': TacticalTactic(), 'pos': 2},
-          {'class': 'thief', 'tactic': DefensiveTactic(), 'pos': 4},
+          {'class': 'thief', 'tactic': AiTacticProvider.create('balanced')!, 'pos': 0},
+          {'class': 'thief', 'tactic': AiTacticProvider.create('tactical')!, 'pos': 2},
+          {'class': 'thief', 'tactic': AiTacticProvider.create('defensive')!, 'pos': 4},
         ]);
         break;
       case 3:
         print('CAMPAIGN WAVE 3: Magic Users - 2 Wizards');
         _spawnSpecificEnemies([
-          {'class': 'wizard', 'tactic': DefensiveTactic(), 'pos': 1},
-          {'class': 'wizard', 'tactic': TacticalTactic(), 'pos': 3},
+          {'class': 'wizard', 'tactic': AiTacticProvider.create('defensive')!, 'pos': 1},
+          {'class': 'wizard', 'tactic': AiTacticProvider.create('tactical')!, 'pos': 3},
         ]);
         break;
       case 4:
         print('CAMPAIGN WAVE 4: Mixed Squad - 4 Enemies');
         _spawnSpecificEnemies([
-          {'class': 'knight', 'tactic': AggressiveTactic(), 'pos': 0},
-          {'class': 'thief', 'tactic': TacticalTactic(), 'pos': 1},
-          {'class': 'wizard', 'tactic': DefensiveTactic(), 'pos': 3},
-          {'class': 'trader', 'tactic': BalancedTactic(), 'pos': 4},
+          {'class': 'knight', 'tactic': AiTacticProvider.create('aggressive')!, 'pos': 0},
+          {'class': 'thief', 'tactic': AiTacticProvider.create('tactical')!, 'pos': 1},
+          {'class': 'wizard', 'tactic': AiTacticProvider.create('defensive')!, 'pos': 3},
+          {'class': 'trader', 'tactic': AiTacticProvider.create('balanced')!, 'pos': 4},
         ]);
         break;
       case 5:
@@ -407,9 +407,9 @@ class GameManager extends Component with HasGameReference<ActionGame> {
 
     // Upgrade all existing bots
     for (final enemy in game.enemies) {
-      if (enemy.botTactic is! BerserkerTactic) {
+      if (enemy.botTactic?.isUnupgradable != true) {
         // Switch to smarter tactics
-        enemy.botTactic = TacticalTactic();
+        enemy.botTactic = AiTacticProvider.create('tactical')!;
         print('${enemy.stats.name} became Tactical!');
       }
     }
@@ -444,7 +444,7 @@ class GameManager extends Component with HasGameReference<ActionGame> {
     final dummy = Knight(
       position: Vector2(800, 600),
       playerType: PlayerType.bot,
-      botTactic: DefensiveTactic(), // Only defends
+      botTactic: AiTacticProvider.create('defensive')!, // Only defends
     );
 
     // Dummy doesn't attack back (override in actual implementation)

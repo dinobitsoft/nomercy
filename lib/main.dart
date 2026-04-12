@@ -1,3 +1,4 @@
+import 'package:ai/ai.dart';
 import 'package:engine/engine.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,9 @@ import 'package:ui/ui.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Wire AI implementations into the engine registries.
+  AiModule.register();
   
   // Lock to landscape for better gameplay experience
   SystemChrome.setPreferredOrientations([

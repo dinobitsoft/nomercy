@@ -20,6 +20,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   gamepads: ^0.1.9
   font_awesome_flutter: ^10.7.0
+  ai:
+    path: modules/ai
   core:
     path: modules/core
   engine:

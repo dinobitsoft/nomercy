@@ -425,23 +425,33 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
     );
 
     // Direction: follow the character's last move direction.
-    // Enemies override this to always aim at the player.
+    // Enemies aim at the player with a gravity-compensated lob.
     WorldPos vel;
     if (playerType == PlayerType.human) {
+      // Player fires horizontally; add a small fixed lob so the arc is readable.
+      const lobVy = 120.0; // ~0.63s flight at 380 g → drops ~75 units at 300-unit range
       vel = WorldPos(
         _lastMoveDir.x * Projectile3D.speed,
-        0,
+        lobVy,
         _lastMoveDir.z * Projectile3D.speed,
       );
     } else {
       final target = game.character.worldPos;
-      final dx = target.x - worldPos.x;
-      final dz = target.z - worldPos.z;
-      final len = math.sqrt(dx * dx + dz * dz);
-      if (len > 0.1) {
-        vel = WorldPos(dx / len * Projectile3D.speed, 0, dz / len * Projectile3D.speed);
+      final dx     = target.x - worldPos.x;
+      final dz     = target.z - worldPos.z;
+      final distXZ = math.sqrt(dx * dx + dz * dz);
+      if (distXZ > 0.1) {
+        final nx = dx / distXZ;
+        final nz = dz / distXZ;
+        // Time of flight at XZ speed; lob vy so projectile peaks halfway and
+        // arrives at target height (dy = target body centre − spawn Y).
+        final t   = distXZ / Projectile3D.speed;
+        final dy  = (target.y + GameConfig3D.characterSizeY * 0.5) - spawnPos.y;
+        final lobVy = dy / t + Projectile3D.gravity * t * 0.5;
+        vel = WorldPos(nx * Projectile3D.speed, lobVy, nz * Projectile3D.speed);
       } else {
-        vel = WorldPos(_lastMoveDir.x * Projectile3D.speed, 0, _lastMoveDir.z * Projectile3D.speed);
+        vel = WorldPos(_lastMoveDir.x * Projectile3D.speed, 120.0,
+            _lastMoveDir.z * Projectile3D.speed);
       }
     }
 

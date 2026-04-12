@@ -216,10 +216,10 @@ class ActionGame extends FlameGame
 
       // Create BOT enemies
       final botConfigs = [
-        {'class': 'knight', 'x': 600.0, 'tactic': AggressiveTactic()},
-        {'class': 'thief', 'x': 1000.0, 'tactic': BalancedTactic()},
-        {'class': 'trader', 'x': 1000.0, 'tactic': BalancedTactic()},
-        {'class': 'wizard', 'x': 1400.0, 'tactic': DefensiveTactic()},
+        {'class': 'knight', 'x': 600.0,  'tactic': AiTacticProvider.create('aggressive')},
+        {'class': 'thief',  'x': 1000.0, 'tactic': AiTacticProvider.create('balanced')},
+        {'class': 'trader', 'x': 1000.0, 'tactic': AiTacticProvider.create('balanced')},
+        {'class': 'wizard', 'x': 1400.0, 'tactic': AiTacticProvider.create('defensive')},
       ];
 
       for (int i = 0; i < botConfigs.length; i++) {
@@ -646,13 +646,11 @@ class ActionGame extends FlameGame
 
 
   GameCharacter? _createEnemy(String enemyType, Vector2 position) {
-    final tactics = [
-      AggressiveTactic(),
-      BalancedTactic(),
-      DefensiveTactic(),
-      TacticalTactic()
-    ];
-    final randomTactic = tactics[math.Random().nextInt(tactics.length)];
+    final tactics = AiTacticProvider.createAll(
+        ['aggressive', 'balanced', 'defensive', 'tactical']);
+    final randomTactic = tactics.isEmpty
+        ? null
+        : tactics[math.Random().nextInt(tactics.length)];
 
     // Generate unique ID for spawned enemy
     final enemyId = 'spawned_${enemyType}_${DateTime.now().millisecondsSinceEpoch}';

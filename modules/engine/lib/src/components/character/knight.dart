@@ -14,7 +14,7 @@ class Knight extends GameCharacter {
     required super.playerType,
     BotTactic? botTactic,
     super.customId,
-  }) : super(botTactic: botTactic ?? AggressiveTactic(), stats: KnightStats());
+  }) : super(botTactic: botTactic, stats: KnightStats());
 
   @override
   void updateBotControl(double dt) {

@@ -13,6 +13,7 @@ import 'package:flutter/services.dart';
 import 'package:gamepad/gamepad.dart';
 import 'package:service/service.dart';
 
+import 'bot/bot_personality_3d.dart';
 import 'components/character/game_character_3d.dart';
 import 'components/character/player_character_3d.dart';
 import 'components/obstacle/obstacle_3d.dart';
@@ -268,6 +269,7 @@ class ActionGame3D extends FlameGame
     required String characterClass,
     required WorldPos spawnPos,
     double difficultyMult = 1.0,
+    BotPersonality3D? personality,
   }) {
     final stats = _statsForClass(characterClass)
       ..health    = (GameConfig.characterBaseHealth * difficultyMult).clamp(50, 300)
@@ -280,6 +282,7 @@ class ActionGame3D extends FlameGame
       spawnPos:       spawnPos,
       stats:          stats,
       id:             id,
+      personality:    personality,
     );
     enemy.priority = IsoProjection.depthPriority(spawnPos) + 200;
 

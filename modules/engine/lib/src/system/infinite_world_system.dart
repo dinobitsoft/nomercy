@@ -278,7 +278,8 @@ class InfiniteWorldSystem {
 
   void _spawnWaveEnemies(WaveZone zone) {
     final types   = ['knight', 'thief', 'wizard', 'trader'];
-    final tactics = [AggressiveTactic(), BalancedTactic(), DefensiveTactic(), TacticalTactic()];
+    final tactics = AiTacticProvider.createAll(
+        ['aggressive', 'balanced', 'defensive', 'tactical']);
 
     for (int i = 0; i < zone.enemyCount; i++) {
       final side   = i % 2 == 0 ? 1.0 : -1.0;

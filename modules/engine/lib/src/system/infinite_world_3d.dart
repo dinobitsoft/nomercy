@@ -6,6 +6,7 @@ import 'package:core/core.dart';
 import 'package:engine/engine.dart';
 import 'package:flame/components.dart';
 
+import '../bot/bot_personality_3d.dart';
 import '../components/obstacle/obstacle_3d.dart';
 import '../components/platform/game_platform_3d.dart';
 
@@ -185,6 +186,27 @@ class InfiniteWorldSystem3D {
     chunk.obstacles.add(o);
   }
 
+  /// Distribute personalities so early waves are pure aggressors;
+  /// later waves progressively introduce the other three personalities.
+  BotPersonality3D _pickPersonality(int wave, int index, int total) {
+    if (wave <= 2) return BotPersonality3D.aggressor;
+    if (wave <= 4) {
+      // One flanker as the "pack leader", rest aggressors.
+      return index == 0 ? BotPersonality3D.flanker : BotPersonality3D.aggressor;
+    }
+    if (wave <= 7) {
+      const pool = [
+        BotPersonality3D.aggressor,
+        BotPersonality3D.aggressor,
+        BotPersonality3D.flanker,
+        BotPersonality3D.ranged,
+      ];
+      return pool[_rng.nextInt(pool.length)];
+    }
+    // Wave 8+: all four personalities in play.
+    return BotPersonality3D.values[_rng.nextInt(BotPersonality3D.values.length)];
+  }
+
   String _pickType() {
     const types = ['brick', 'stone', 'ice', 'brick', 'stone'];
     return types[_rng.nextInt(types.length)];
@@ -214,17 +236,19 @@ class InfiniteWorldSystem3D {
   }
 
   void _spawnEnemies(double z, int wave, double difficulty, int count) {
-    const types = ['knight', 'thief', 'wizard', 'trader'];
+    const charTypes = ['knight', 'thief', 'wizard', 'trader'];
 
     for (int i = 0; i < count; i++) {
-      final type  = types[_rng.nextInt(types.length)];
-      final x     = (_rng.nextDouble() - 0.5) * chunkWidth * 0.6;
-      final spawn = WorldPos(x, 0, z + i * 80.0);
+      final type        = charTypes[_rng.nextInt(charTypes.length)];
+      final x           = (_rng.nextDouble() - 0.5) * chunkWidth * 0.6;
+      final spawn       = WorldPos(x, 0, z + i * 80.0);
+      final personality = _pickPersonality(wave, i, count);
 
       game.spawnEnemy3D(
-        characterClass:    type,
-        spawnPos:          spawn,
-        difficultyMult:    difficulty,
+        characterClass: type,
+        spawnPos:       spawn,
+        difficultyMult: difficulty,
+        personality:    personality,
       );
     }
 

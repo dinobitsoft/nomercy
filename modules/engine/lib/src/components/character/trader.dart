@@ -14,7 +14,7 @@ class Trader extends GameCharacter {
     required super.playerType,
     BotTactic? botTactic,
     super.customId,
-  }) : super(botTactic: botTactic ?? BalancedTactic(), stats: TraderStats());
+  }) : super(botTactic: botTactic, stats: TraderStats());
 
   @override
   void updateBotControl(double dt) {

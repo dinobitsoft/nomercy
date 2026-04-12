@@ -30,8 +30,12 @@ class Projectile3D extends PositionComponent with HasGameReference<ActionGame3D>
   final List<WorldPos> _trail = [];
   double _trailTimer = 0;
 
-  static const double speed     = 750.0;
-  static const double _hitRadius = 80.0; // world-unit hit sphere
+  static const double speed      = 750.0;
+  static const double _hitRadius = 80.0;   // world-unit hit sphere
+  static const double _gravity   = 380.0;  // world-units/s² — ~38% of char gravity
+
+  /// Exposed so callers can compute lob compensation for the same gravity value.
+  static double get gravity => _gravity;
 
   Projectile3D({
     required WorldPos spawnPos,
@@ -55,6 +59,9 @@ class Projectile3D extends PositionComponent with HasGameReference<ActionGame3D>
     _lifetime -= dt;
     _pulse    += dt;
 
+    // Gravity arc
+    velocity3D.y -= _gravity * dt;
+
     // Integrate position
     worldPos.x += velocity3D.x * dt;
     worldPos.y += velocity3D.y * dt;
@@ -68,6 +75,35 @@ class Projectile3D extends PositionComponent with HasGameReference<ActionGame3D>
       if (_trail.length > 6) _trail.removeAt(0);
     }
 
+    // ── Environment collision ──────────────────────────────────────────────
+    // Ground
+    if (worldPos.y <= GameConfig3D.groundSurfaceY) {
+      _explode();
+      return;
+    }
+
+    // Platforms
+    for (final p in game.platforms3D) {
+      final b = p.aabb;
+      if (worldPos.x >= b.minX && worldPos.x <= b.maxX &&
+          worldPos.y >= b.minY && worldPos.y <= b.maxY &&
+          worldPos.z >= b.minZ && worldPos.z <= b.maxZ) {
+        _explode();
+        return;
+      }
+    }
+
+    // Obstacles
+    for (final o in game.obstacles3D) {
+      final b = o.aabb;
+      if (worldPos.x >= b.minX && worldPos.x <= b.maxX &&
+          worldPos.y >= b.minY && worldPos.y <= b.maxY &&
+          worldPos.z >= b.minZ && worldPos.z <= b.maxZ) {
+        _explode();
+        return;
+      }
+    }
+
     // Sync Flame screen position
     final origin = game.worldOriginOnScreen;
     position = IsoProjection.projectXYZ(
@@ -75,7 +111,7 @@ class Projectile3D extends PositionComponent with HasGameReference<ActionGame3D>
       screenOrigin: origin,
     );
 
-    // Collision check
+    // ── Character hit detection ────────────────────────────────────────────
     if (fromPlayer) {
       for (final enemy in game.enemies) {
         if (enemy.characterState.health <= 0) continue;

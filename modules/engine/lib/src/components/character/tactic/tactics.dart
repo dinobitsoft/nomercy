@@ -1,8 +1,3 @@
-export 'aggressive_tactic.dart';
-export 'balanced_tactic.dart';
-export 'berserker_tactic.dart';
+// Only the abstract BotTactic interface stays in engine.
+// Concrete tactic classes live in the `ai` module.
 export 'bot_tactic.dart';
-export 'coward_tactic.dart';
-export 'defensive_tactic.dart';
-export 'sniper_tactic.dart';
-export 'tactical_tactic.dart';

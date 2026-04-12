@@ -1,9 +1,13 @@
 // modules/engine/lib/src/components/character/player_character_3d.dart
 
+import 'dart:math' as math;
+
 import 'package:core/core.dart';
 import 'package:engine/engine.dart';
 import 'package:flame/components.dart';
 
+import '../../bot/bot_controller_3d.dart';
+import '../../bot/bot_personality_3d.dart';
 import 'game_character_3d.dart';
 import 'movement_strategy_3d.dart';
 
@@ -73,55 +77,42 @@ class EnemyCharacter3D extends GameCharacter3D {
   @override final MovementStrategy movementStrategy;
   final MovementStrategy3D movementStrategy3D;
 
-  double _aiTimer = 0;
-  static const double _aiInterval = 0.18;
+  final BotPersonality3D personality;
+  late final BotController3D _ai;
 
   EnemyCharacter3D({
     required String characterClass,
     required WorldPos spawnPos,
-    required CharacterStats stats,
+    required super.stats,
     required String id,
-  })  : actionStrategy     = actionStrategyFor(characterClass),
+    BotPersonality3D? personality,
+  })  : personality        = personality ?? _randomPersonality(),
+        actionStrategy     = actionStrategyFor(characterClass),
         movementStrategy   = movementStrategyFor(characterClass),
         movementStrategy3D = movementStrategy3DFor(characterClass),
         super(
-        stats:      stats,
         playerType: PlayerType.bot,
         uniqueId:   id,
         initialPos: spawnPos,
-      );
+      ) {
+    _ai = AiBotRegistry.create(this.personality);
+  }
 
   @override
   void updateBotControl(double dt) {
-    _aiTimer += dt;
-    if (_aiTimer < _aiInterval) return;
-    _aiTimer = 0;
+    if (game.character.characterState.health <= 0) return;
+    _ai.update(this, movementStrategy3D, dt);
+  }
 
-    final player = game.character;
-    if (player.characterState.health <= 0) return;
+  @override
+  void takeDamage3D(double damage, {WorldPos? knockback}) {
+    super.takeDamage3D(damage, knockback: knockback);
+    _ai.onDamageTaken(this, damage);
+  }
 
-    final dx = player.worldPos.x - worldPos.x;
-    final dz = player.worldPos.z - worldPos.z;
-    final dist = worldPos.lengthXZTo(player.worldPos);
-
-    // Chase player
-    if (dist > 80) {
-      final input = Vector2(dx, -dz) // flip Z for input convention
-        ..normalize();
-      movementStrategy3D.applyMovement(this, input, dist > 400, dt);
-    }
-
-    // Jump over obstacles / gaps
-    if (groundPlatform == null && characterState.wasGrounded) {
-      performJump3D();
-    }
-
-    // Attack when in range
-    if (dist < GameConfig3D.attackRangeZ + 40 &&
-        !characterState.isAttacking &&
-        characterState.attackCooldown <= 0) {
-      performAttack3D();
-    }
+  static BotPersonality3D _randomPersonality() {
+    const all = BotPersonality3D.values;
+    return all[math.Random().nextInt(all.length)];
   }
 }
 
@@ -131,7 +122,8 @@ extension on WorldPos {
   double lengthXZTo(WorldPos other) {
     final dx = other.x - x;
     final dz = other.z - z;
-    return (dx * dx + dz * dz) < 1e-6 ? 0 : (dx * dx + dz * dz);
+    final sq = dx * dx + dz * dz;
+    return sq < 1e-6 ? 0 : math.sqrt(sq);
   }
 }
 

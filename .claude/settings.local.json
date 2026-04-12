@@ -17,7 +17,12 @@
       "Bash(cmd /c \"dart pub get 2>&1 && echo PUB_OK\")",
       "Bash(cmd /c \"dart analyze lib/ 2>&1 && echo DONE\")",
       "Bash(powershell -Command \"Set-Location 'C:\\\\Users\\\\digit\\\\Projects\\\\nomercy'; dart analyze 2>&1 | Select-Object -First 50\")",
-      "Bash(grep -v \"//\")"
+      "Bash(grep -v \"//\")",
+      "Bash(dart analyze:*)",
+      "Bash(~/.flutter/flutter/bin/flutter analyze:*)",
+      "Bash(where.exe flutter:*)",
+      "Read(//c/Users/digit/**)",
+      "Bash(grep -E \"\\\\.\\(dart|yaml\\)$\")"
     ]
   }
 }
