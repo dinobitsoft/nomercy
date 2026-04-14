@@ -58,6 +58,10 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
   // ── timers ────────────────────────────────────────────────────────────────
   bool _prevJumpInput = false;
 
+  /// Counts up after death; character is removed once this reaches [_deathFadeDelay].
+  double _deathTimer = 0.0;
+  static const double _deathFadeDelay = 0.8;
+
   double get jumpPower       => GameConfig3D.jumpVelocity;
   double get doubleJumpPower => GameConfig3D.doubleJumpVelocity;
 
@@ -137,10 +141,14 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
     if (characterState.health <= 0) {
       velocity.setZero();
       current = CharacterAnimState.dead;
+      _deathTimer += dt;
+      if (_deathTimer >= _deathFadeDelay && isMounted) {
+        _cleanupAndRemove();
+      }
       return;
     }
 
-    characterState.wasGrounded = groundPlatform != null || _onInfiniteFloor;
+    characterState.wasGrounded = groundPlatform != null || groundObstacle != null || _onInfiniteFloor;
 
     _updateTimers(dt);
 
@@ -216,16 +224,33 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
       }
     }
 
-    // ── Obstacle collision (top-landing + lateral wall push-back) ─────────
+    // ── Obstacle collision (top-landing + step-up + lateral wall push-back) ──
     for (final obs in game.obstacles3D) {
-      // -- TOP LANDING: same snap logic as platforms ----------------------
+      // -- TOP LANDING: snap onto the top face when falling onto it -------
       if (newGround == null && obs.footprintOverlaps(charAabb)) {
         final dist = proposed.y - obs.topY;
         if (velocity.y <= 0 && dist > -GameConfig3D.landSnapWindow && dist < 16) {
-          proposed.y  = obs.topY;
-          velocity.y  = 0;
+          proposed.y    = obs.topY;
+          velocity.y    = 0;
           newObstGround = obs;
           continue; // standing on top — skip lateral check for this obstacle
+        }
+      }
+
+      // -- STEP-UP: auto-climb short steps while walking ------------------
+      // When the character's XZ footprint overlaps an obstacle that is
+      // slightly above their feet (within stepUpMax) and they are not in
+      // free-fall, snap them to the top.  This makes stairways and raised
+      // platforms walkable without a jump.
+      if (newGround == null && obs.footprintOverlaps(charAabb)) {
+        final rise = obs.topY - proposed.y;
+        if (rise > 0 &&
+            rise <= GameConfig3D.stepUpMax &&
+            velocity.y >= -GameConfig3D.stepUpMax) {
+          proposed.y    = obs.topY;
+          velocity.y    = 0;
+          newObstGround = obs;
+          continue;
         }
       }
 
@@ -636,5 +661,18 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
   void onDeath() {
     velocity.setZero();
     characterState.health = 0;
+    _deathTimer = 0;
   }
+
+  /// Called once [_deathFadeDelay] seconds have elapsed after death.
+  /// Removes the component from the scene and cleans up game tracking lists.
+  void _cleanupAndRemove() {
+    if (!isMounted) return;
+    // Let subclasses (EnemyCharacter3D) do extra cleanup before removal.
+    onBeforeRemove();
+    removeFromParent();
+  }
+
+  /// Override in subclasses to unregister from game lists before removal.
+  void onBeforeRemove() {}
 }

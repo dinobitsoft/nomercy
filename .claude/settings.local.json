@@ -22,7 +22,11 @@
       "Bash(~/.flutter/flutter/bin/flutter analyze:*)",
       "Bash(where.exe flutter:*)",
       "Read(//c/Users/digit/**)",
-      "Bash(grep -E \"\\\\.\\(dart|yaml\\)$\")"
+      "Bash(grep -E \"\\\\.\\(dart|yaml\\)$\")",
+      "Bash(~/.fvm/default/bin/flutter analyze:*)",
+      "Bash(cmd /c \"flutter --version\")",
+      "Bash(/c/Users/digit/dev/flutter_windows_3.41.6-stable/bin/flutter analyze:*)",
+      "Bash(/c/Users/digit/dev/flutter_windows_3.41.6-stable/bin/dart analyze:*)"
     ]
   }
 }

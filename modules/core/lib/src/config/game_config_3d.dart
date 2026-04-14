@@ -42,6 +42,10 @@ abstract final class GameConfig3D {
   /// top counts as "landing" rather than passing through.
   static const double landSnapWindow   = 8.0;
 
+  /// Maximum obstacle height (world-units) the character can step up onto
+  /// automatically while walking, without needing to jump.
+  static const double stepUpMax        = 75.0;
+
   // ── World / chunk ─────────────────────────────────────────────────────────
 
   /// Characters run along +Z; chunks tile in Z direction.

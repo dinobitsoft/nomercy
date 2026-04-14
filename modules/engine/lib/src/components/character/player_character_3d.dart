@@ -43,8 +43,13 @@ class PlayerCharacter3D extends GameCharacter3D {
 
     final isRun = stick.length > 0.65;
 
+    // Flip stick.y so joystick-up moves character up on screen (-Z in world).
+    // Bot AI passes world-space inputs directly and handles its own sign, so
+    // this correction is applied only here at the player call site.
+    final correctedStick = Vector2(stick.x, -stick.y);
+
     if (!characterState.isAttacking) {
-      movementStrategy3D.applyMovement(this, stick, isRun, dt);
+      movementStrategy3D.applyMovement(this, correctedStick, isRun, dt);
     }
 
     // Jump
@@ -57,7 +62,7 @@ class PlayerCharacter3D extends GameCharacter3D {
         groundPlatform != null &&
         characterState.dodgeCooldown <= 0 &&
         movementStrategy3D.canDodge) {
-      movementStrategy3D.applyDodge(this, stick);
+      movementStrategy3D.applyDodge(this, correctedStick);
     }
 
     // Attack
@@ -108,6 +113,13 @@ class EnemyCharacter3D extends GameCharacter3D {
   void takeDamage3D(double damage, {WorldPos? knockback}) {
     super.takeDamage3D(damage, knockback: knockback);
     _ai.onDamageTaken(this, damage);
+  }
+
+  @override
+  void onBeforeRemove() {
+    game.enemies.remove(this);
+    game.characterRegistry.remove(uniqueId);
+    game.enemiesDefeated++;
   }
 
   static BotPersonality3D _randomPersonality() {

@@ -56,8 +56,8 @@ class KnightMovementStrategy3D extends MovementStrategy3D {
     final dir = inputDir.length > 0.2
         ? inputDir.normalized()
         : Vector2(math.cos(char.facingAngle), math.sin(char.facingAngle));
-    char.velocity.x  = dir.x  * dodgeSpeed;
-    char.velocity.z  = -dir.y * dodgeSpeed;
+    char.velocity.x  = dir.x * dodgeSpeed;
+    char.velocity.z  = dir.y * dodgeSpeed;
     char.velocity.y  = 160.0; // slight hop
     char.characterState
       ..isDodging     = true

@@ -8,6 +8,7 @@ import 'package:flame/components.dart';
 
 import '../bot/bot_personality_3d.dart';
 import '../components/obstacle/obstacle_3d.dart';
+import '../components/obstacle/obstacle_builder_3d.dart';
 import '../components/platform/game_platform_3d.dart';
 
 /// Generates the infinite 3D world in Z-direction chunks.
@@ -86,65 +87,138 @@ class InfiniteWorldSystem3D {
 
   void _buildPlatforms(WorldChunk3D chunk) {
     final zStart = chunk.index * chunkDepth;
-    final zEnd   = zStart + chunkDepth;
 
-    // Ground-level box obstacles — the primary corridor hazards.
-    _addGroundObstacles(chunk, zStart, zEnd);
+    // ── 1. Simple ground-level box obstacles (always present) ────────────
+    _addGroundObstacles(chunk, zStart);
 
-    // Elevated platforms to jump on (keep a few for vertical gameplay).
-    final elevatedCount = 1 + _rng.nextInt(3);
+    // ── 2. Complex structure (one per chunk, type rotates with distance) ──
+    _addComplexStructure(chunk, zStart);
+
+    // ── 3. Elevated floating platforms (1-2 per chunk) ───────────────────
+    final elevatedCount = 1 + _rng.nextInt(2);
     for (int i = 0; i < elevatedCount; i++) {
-      final z     = zStart + 400 + _rng.nextDouble() * (chunkDepth - 800);
-      final x     = (_rng.nextDouble() - 0.5) * chunkWidth * 0.6;
-      final y     = GameConfig3D.infiniteGroundY + 200 + _rng.nextDouble() * 200;
-      final sizeX = 160 + _rng.nextDouble() * 160;
+      final z     = zStart + 600 + _rng.nextDouble() * (chunkDepth - 1200);
+      final x     = (_rng.nextDouble() - 0.5) * chunkWidth * 0.55;
+      final y     = GameConfig3D.infiniteGroundY + 220 + _rng.nextDouble() * 180;
+      final sizeX = 180 + _rng.nextDouble() * 140;
 
       _spawnPlatform(chunk,
         worldPos: WorldPos(x, y, z),
-        sizeX: sizeX,
-        sizeY: GameConfig3D.platformHeight,
-        sizeZ: GameConfig3D.platformDepthZ,
-        type: _pickType(),
+        sizeX:    sizeX,
+        sizeY:    GameConfig3D.platformHeight,
+        sizeZ:    GameConfig3D.platformDepthZ,
+        type:     _pickType(),
       );
     }
   }
 
-  /// Ground-level solid obstacles — sit ON the ground, player must jump over
-  /// or navigate around.  Spawned as [Obstacle3D] so they block lateral
-  /// movement in addition to supporting top-landing.
-  ///
-  /// Always leaves at least one X-lane open so there is a viable path forward.
-  void _addGroundObstacles(WorldChunk3D chunk, double zStart, double zEnd) {
-    // Scale count with distance for increasing difficulty.
-    final base  = 2 + (chunk.index.abs() ~/ 3).clamp(0, 4);
-    final count = base + _rng.nextInt(3);
-
-    // Divide chunk into Z slots so obstacles are evenly spaced.
-    final slotDepth = (chunkDepth - 600) / count;
+  /// Ground-level single-box obstacles — simple barriers to jump over or
+  /// navigate around. Always leaves at least one X-lane open.
+  void _addGroundObstacles(WorldChunk3D chunk, double zStart) {
+    final base  = 2 + (chunk.index.abs() ~/ 3).clamp(0, 3);
+    final count = base + _rng.nextInt(2);
+    final slotZ = (chunkDepth - 600) / count;
 
     for (int i = 0; i < count; i++) {
-      final z = zStart + 300 + i * slotDepth + _rng.nextDouble() * slotDepth * 0.5;
+      final z = zStart + 300 + i * slotZ + _rng.nextDouble() * slotZ * 0.5;
 
-      // Three X lanes; block 1 or 2, always leave at least one open.
-      final xOptions     = [-chunkWidth * 0.28, 0.0, chunkWidth * 0.28];
+      // Three X lanes — block 1 or 2, always leave at least one open.
+      final lanes        = [-chunkWidth * 0.28, 0.0, chunkWidth * 0.28];
       final blockedCount = 1 + _rng.nextInt(2);
-      final shuffled     = List.of(xOptions)..shuffle(_rng);
+      final shuffled     = List.of(lanes)..shuffle(_rng);
 
       for (int b = 0; b < blockedCount; b++) {
-        final x    = shuffled[b];
-        final boxH = GameConfig3D.platformHeight * (0.9 + _rng.nextDouble() * 0.6);
+        final boxH = GameConfig3D.platformHeight * (0.8 + _rng.nextDouble() * 0.7);
         final topY = GameConfig3D.groundSurfaceY + boxH;
-        final szX  = 120 + _rng.nextDouble() * 120;
-        final szZ  = GameConfig3D.platformDepthZ * (0.7 + _rng.nextDouble() * 0.5);
-
         _spawnObstacle(chunk,
-          worldPos: WorldPos(x, topY, z),
-          sizeX:    szX,
+          worldPos: WorldPos(shuffled[b], topY, z),
+          sizeX:    110 + _rng.nextDouble() * 110,
           sizeY:    boxH,
-          sizeZ:    szZ,
+          sizeZ:    GameConfig3D.platformDepthZ * (0.6 + _rng.nextDouble() * 0.5),
           type:     _pickObstacleType(),
         );
       }
+    }
+  }
+
+  /// Spawns one of five complex multi-block structures per chunk.
+  /// The structure type is chosen deterministically from the chunk index so
+  /// the world feels varied without being purely random.
+  void _addComplexStructure(WorldChunk3D chunk, double zStart) {
+    if (chunk.index <= 0) return; // skip the very first chunk (player spawn area)
+
+    // Place structure at the mid-point of the chunk with a small random offset.
+    final z = zStart + chunkDepth * 0.45 + (_rng.nextDouble() - 0.5) * 200;
+    final x = (_rng.nextDouble() - 0.5) * chunkWidth * 0.45;
+    final origin = WorldPos(x, GameConfig3D.groundSurfaceY, z);
+
+    // Rotate through structure types based on chunk index.
+    final structureType = chunk.index.abs() % 5;
+
+    List<Obstacle3D> blocks;
+    switch (structureType) {
+      case 0:
+        // Stairway — ascending steps, easy to climb.
+        blocks = ObstacleBuilder3D.stairway(
+          origin:     origin,
+          steps:      4 + _rng.nextInt(2),
+          stepWidth:  190 + _rng.nextDouble() * 60,
+          stepHeight: 55 + _rng.nextDouble() * 15,
+          stepDepth:  85 + _rng.nextDouble() * 20,
+          type:       _pickObstacleType(),
+        );
+
+      case 1:
+        // Elevated platform — two columns + wide slab above.
+        blocks = ObstacleBuilder3D.elevatedPlatform(
+          origin:          origin,
+          platformHeight:  200 + _rng.nextDouble() * 80,
+          platformWidth:   500 + _rng.nextDouble() * 160,
+          platformDepth:   180 + _rng.nextDouble() * 60,
+          slabThickness:   60,
+          columnWidth:     90,
+          type:            _pickObstacleType(),
+        );
+
+      case 2:
+        // Archway — two pillars + lintel, run through the gap.
+        blocks = ObstacleBuilder3D.archway(
+          origin:       origin,
+          openingWidth: 300 + _rng.nextDouble() * 80,
+          pillarHeight: 240 + _rng.nextDouble() * 80,
+          pillarWidth:  80,
+          pillarDepth:  80,
+          lintelThick:  60,
+          type:         _pickObstacleType(),
+        );
+
+      case 3:
+        // Zigzag ramp — zig-zag path upward, forces lateral movement.
+        blocks = ObstacleBuilder3D.zigzagRamp(
+          origin:      origin,
+          levels:      4 + _rng.nextInt(2),
+          levelHeight: 55 + _rng.nextDouble() * 15,
+          blockWidth:  260 + _rng.nextDouble() * 60,
+          blockDepth:  130 + _rng.nextDouble() * 30,
+          type:        _pickObstacleType(),
+        );
+
+      default:
+        // Pyramid — multi-layer square pyramid.
+        blocks = ObstacleBuilder3D.pyramid(
+          origin:      origin,
+          layers:      3 + _rng.nextInt(2),
+          baseWidth:   440 + _rng.nextDouble() * 100,
+          layerHeight: 55 + _rng.nextDouble() * 15,
+          stepInset:   55,
+          type:        _pickObstacleType(),
+        );
+    }
+
+    for (final obs in blocks) {
+      game.world.add(obs);
+      game.obstacles3D.add(obs);
+      chunk.obstacles.add(obs);
     }
   }
 
