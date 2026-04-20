@@ -5,6 +5,7 @@ import 'package:ui/ui.dart';
 
 import 'game_screen.dart';
 import 'game_screen_3d.dart';
+import 'map_designer_screen.dart';
 
 enum _MapMode { procedural, premade, infinite, mode3d }
 
@@ -195,6 +196,29 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             color: Colors.white)),
+                    const Spacer(),
+                    TextButton.icon(
+                      icon: const Icon(Icons.edit_location_alt,
+                          size: 18, color: Colors.white70),
+                      label: const Text('DESIGN',
+                          style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                              letterSpacing: 1)),
+                      style: TextButton.styleFrom(
+                        backgroundColor:
+                            Colors.white.withOpacity(0.06),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                const MapDesignerScreen()),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                   ],
                 ),
               ),

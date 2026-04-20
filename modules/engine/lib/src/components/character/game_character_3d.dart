@@ -36,6 +36,11 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
   /// Last non-zero XZ move direction (unit vector), used for projectile aim.
   WorldPos _lastMoveDir = WorldPos(0, 0, 1);
 
+  /// Written each frame by the aim joystick in the HUD.
+  /// x = world X component, y = screen-space Y (−1 = up = forward, +1 = down = backward).
+  /// Zero vector → fall back to last move direction.
+  Vector2 aimInput = Vector2.zero();
+
   /// Current platform the character stands on (null = airborne or on floor).
   GamePlatform3D? groundPlatform;
 
@@ -449,17 +454,37 @@ abstract class GameCharacter3D extends SpriteAnimationGroupComponent<CharacterAn
       worldPos.z,
     );
 
-    // Direction: follow the character's last move direction.
-    // Enemies aim at the player with a gravity-compensated lob.
     WorldPos vel;
     if (playerType == PlayerType.human) {
-      // Player fires horizontally; add a small fixed lob so the arc is readable.
-      const lobVy = 120.0; // ~0.63s flight at 380 g → drops ~75 units at 300-unit range
-      vel = WorldPos(
-        _lastMoveDir.x * Projectile3D.speed,
-        lobVy,
-        _lastMoveDir.z * Projectile3D.speed,
-      );
+      if (aimInput.length > 0.05) {
+        // Joystick maps directly to shot direction:
+        //   aimInput.x  → world X  (left / right)
+        //   aimInput.y  → world Y  (screen-down = world-down, i.e. negative vy)
+        //   world Z     → forward component, derived so the total speed = Projectile3D.speed
+        //
+        // This lets the player shoot in any direction including straight down
+        // (aimInput.y = +1) when standing on an elevated obstacle.
+        final ix = aimInput.x.clamp(-1.0, 1.0);
+        final iy = aimInput.y.clamp(-1.0, 1.0);
+
+        final vx = ix * Projectile3D.speed;
+        final vy = -iy * Projectile3D.speed; // screen-down (+iy) → world-down (−vy)
+
+        // Z fills the remaining direction magnitude (always forward).
+        final fwd      = _lastMoveDir.z != 0 ? _lastMoveDir.z.sign : 1.0;
+        final xyMagSq  = (ix * ix + iy * iy).clamp(0.0, 1.0);
+        final vz       = math.sqrt(1.0 - xyMagSq) * Projectile3D.speed * fwd;
+
+        vel = WorldPos(vx, vy, vz);
+      } else {
+        // No aim input — fire forward along last move direction with a gentle lob.
+        const lobVy = 120.0;
+        vel = WorldPos(
+          _lastMoveDir.x * Projectile3D.speed,
+          lobVy,
+          _lastMoveDir.z * Projectile3D.speed,
+        );
+      }
     } else {
       final target = game.character.worldPos;
       final dx     = target.x - worldPos.x;

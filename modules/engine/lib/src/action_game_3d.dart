@@ -157,8 +157,9 @@ class ActionGame3D extends FlameGame
     );
     camera.viewport.add(joystick);
 
-    // On-screen attack button (bottom-right) and jump button (left of it).
-    camera.viewport.add(_AttackButton3D(game: this));
+    // Aim joystick (bottom-right) replaces the attack button.
+    // Drag to aim + auto-fire; jump button stays to its left.
+    camera.viewport.add(_AimJoystick3D(game: this));
     camera.viewport.add(_JumpButton3D(game: this));
 
     // Start music.
@@ -333,91 +334,189 @@ class ActionGame3D extends FlameGame
   }
 }
 
-// ── On-screen attack button ───────────────────────────────────────────────────
+// ── Aim joystick (replaces attack button) ────────────────────────────────────
+//
+// Drag in any direction to aim and auto-fire.
+// The dragged direction maps to world XZ: right = +X, up(screen) = +Z(forward).
+// Elevation is computed automatically so shots arc correctly from any height.
 
-class _AttackButton3D extends PositionComponent
-    with TapCallbacks, HasGameReference<ActionGame3D> {
+class _AimJoystick3D extends PositionComponent
+    with DragCallbacks, HasGameReference<ActionGame3D> {
 
-  static const double _radius = 40.0;
-  static const double _margin = 50.0;
+  static const double _bgRadius   = 50.0;
+  static const double _knobRadius = 22.0;
+  // Centre of the component in screen space (from bottom-right corner).
+  static const double _marginR    = 60.0;
+  static const double _marginB    = 60.0;
 
-  bool _pressed = false;
+  /// Current knob offset from component centre (clamped to _bgRadius).
+  Vector2 _delta    = Vector2.zero();
+  /// Accumulated local knob position (updated via start + delta chain).
+  Vector2 _knobLocal = Vector2.zero();
+  bool    _held     = false;
 
-  _AttackButton3D({required ActionGame3D game})
+  _AimJoystick3D({required ActionGame3D game})
       : super(
-          anchor: Anchor.center,
-          size: Vector2.all(_radius * 2),
+          anchor:   Anchor.center,
+          size:     Vector2.all(_bgRadius * 2),
           priority: 200,
         );
 
   @override
   void onGameResize(Vector2 gameSize) {
     super.onGameResize(gameSize);
-    position = Vector2(gameSize.x - _margin - _radius, gameSize.y - _margin - _radius);
+    position = Vector2(gameSize.x - _marginR, gameSize.y - _marginB);
+  }
+
+  // ── drag events ────────────────────────────────────────────────────────────
+
+  @override
+  void onDragStart(DragStartEvent event) {
+    super.onDragStart(event);
+    _held      = true;
+    _knobLocal = event.localPosition.clone();
+    _updateDelta(_knobLocal);
+    _tryFire();
+    event.handled = true;
   }
 
   @override
-  void onTapDown(TapDownEvent event) {
-    _pressed = true;
-    game.character.performAttack3D();
+  void onDragUpdate(DragUpdateEvent event) {
+    super.onDragUpdate(event);
+    // DragUpdateEvent provides localDelta, not localPosition — accumulate.
+    _knobLocal += event.localDelta;
+    _updateDelta(_knobLocal);
+    event.handled = true;
   }
 
   @override
-  void onTapUp(TapUpEvent event) => _pressed = false;
+  void onDragEnd(DragEndEvent event) {
+    super.onDragEnd(event);
+    _release();
+    event.handled = true;
+  }
 
   @override
-  void onTapCancel(TapCancelEvent event) => _pressed = false;
+  void onDragCancel(DragCancelEvent event) {
+    super.onDragCancel(event);
+    _release();
+    event.handled = true;
+  }
+
+  void _updateDelta(Vector2 localPos) {
+    // localPos is relative to component top-left; centre is at (_bgRadius, _bgRadius).
+    final d = localPos - Vector2(_bgRadius, _bgRadius);
+    _delta = d.length > _bgRadius ? (d.normalized()..scale(_bgRadius)) : d.clone();
+    // Pass normalised aim input to character (-1..+1 on each axis).
+    game.character.aimInput = _delta / _bgRadius;
+  }
+
+  void _release() {
+    _held  = false;
+    _delta = Vector2.zero();
+    game.character.aimInput = Vector2.zero();
+  }
+
+  void _tryFire() {
+    final char = game.character;
+    if (char.characterState.isAttacking)     return;
+    if (char.characterState.attackCooldown > 0) return;
+    char.performAttack3D();
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    if (_held) _tryFire(); // performAttack3D checks cooldown internally
+  }
+
+  // ── render ─────────────────────────────────────────────────────────────────
 
   @override
   void render(Canvas canvas) {
-    final cs = game.character.characterState;
+    final cx  = _bgRadius;
+    final cy  = _bgRadius;
+    final cs  = game.character.characterState;
     final ready = cs.attackCooldown <= 0 && cs.stamina >= 15;
 
-    // Glow ring when ready.
-    if (ready) {
-      canvas.drawCircle(
-        Offset(_radius, _radius),
-        _radius + 6,
-        Paint()..color = Colors.red.withOpacity(_pressed ? 0.6 : 0.25),
+    // Background shadow ring.
+    canvas.drawCircle(Offset(cx, cy), _bgRadius + 3,
+        Paint()..color = Colors.black.withOpacity(0.30));
+
+    // Background fill.
+    canvas.drawCircle(Offset(cx, cy), _bgRadius,
+        Paint()..color = Colors.red.withOpacity(_held ? 0.22 : (ready ? 0.12 : 0.07)));
+
+    // Cardinal direction tick marks.
+    final tickPaint = Paint()
+      ..color = Colors.white.withOpacity(0.18)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+    for (final d in [Offset(0, -1), Offset(0, 1), Offset(-1, 0), Offset(1, 0)]) {
+      canvas.drawLine(
+        Offset(cx + d.dx * 18, cy + d.dy * 18),
+        Offset(cx + d.dx * (_bgRadius - 6), cy + d.dy * (_bgRadius - 6)),
+        tickPaint,
       );
     }
 
-    // Button background.
-    canvas.drawCircle(
-      Offset(_radius, _radius),
-      _radius,
-      Paint()..color = (_pressed
-          ? Colors.red.withOpacity(0.85)
-          : Colors.red.withOpacity(ready ? 0.65 : 0.30)),
-    );
+    // Knob.
+    final kx = cx + _delta.x;
+    final ky = cy + _delta.y;
+    canvas.drawCircle(Offset(kx + 1.5, ky + 1.5), _knobRadius,
+        Paint()..color = Colors.black.withOpacity(0.22));
+    canvas.drawCircle(Offset(kx, ky), _knobRadius,
+        Paint()..color = Colors.red
+            .withOpacity(_held ? 0.88 : (ready ? 0.65 : 0.35)));
 
-    // Sword icon (drawn as a simple cross shape).
+    // Sword icon on knob.
     final iconPaint = Paint()
-      ..color = Colors.white.withOpacity(ready ? 0.95 : 0.5)
-      ..strokeWidth = 4
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+      ..color      = Colors.white.withOpacity(ready ? 0.90 : 0.45)
+      ..strokeWidth = 3.0
+      ..style      = PaintingStyle.stroke
+      ..strokeCap  = StrokeCap.round;
+    canvas.drawLine(Offset(kx, ky - 14), Offset(kx, ky + 16), iconPaint);
+    canvas.drawLine(Offset(kx - 9, ky + 2), Offset(kx + 9, ky + 2), iconPaint);
 
-    final cx = _radius;
-    final cy = _radius;
-    // Blade (vertical).
-    canvas.drawLine(Offset(cx, cy - 20), Offset(cx, cy + 22), iconPaint);
-    // Guard (horizontal).
-    canvas.drawLine(Offset(cx - 13, cy + 2), Offset(cx + 13, cy + 2), iconPaint);
+    // Aim arrow shown while dragging (outside the background circle).
+    if (_held && _delta.length > 8) {
+      final dir   = _delta.normalized();
+      final start = Offset(cx + dir.x * (_bgRadius + 6),
+                           cy + dir.y * (_bgRadius + 6));
+      final end   = Offset(cx + dir.x * (_bgRadius + 20),
+                           cy + dir.y * (_bgRadius + 20));
+      final arrowPaint = Paint()
+        ..color      = Colors.red.withOpacity(0.75)
+        ..strokeWidth = 2.5
+        ..strokeCap  = StrokeCap.round;
+      canvas.drawLine(start, end, arrowPaint);
+      // Arrowhead.
+      final perp = Offset(-dir.y, dir.x);
+      canvas.drawPath(
+        Path()
+          ..moveTo(end.dx, end.dy)
+          ..lineTo(end.dx - dir.x * 7 + perp.dx * 4,
+                   end.dy - dir.y * 7 + perp.dy * 4)
+          ..lineTo(end.dx - dir.x * 7 - perp.dx * 4,
+                   end.dy - dir.y * 7 - perp.dy * 4)
+          ..close(),
+        Paint()..color = Colors.red.withOpacity(0.75),
+      );
+    }
 
     // Cooldown arc overlay.
     if (cs.attackCooldown > 0) {
-      final maxCd = GameConfig.attackCooldown;
-      final sweep = (cs.attackCooldown / maxCd).clamp(0.0, 1.0) * math.pi * 2;
+      final sweep = (cs.attackCooldown / GameConfig.attackCooldown)
+          .clamp(0.0, 1.0) * math.pi * 2;
       canvas.drawArc(
-        Rect.fromCircle(center: Offset(cx, cy), radius: _radius),
+        Rect.fromCircle(center: Offset(cx, cy), radius: _bgRadius),
         -math.pi / 2,
         sweep,
         false,
         Paint()
-          ..color = Colors.white.withOpacity(0.25)
-          ..strokeWidth = 5
-          ..style = PaintingStyle.stroke,
+          ..color      = Colors.white.withOpacity(0.22)
+          ..strokeWidth = 4
+          ..style      = PaintingStyle.stroke,
       );
     }
   }

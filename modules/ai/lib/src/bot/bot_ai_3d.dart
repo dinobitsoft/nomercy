@@ -29,6 +29,12 @@ class BotAI3D implements BotController3D {
   static const double _jumpCooldownTime     = 0.6;
   static const double _stuckSpeedThreshold  = 45.0;
 
+  // Ranged-character overrides (applied whenever bot.stats.attackRange > 3.0,
+  // regardless of personality — a wizard should never rush into melee).
+  static const double _rangedKeepDist  = 300.0; // back away if closer than this
+  static const double _rangedIdealDist = 480.0; // preferred shooting distance
+  static const double _rangedMaxDist   = 700.0; // close in slowly if farther
+
   BotAI3D(this.personality) {
     switch (personality) {
       case BotPersonality3D.aggressor:
@@ -106,6 +112,15 @@ class BotAI3D implements BotController3D {
   void _decide(GameCharacter3D bot, MovementStrategy3D strategy,
       double dx, double dz, double dist) {
     if (_retreatTimer > 0) { _doRetreat(bot, strategy, dx, dz); return; }
+
+    // Ranged characters (wizard, thief, trader) must keep distance and shoot
+    // from afar — override personality-based movement entirely.
+    if (bot.stats.attackRange > 3.0) {
+      _rangedCharacterTick(bot, strategy, dx, dz, dist);
+      _tryRangedAttack(bot, dist);
+      return;
+    }
+
     switch (personality) {
       case BotPersonality3D.aggressor: _aggressorTick(bot, strategy, dx, dz, dist);
       case BotPersonality3D.flanker:   _flankerTick(bot, strategy, dx, dz, dist);
@@ -113,6 +128,32 @@ class BotAI3D implements BotController3D {
       case BotPersonality3D.coward:    _cowardTick(bot, strategy, dx, dz, dist);
     }
     _tryAttack(bot, dist);
+  }
+
+  /// Movement logic for any bot whose character class is ranged.
+  /// Maintains a comfortable shooting distance and strafes to avoid being easy to hit.
+  void _rangedCharacterTick(GameCharacter3D bot, MovementStrategy3D strategy,
+      double dx, double dz, double dist) {
+    final norm = math.max(dist, 1.0);
+    if (dist < _rangedKeepDist) {
+      // Too close — back away at full run.
+      _applyInput(bot, strategy, Vector2(-dx / norm, dz / norm), run: true);
+    } else if (dist > _rangedMaxDist) {
+      // Too far to shoot accurately — close in slowly.
+      _applyInput(bot, strategy, Vector2(dx / norm, -dz / norm), run: false);
+    } else {
+      // Ideal range — orbit the player sideways.
+      _applyInput(bot, strategy,
+          Vector2(-dz / norm * _strafeDir, 0), run: false);
+    }
+  }
+
+  /// Attack only when within effective shooting range.
+  void _tryRangedAttack(GameCharacter3D bot, double dist) {
+    if (dist > _rangedMaxDist) return;
+    if (bot.characterState.isAttacking) return;
+    if (bot.characterState.attackCooldown > 0) return;
+    bot.performAttack3D();
   }
 
   void _aggressorTick(GameCharacter3D bot, MovementStrategy3D strategy,

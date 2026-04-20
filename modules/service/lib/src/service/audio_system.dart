@@ -19,7 +19,7 @@ class AudioSystem {
   String? _currentMusic;
   double _musicVolume = GameConfig.musicVolume;
   double _sfxVolume = GameConfig.sfxVolume;
-  bool _musicEnabled = true;
+  bool _musicEnabled = false;
   bool _sfxEnabled = true;
 
   // Audio pools (prevent spam)

@@ -1,4 +1,5 @@
 export 'character_selection_screen.dart';
+export 'map_designer_screen.dart';
 export 'game_screen_3d.dart';
 export 'hud.dart';
 export 'inventory_screen.dart';
