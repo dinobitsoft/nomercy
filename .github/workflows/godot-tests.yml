@@ -12,6 +12,8 @@ jobs:
       image: barichello/godot-ci:4.7.1
     steps:
       - uses: actions/checkout@v4
+      - name: Link shared assets
+        run: ln -s ../assets godot/assets
       - name: Import project
         run: godot --headless --path godot --import
       - name: Run GUT
