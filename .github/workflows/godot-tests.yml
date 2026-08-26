@@ -1,0 +1,18 @@
+name: Godot Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gut:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.7.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import project
+        run: godot --headless --path godot --import
+      - name: Run GUT
+        run: godot --headless -s addons/gut/gut_cmdln.gd --path godot -gdir=res://test -gexit
