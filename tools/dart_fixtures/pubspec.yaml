@@ -1,0 +1,6 @@
+name: dart_fixtures
+description: THROWAWAY - captures golden fixtures for the Godot port. Delete at cutover.
+publish_to: 'none'
+
+environment:
+  sdk: ^3.10.4
