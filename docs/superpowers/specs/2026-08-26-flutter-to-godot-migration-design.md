@@ -314,10 +314,7 @@ test-maintenance cost.
 - **All** `InputMap` actions defined up front — keyboard + gamepad + touch bindings
 - **⚠️ Capture the Dart fixtures.** The only ordering-critical task in the migration: it
   requires a runnable Dart tree. Everything else can slip; this cannot.
-- **⚠️ Resolve sprite-sheet slicing.** `sprite_utils.dart:34` slices strips by image height
-  (`textureSize: Vector2(img.height, img.height)`), but `knight_walk.png` is 1024×**1536** —
-  taller than wide, so that rule cannot be what produces those frames. Every character's `walk`
-  sheet has this shape. Unknown until the files are opened; gates all `SpriteFrames` work.
+- ~~Resolve sprite-sheet slicing~~ — **RESOLVED 2026-08-26, see §12.**
 - `Theme` resource skeleton
 
 ### Phase 1 — Vertical slice → **go/no-go decision point**
@@ -354,7 +351,7 @@ existing several refactors ago and would be actively misleading in a Godot repo.
 | Risk | Mitigation |
 |---|---|
 | Multiplayer constraint imposed in Phase 1, validated in Phase 6. A wrong authority model reaches back through every entity. | Two-peer local test during Phase 1. |
-| Sprite-sheet slicing rule is not what the code implies; frame layout unknown. | Phase 0 blocker, resolved before any `SpriteFrames` work. |
+| ~~Sprite-sheet slicing rule unknown~~ | **Resolved — see §12.** No sheets are in use; risk closed. |
 | `assets/` shared between live Dart and live Godot trees for the whole migration. Godot writes `.import` files next to every asset. | Accepted — noisy diffs, harmless. |
 | Zero existing test coverage means no parity baseline outside the two guarded subsystems. | Accepted deliberately; the guarded subsystems are where silent drift would be invisible longest. |
 | Vertical slice scope creep from decisions 6 and 7. | Phase 1 contents are fixed above; anything else waits for the go/no-go. |
@@ -368,3 +365,41 @@ existing several refactors ago and would be actively misleading in a Godot repo.
 - `map-editor/map-editor.html`
 - Preserving cross-engine seed compatibility for procedural maps
 - Automated tests for UI, animation timing, and audio
+
+---
+
+## 12. Addendum (2026-08-26): sprite-sheet blocker resolved
+
+Investigated while writing the Phase 0/1 plan. **There are no multi-frame sprite sheets in
+use.** The Phase 0 blocker is closed, and the animation situation is poorer than assumed.
+
+`AssetPaths.characterSprites` takes priority over the sheet-slicing path in
+`sprite_utils.dart`. Every animation resolves to either an explicit **list of individual PNGs**
+or a **single PNG**. The `img.width > img.height * 1.5` sheet-slicing branch is dead code for
+all four characters — `knight_walk.png` (1024×1536) is never loaded at all, because
+`AssetPaths` overrides `walk` with a list of `warrior_walk_resized_*.png` files.
+
+Actual per-character animation inventory:
+
+| Character | idle | walk | run | attack | jump | landing |
+|---|---|---|---|---|---|---|
+| Knight | 1 static | **6 frames from 3 unique PNGs** | same 6 as walk | 1 static | 1 static | 1 static |
+| Thief | 1 static | 6× copies of `thief_idle` | 6× copies of `thief_attack` | 1 static | 1 static | 1 static |
+| Wizard | 1 static | 6× copies of `wizard_idle` | 6× copies of `wizard_attack` | 1 static | 1 static | 1 static |
+| Trader | 1 static | 6× copies of `trader_idle` | 6× copies of `trader_attack` | **3 frames** | 1 static | 1 static |
+
+Only two genuine animations exist in the entire game: the **Knight's 3-pose walk cycle** and
+the **Trader's 3-frame attack**. Thief/Wizard/Trader "walk" cycles are the same image repeated
+six times — visually static.
+
+**Consequences:**
+
+1. Phase 0 sprite work is trivial: build `SpriteFrames` from individual PNGs. No slicing, no
+   atlas work, no unknown frame geometry.
+2. `sprite_utils.dart` (96 LOC) does not need porting at all — `SpriteFrames` is a resource
+   authored in the editor.
+3. **Art, not code, is this game's real content gap.** The port will faithfully reproduce a
+   game that is nearly static sprites. That is the correct outcome for a migration, but it
+   should not be mistaken for a Godot limitation afterward.
+4. The Knight is the right slice character on art grounds too — it is the only class with a
+   real walk cycle to evaluate feel against.
