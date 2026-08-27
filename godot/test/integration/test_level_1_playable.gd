@@ -1,6 +1,8 @@
 extends GutTest
 
 const LEVEL := preload("res://scenes/maps/level_1.tscn")
+const PLAYER_SCENE := preload("res://scenes/character/player.tscn")
+const HUD_SCENE := preload("res://ui/hud.tscn")
 
 var level: Node2D
 
@@ -29,11 +31,23 @@ func test_enemy_exists_and_targets_the_player():
 	assert_not_null(enemy)
 	assert_eq(enemy.get_node("BotController").target, level.get_node("Player"))
 
+## Deliberately decoupled from `level`/the live combat scenario: this only
+## verifies HUD.bind() wires a Character's signals to the health bar. It
+## used to reuse the level's own Player and assert its health was still
+## the untouched 100 at the 2s mark -- true only because the old spawn left
+## the enemy airborne until after that mark. Now that the enemy engages
+## quickly (see test_enemy_engages_the_player_in_melee below), that
+## assumption no longer holds, and re-tuning the spawn to preserve it would
+## just be routing around the bug this fixes. A captive Character with no
+## enemy anywhere near it is the correct fixture for "is the HUD bound".
 func test_hud_is_bound_to_the_player():
-	var hud := level.get_node("UILayer/HUD")
-	var bar := hud.get_node("%HealthBar") as ProgressBar
-	var player := level.get_node("Player") as Character
-	player.apply_damage(10.0)
+	var captive_player: Character = PLAYER_SCENE.instantiate()
+	add_child_autofree(captive_player)
+	var captive_hud: Control = HUD_SCENE.instantiate()
+	add_child_autofree(captive_hud)
+	captive_hud.bind(captive_player)
+	var bar := captive_hud.get_node("%HealthBar") as ProgressBar
+	captive_player.apply_damage(10.0)
 	await wait_frames(3)
 	assert_almost_eq(bar.value, 90.0, 0.01)
 
@@ -44,6 +58,26 @@ func test_enemy_closes_on_the_player_over_time():
 	await wait_seconds(2.0)
 	var now := enemy.global_position.distance_to(player.global_position)
 	assert_lt(now, start)
+
+## "Closes" alone doesn't prove the enemy is a threat -- it also passed
+## when the enemy fell into a permanently stuck position 127px away, well
+## outside melee_reach (60px), and simply never got any closer again after
+## that. This asserts actual contact: the enemy must either close inside
+## melee_reach of the player, or the player's health must already have
+## dropped below max because a hit landed, within a bounded window.
+func test_enemy_engages_the_player_in_melee():
+	var player := level.get_node("Player") as Character
+	var enemy := level.get_node("Enemy") as Character
+	var reach := Combat.melee_reach(enemy.stats.attack_range, 0)
+	var engaged := false
+	for _i in range(20):
+		var dist := enemy.global_position.distance_to(player.global_position)
+		if dist < reach or player.health < player.stats.max_health:
+			engaged = true
+			break
+		await wait_seconds(0.1)
+	assert_true(engaged,
+		"Enemy must actually reach melee range of the player, not merely approach and stall")
 
 func test_player_input_moves_the_player():
 	var player := level.get_node("Player") as Character
