@@ -1,0 +1,21 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/character/character.gd" id="1"]
+[ext_resource type="SpriteFrames" path="res://resources/knight_frames.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/knight_stats.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/knight_movement.tres" id="4"]
+
+[sub_resource type="RectangleShape2D" id="shape"]
+size = Vector2(120, 240)
+
+[node name="Character" type="CharacterBody2D"]
+script = ExtResource("1")
+stats = ExtResource("3")
+movement = ExtResource("4")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = ExtResource("2")
+animation = &"idle"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("shape")
