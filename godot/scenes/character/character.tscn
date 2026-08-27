@@ -21,6 +21,10 @@ collision_mask = 1
 script = ExtResource("1")
 stats = ExtResource("3")
 movement = ExtResource("4")
+; Ports GameConfig.platformSnapDistance (game_config.dart:98) -- absorbs
+; the 1-11px ground-tier lips the original tolerated that Godot's
+; CharacterBody2D default (1.0) does not.
+floor_snap_length = 10.0
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = ExtResource("2")

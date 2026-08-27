@@ -1,8 +1,14 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/platform/platform.tscn" id="1"]
+[ext_resource type="Script" path="res://scenes/maps/level_1.gd" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/character/player.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/character/enemy.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://ui/hud.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://ui/touch_controls.tscn" id="6"]
 
 [node name="level_1" type="Node2D"]
+script = ExtResource("2")
 
 [node name="Platforms" type="Node2D" parent="."]
 
@@ -128,3 +134,13 @@ size = Vector2(120, 30)
 
 [node name="PlayerSpawn" type="Marker2D" parent="."]
 position = Vector2(200, 900)
+
+[node name="Player" parent="." instance=ExtResource("3")]
+
+[node name="Enemy" parent="." instance=ExtResource("4")]
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+
+[node name="HUD" parent="UILayer" instance=ExtResource("5")]
+
+[node name="TouchControls" parent="UILayer" instance=ExtResource("6")]
