@@ -1,0 +1,130 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/platform/platform.tscn" id="1"]
+
+[node name="level_1" type="Node2D"]
+
+[node name="Platforms" type="Node2D" parent="."]
+
+[node name="Platform0" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(71, 607)
+kind = 0
+size = Vector2(120, 30)
+
+[node name="Platform1" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(249, 610)
+kind = 0
+size = Vector2(120, 30)
+
+[node name="Platform2" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(1003, 604)
+kind = 0
+size = Vector2(120, 30)
+
+[node name="Platform3" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(1217, 606)
+kind = 0
+size = Vector2(120, 30)
+
+[node name="Platform4" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(851, 689)
+kind = 0
+size = Vector2(120, 30)
+
+[node name="Platform5" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(720, 775)
+kind = 0
+size = Vector2(120, 30)
+
+[node name="Platform6" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(31, 941)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform7" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(150, 933)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform8" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(242, 942)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform9" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(360, 941)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform10" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(481, 931)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform11" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(603, 933)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform12" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(782, 939)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform13" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(882, 939)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform14" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(958, 934)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform15" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(1123, 939)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform16" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(1246, 928)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform17" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(1357, 930)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform18" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(1454, 916)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform19" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(1539, 893)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform20" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(1610, 867)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform21" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(1666, 845)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform22" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(1743, 862)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="Platform23" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(1766, 884)
+kind = 1
+size = Vector2(120, 30)
+
+[node name="PlayerSpawn" type="Marker2D" parent="."]
+position = Vector2(200, 900)
