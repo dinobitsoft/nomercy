@@ -138,6 +138,12 @@ func move_horizontal(input: float, attack_committed: bool) -> void:
 	facing_right = input > 0.0
 	_sprite.flip_h = not facing_right
 
+## Turn without moving. move_horizontal() also sets facing, but a bot that
+## attacks while stationary needs to face its target independently.
+func face(right: bool) -> void:
+	facing_right = right
+	_sprite.flip_h = not right
+
 func try_jump() -> bool:
 	if not is_authority():
 		return false
