@@ -132,6 +132,11 @@ position = Vector2(1766, 884)
 kind = 1
 size = Vector2(120, 30)
 
+[node name="Floor" parent="Platforms" instance=ExtResource("1")]
+position = Vector2(-3000, 933)
+kind = 1
+size = Vector2(8000, 600)
+
 [node name="PlayerSpawn" type="Marker2D" parent="."]
 position = Vector2(200, 900)
 

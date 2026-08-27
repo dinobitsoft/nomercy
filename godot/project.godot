@@ -10,7 +10,7 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="keep"
-window/handheld/orientation=1
+window/handheld/orientation=4
 
 [editor_plugins]
 enabled=PackedStringArray("res://addons/gut/plugin.cfg")
@@ -71,3 +71,7 @@ pause={
 , Object(InputEventJoypadButton,"button_index":6,"pressed":true)
 ]
 }
+
+[rendering]
+
+textures/vram_compression/import_etc2_astc=true

@@ -8,14 +8,27 @@ func before_each():
 	level = packed.instantiate()
 	add_child_autofree(level)
 
+## These two assert CONVERSION FIDELITY: that tools/convert_map.py reproduced
+## assets/maps/level_1.json exactly. They must therefore count only
+## converter-emitted nodes (named Platform0..PlatformN) and ignore platforms
+## added to the scene by hand — e.g. `Floor`, the continuous ground plane that
+## closes the fall-to-infinity gap and deliberately has no JSON counterpart.
+## Scoping the query is not a weakening: an unfaithful conversion still fails.
+func _converted_platforms() -> Array:
+	var out := []
+	for p in level.get_node("Platforms").get_children():
+		if p.name.begins_with("Platform"):
+			out.append(p)
+	return out
+
 func test_has_twenty_four_platforms():
 	# assets/maps/level_1.json: 24 platforms (6 brick, 18 ground)
-	assert_eq(level.get_node("Platforms").get_child_count(), 24)
+	assert_eq(_converted_platforms().size(), 24)
 
 func test_platform_kinds_match_source_counts():
 	var brick := 0
 	var ground := 0
-	for p in level.get_node("Platforms").get_children():
+	for p in _converted_platforms():
 		if p.kind == Platform.Kind.BRICK:
 			brick += 1
 		elif p.kind == Platform.Kind.GROUND:

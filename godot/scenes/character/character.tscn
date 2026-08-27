@@ -44,6 +44,7 @@ movement = ExtResource("4")
 floor_snap_length = 10.0
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+scale = Vector2(0.234375, 0.234375)
 sprite_frames = ExtResource("2")
 animation = &"idle"
 

@@ -46,6 +46,17 @@ func set_vector(v: Vector2) -> void:
 		_knob.position = size / 2.0 + v * (size.x / 2.0) - _knob.size / 2.0
 	_publish("move_right", maxf(0.0, v.x))
 	_publish("move_left", maxf(0.0, -v.x))
+	queue_redraw()
+
+## Drawn rather than textured: the stick needs no art assets, and a bare
+## Control renders nothing at all — which left the joystick functional but
+## completely invisible on device.
+func _draw() -> void:
+	var radius := size.x / 2.0
+	var centre := size / 2.0
+	draw_circle(centre, radius, Color(1, 1, 1, 0.12))
+	draw_arc(centre, radius, 0.0, TAU, 48, Color(1, 1, 1, 0.35), 3.0, true)
+	draw_circle(centre + _vector * radius, radius * 0.35, Color(1, 1, 1, 0.45))
 
 func get_vector() -> Vector2:
 	return _vector
