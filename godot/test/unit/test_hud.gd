@@ -51,10 +51,17 @@ func test_combo_label_shows_the_count():
 	assert_true(label.visible)
 	assert_string_contains(label.text, "2")
 
-func test_health_bar_turns_red_at_low_health():
+func test_health_bar_turns_orange_below_threshold():
+	# 15% remaining is below the 0.3 threshold (hud.gd), so the fill must be
+	# orange Color(1.0, 0.6, 0.1), not green Color(0.2, 0.85, 0.3). Both
+	# colours have r == 1.0-ish/0.2-ish separately, but orange and green are
+	# clearly separated on BOTH the r and g channels, so assert both bounds
+	# together -- neither colour alone can satisfy both.
 	character.apply_damage(85.0)  # 15% remaining
 	await wait_frames(2)
 	var bar := hud.get_node("%HealthBar") as ProgressBar
 	var fill := bar.get_theme_stylebox("fill") as StyleBoxFlat
-	assert_almost_eq(fill.bg_color.r, 1.0, 0.05,
-		"Below 20%% health the bar should be red")
+	assert_gt(fill.bg_color.r, 0.9,
+		"Below 30%% health the bar's red channel should be high (orange)")
+	assert_lt(fill.bg_color.g, 0.7,
+		"Below 30%% health the bar's green channel should be low (orange, not green)")

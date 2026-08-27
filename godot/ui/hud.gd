@@ -1,12 +1,15 @@
 ## Health, stamina and combo readout.
 ##
 ## Signal-driven: it subscribes to the bound Character and never polls or
-## writes character state. Colour thresholds match the Dart HUD
-## (green -> orange -> red), with GameConfig.lowHealthThreshold = 0.2.
+## writes character state. Colour threshold matches the real Dart HUD
+## (modules/ui/lib/src/screens/hud.dart:63): a single 2-tier split at 0.3
+## (green above, orange at/below), no red tier. GameConfig.lowHealthThreshold
+## (modules/core/lib/src/config/game_config.dart:30, = 0.2) is declared but
+## referenced nowhere in the Dart codebase -- it is dead config, not a
+## third tier, and is intentionally not used here either.
 extends Control
 
-const LOW_HEALTH := 0.2
-const MID_HEALTH := 0.5
+const HEALTH_THRESHOLD := 0.3
 
 @onready var _health: ProgressBar = %HealthBar
 @onready var _stamina: ProgressBar = %StaminaBar
@@ -43,9 +46,7 @@ func _on_health_changed(current: float, maximum: float) -> void:
 	var pct := current / maximum if maximum > 0.0 else 0.0
 	var fill := _health.get_theme_stylebox("fill") as StyleBoxFlat
 	if fill != null:
-		if pct <= LOW_HEALTH:
-			fill.bg_color = Color(1.0, 0.2, 0.2)
-		elif pct <= MID_HEALTH:
+		if pct <= HEALTH_THRESHOLD:
 			fill.bg_color = Color(1.0, 0.6, 0.1)
 		else:
 			fill.bg_color = Color(0.2, 0.85, 0.3)

@@ -17,4 +17,23 @@ jobs:
       - name: Import project
         run: godot --headless --path godot --import
       - name: Run GUT
-        run: godot --headless -s addons/gut/gut_cmdln.gd --path godot -gdir=res://test -gexit
+        run: |
+          set -o pipefail
+          godot --headless -s addons/gut/gut_cmdln.gd --path godot -gdir=res://test -gexit \
+            2>&1 | tee gut_output.log
+      - name: Fail if GUT ran zero tests
+        run: |
+          if grep -q "Nothing was run" gut_output.log; then
+            echo "::error::GUT reported 'Nothing was run' -- -gdir is mis-set, this is a false green."
+            exit 1
+          fi
+          count=$(grep -oP 'Passing Tests\s+\K[0-9]+' gut_output.log | tail -1)
+          if [ -z "$count" ]; then
+            echo "::error::Could not find a 'Passing Tests' count in GUT output -- treat as failure."
+            exit 1
+          fi
+          echo "Passing Tests: $count"
+          if [ "$count" -lt 121 ]; then
+            echo "::error::Only $count tests passed, expected at least 121."
+            exit 1
+          fi

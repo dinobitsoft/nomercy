@@ -10,7 +10,7 @@ func before_each():
 	await wait_frames(2)
 
 func after_each():
-	for action in ["move_left", "move_right", "jump", "attack"]:
+	for action in ["move_left", "move_right", "jump", "attack", "block"]:
 		Input.action_release(action)
 
 func test_hidden_when_there_is_no_touchscreen():
@@ -56,3 +56,27 @@ func test_deadzone_is_ignored():
 	await wait_frames(2)
 	assert_false(Input.is_action_pressed("move_right"),
 		"0.1 is inside the 0.2 deadzone")
+
+## Parameterised: attack/jump/block on-screen buttons must feed the same
+## InputMap actions as keyboard/gamepad, via the button's
+## button_down/button_up signals -> touch_action_button.gd -> GameVirtualJoystick.tap()/release().
+func test_action_buttons_press_and_release_their_input_action():
+	var button_names := {
+		"attack": "%AttackButton",
+		"jump": "%JumpButton",
+		"block": "%BlockButton",
+	}
+	for action in button_names:
+		var button := controls.get_node(button_names[action]) as Button
+		assert_false(Input.is_action_pressed(action),
+			"%s should start released" % action)
+
+		button.emit_signal("button_down")
+		await wait_frames(2)
+		assert_true(Input.is_action_pressed(action),
+			"Pressing the %s button should press the %s action" % [button_names[action], action])
+
+		button.emit_signal("button_up")
+		await wait_frames(2)
+		assert_false(Input.is_action_pressed(action),
+			"Releasing the %s button should release the %s action" % [button_names[action], action])
