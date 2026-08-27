@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/character/character.tscn" id="1"]
+[ext_resource type="Script" path="res://scenes/character/player_controller.gd" id="2"]
+
+[node name="Player" instance=ExtResource("1")]
+is_enemy = false
+
+[node name="PlayerController" type="Node" parent="."]
+script = ExtResource("2")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+zoom = Vector2(1.2, 1.2)
+position_smoothing_enabled = true
+position_smoothing_speed = 5.0
