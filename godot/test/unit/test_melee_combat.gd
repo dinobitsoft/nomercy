@@ -84,3 +84,22 @@ func test_attack_respects_cooldown():
 	await wait_frames(2)
 	assert_eq(attacker.perform_melee_attack(), 0,
 		"Second attack inside the 0.5s cooldown must be refused")
+
+func test_two_targets_in_reach_increments_combo_once_per_hit():
+	# knight.dart increments comboCount once per target damaged inside the
+	# same swing (processAttack -> _updateCombo runs once per loop
+	# iteration), not once per swing. A single swing connecting with two
+	# targets must land combo at 2, not 1.
+	var target2: Character = CHARACTER.instantiate()
+	target2.position = Vector2(430, 260)  # 30px away, also inside the 60px reach
+	target2.is_enemy = true
+	add_child_autofree(target2)
+	await wait_seconds(1.5)  # let it land too
+
+	attacker.facing_right = true
+	assert_eq(attacker.combo, 0)
+	var hits := attacker.perform_melee_attack()
+	await wait_frames(2)
+	assert_eq(hits, 2, "Both targets within reach should be hit by one swing")
+	assert_eq(attacker.combo, 2,
+		"Combo must increment once per target hit, not once per swing")

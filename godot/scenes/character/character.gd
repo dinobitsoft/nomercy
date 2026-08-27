@@ -217,8 +217,15 @@ func perform_melee_attack() -> int:
 	if not begin_attack():
 		return 0
 
-	var reach := Combat.melee_reach(stats.attack_range, combo)
-	_position_hitbox(reach)
+	# Resizing the hitbox shape does not retroactively affect the overlap
+	# set the physics server already computed on its last step, so this
+	# sizing call only ever benefits a *future* swing -- the candidate set
+	# used below is whatever was already resident. Per-target eligibility
+	# is decided inside the loop by a freshly recomputed reach, so a swing
+	# that chains hits sees combo -- and therefore reach -- grow mid-loop,
+	# exactly as knight.dart's attack() does by re-reading comboCount each
+	# iteration.
+	_position_hitbox(Combat.melee_reach(stats.attack_range, combo))
 
 	var hits := 0
 	for area in _overlapping_hurtboxes():
@@ -228,6 +235,9 @@ func perform_melee_attack() -> int:
 		if other.health <= 0.0:
 			continue
 
+		# knight.dart: range is recomputed from the live comboCount every
+		# iteration, so it grows as the swing lands hits.
+		var reach := Combat.melee_reach(stats.attack_range, combo)
 		var distance := global_position.distance_to(other.global_position)
 		if distance >= reach:
 			continue
@@ -238,15 +248,19 @@ func perform_melee_attack() -> int:
 		if distance > 50.0 and not in_front:
 			continue
 
+		# knight.dart / combat_system.dart processAttack(): damage is
+		# computed from the pre-increment comboCount, then combo is
+		# incremented once per target damaged (not once per swing) via
+		# _updateCombo before the knockback pop check, which therefore
+		# reads the post-increment value.
 		var damage := Combat.calc_damage(
 			stats.attack_damage, combo, other.is_blocking(), false
 		)
+		register_hit()
 		other.apply_damage(damage)
 		other.apply_knockback(150.0 if facing_right else -150.0, combo >= 3)
 		hits += 1
 
-	if hits > 0:
-		register_hit()
 	return hits
 
 func _position_hitbox(reach: float) -> void:
