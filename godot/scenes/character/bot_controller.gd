@@ -19,6 +19,17 @@ extends Node
 const ATTACK_APPROACH_SPEED := 40.0
 const ATTACK_RETREAT_SPEED  := 30.0
 
+## NOTE for future personalities (Phase 2): under today's numbers, only the
+## retreat branch below is ever reachable. _score_attack (bot_decision.gd)
+## only scores "attack" once distance < melee_reach, and Knight melee_reach
+## tops out at ~84px (combo 4), while optimal_range * 0.7 = 105 for every
+## personality shipped so far -- so distance is always < optimal_range * 0.7
+## whenever "attack" is chosen, and the "dist > optimal" / neutral branches
+## are dead code, kept only for structural fidelity with Dart's three-way
+## rule. They would only become reachable if a personality's optimal_range
+## were tuned down, or attack_range/combo scaling tuned up, enough to push
+## melee_reach past optimal_range * 0.7.
+
 var target: Character
 var decisions_made: int = 0
 

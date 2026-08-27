@@ -63,9 +63,36 @@ func test_sustained_attacking_does_not_increase_distance():
 	# attack-branch rewrite exists to protect. Previously the bot planted
 	# its feet while attacking and combo-driven reach growth outran
 	# knockback separation, letting the raw gap creep outward forever.
+	# This alone does NOT discriminate round-1's overspeed fix from round-2's
+	# correct one (both keep the bot within the starting gap here) -- see
+	# test_attack_state_shuffle_speed_is_bounded below for that.
 	enemy.position = Vector2(440, 260)
 	var start := enemy.global_position.distance_to(player.global_position)
 	await wait_seconds(2.0)
 	var now := enemy.global_position.distance_to(player.global_position)
 	assert_lte(now, start,
 		"Sustained attacking should not let the gap to the player grow")
+
+func test_attack_state_shuffle_speed_is_bounded():
+	# Pins the actual round-1 vs round-2 divergence. Round-1 routed the
+	# attack-branch shuffle through move_horizontal(toward, true): toward has
+	# magnitude 1.0, which exceeds run_threshold, so that produced ~192 px/s
+	# (run_multiplier x attack_move_multiplier x base_speed). Round-2 assigns
+	# velocity.x directly at ATTACK_RETREAT_SPEED (30 px/s). A bound of 60 is
+	# comfortably above round-2's 30 and comfortably below round-1's 192, so
+	# it fails round-1's code and passes round-2's.
+	#
+	# Only sampled on frames where the controller's current action is
+	# "attack" -- closing a large initial gap legitimately runs at full
+	# move_horizontal() speed (~640 px/s) via the unrelated "approach"
+	# action, and that is not what this test is about.
+	enemy.position = Vector2(440, 260)
+	var controller: BotController = enemy.get_node("BotController")
+	var max_attack_speed := 0.0
+	for i in range(120):
+		await get_tree().physics_frame
+		if controller._action == "attack":
+			max_attack_speed = maxf(max_attack_speed, absf(enemy.velocity.x))
+	assert_lt(max_attack_speed, 60.0,
+		("Attack-state shuffle speed should stay near ATTACK_RETREAT_SPEED " +
+		"(30), not move_horizontal() run speed (192): got %.1f") % max_attack_speed)
