@@ -19,6 +19,9 @@ const COMBO_WINDOW := 1.5
 
 @export var stats: CharacterStats
 @export var movement: MovementProfile
+## Which faction this character belongs to. Determines which layer its
+## HurtBox sits on and which layer its HitBox scans.
+@export var is_enemy: bool = false
 
 var health: float = 100.0
 var stamina: float = 100.0
@@ -30,8 +33,13 @@ var _combo_timer: float = 0.0
 var _is_blocking: bool = false
 var _dead: bool = false
 
+const LAYER_PLAYER_HURT := 2   # bit for physics layer 2
+const LAYER_ENEMY_HURT := 4    # bit for physics layer 3
+
 @onready var _sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var _sm: CharacterStateMachine = $StateMachine
+@onready var _hitbox: Area2D = $HitBox
+@onready var _hurtbox: Area2D = $HurtBox
 
 func _ready() -> void:
 	if stats != null:
@@ -39,6 +47,12 @@ func _ready() -> void:
 	stamina = 100.0
 	health_changed.emit(health, _max_health())
 	stamina_changed.emit(stamina, 100.0)
+	_apply_faction()
+	# Monitoring is also set true in the scene file. Re-asserted here so the
+	# HitBox is guaranteed to be scanning from frame one; _position_hitbox()
+	# must never toggle this, since the physics server only populates
+	# overlap results one physics frame after monitoring flips on.
+	_hitbox.monitoring = true
 
 func is_authority() -> bool:
 	# Single-player and headless tests have no multiplayer peer configured,
@@ -182,3 +196,76 @@ func apply_damage(amount: float) -> void:
 	if health <= 0.0:
 		_dead = true
 		died.emit()
+
+func _apply_faction() -> void:
+	if is_enemy:
+		_hurtbox.collision_layer = LAYER_ENEMY_HURT
+		_hitbox.collision_mask = LAYER_PLAYER_HURT
+	else:
+		_hurtbox.collision_layer = LAYER_PLAYER_HURT
+		_hitbox.collision_mask = LAYER_ENEMY_HURT
+	_hurtbox.set_meta("owner_character", self)
+
+## Swings once. Returns the number of targets damaged.
+##
+## Ported from knight.dart attack(): reach scales with combo, targets behind
+## the character are skipped unless very close, and a landed hit applies
+## knockback.
+func perform_melee_attack() -> int:
+	if not is_authority():
+		return 0
+	if not begin_attack():
+		return 0
+
+	var reach := Combat.melee_reach(stats.attack_range, combo)
+	_position_hitbox(reach)
+
+	var hits := 0
+	for area in _overlapping_hurtboxes():
+		var other: Character = area.get_meta("owner_character", null)
+		if other == null or other == self:
+			continue
+		if other.health <= 0.0:
+			continue
+
+		var distance := global_position.distance_to(other.global_position)
+		if distance >= reach:
+			continue
+
+		# knight.dart: beyond 50px, the target must be in front.
+		var dx := other.global_position.x - global_position.x
+		var in_front := (facing_right and dx > 0.0) or (not facing_right and dx < 0.0)
+		if distance > 50.0 and not in_front:
+			continue
+
+		var damage := Combat.calc_damage(
+			stats.attack_damage, combo, other.is_blocking(), false
+		)
+		other.apply_damage(damage)
+		other.apply_knockback(150.0 if facing_right else -150.0, combo >= 3)
+		hits += 1
+
+	if hits > 0:
+		register_hit()
+	return hits
+
+func _position_hitbox(reach: float) -> void:
+	var shape := _hitbox.get_node("CollisionShape2D") as CollisionShape2D
+	(shape.shape as CircleShape2D).radius = reach
+
+func _overlapping_hurtboxes() -> Array[Area2D]:
+	# force_update_transform + a physics flush so the query sees the
+	# hitbox we just resized, without waiting a frame.
+	_hitbox.force_update_transform()
+	var result: Array[Area2D] = []
+	for a in _hitbox.get_overlapping_areas():
+		result.append(a)
+	return result
+
+## knight.dart: horizontal shove, plus a small pop at combo 3+.
+func apply_knockback(horizontal: float, pop: bool) -> void:
+	if not is_authority():
+		return
+	velocity.x += horizontal
+	if pop:
+		velocity.y = -100.0

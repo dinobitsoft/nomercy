@@ -15,6 +15,12 @@ window/handheld/orientation=1
 [editor_plugins]
 enabled=PackedStringArray("res://addons/gut/plugin.cfg")
 
+[layer_names]
+
+2d_physics/layer_1="world"
+2d_physics/layer_2="player_hurt"
+2d_physics/layer_3="enemy_hurt"
+
 [input]
 
 move_left={

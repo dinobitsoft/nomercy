@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scenes/character/character.gd" id="1"]
 [ext_resource type="SpriteFrames" path="res://resources/knight_frames.tres" id="2"]
@@ -9,7 +9,15 @@
 [sub_resource type="RectangleShape2D" id="shape"]
 size = Vector2(120, 240)
 
+[sub_resource type="CircleShape2D" id="hitshape"]
+radius = 60.0
+
+[sub_resource type="RectangleShape2D" id="hurtshape"]
+size = Vector2(120, 240)
+
 [node name="Character" type="CharacterBody2D"]
+collision_layer = 0
+collision_mask = 1
 script = ExtResource("1")
 stats = ExtResource("3")
 movement = ExtResource("4")
@@ -23,3 +31,20 @@ shape = SubResource("shape")
 
 [node name="StateMachine" type="Node" parent="."]
 script = ExtResource("5")
+
+[node name="HitBox" type="Area2D" parent="."]
+monitoring = true
+collision_layer = 0
+collision_mask = 4
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HitBox"]
+shape = SubResource("hitshape")
+
+[node name="HurtBox" type="Area2D" parent="."]
+monitorable = true
+monitoring = false
+collision_layer = 2
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HurtBox"]
+shape = SubResource("hurtshape")
