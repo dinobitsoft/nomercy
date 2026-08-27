@@ -8,6 +8,17 @@ extends Node
 
 @export var personality: BotPersonality
 
+## Dart's smart_bot_ai.dart _performAttack() is a three-way rule: approach when
+## beyond optimal_range, back away when inside optimal_range * 0.7, hold otherwise.
+## We keep that structure and Dart's 4:3 approach:retreat ratio, but scale the raw
+## magnitudes up. Dart's literal speeds (dexterity/3 = 2.67 px/s, dexterity/4 = 2.0)
+## cannot hold a melee bot on target: combo-driven reach growth outruns knockback
+## separation, so the bot drifts away while staying attack-locked. Assigned directly
+## to velocity.x like Dart does — NOT routed through MovementProfile, which is the
+## human-player input path and produces a ~72x overspeed here.
+const ATTACK_APPROACH_SPEED := 40.0
+const ATTACK_RETREAT_SPEED  := 30.0
+
 var target: Character
 var decisions_made: int = 0
 
@@ -57,12 +68,15 @@ func _apply(action: String) -> void:
 
 	match action:
 		"attack":
-			# attack_committed=true applies MovementProfile's reduced
-			# attack_move_multiplier, so the bot keeps closing on a target
-			# that knockback has pushed just out of comfortable range
-			# instead of planting its feet and letting the gap grow.
-			_character.move_horizontal(toward, true)
 			_character.face(toward > 0.0)
+			var dist := _character.global_position.distance_to(target.global_position)
+			var optimal := personality.optimal_range
+			if dist > optimal:
+				_character.velocity.x = toward * ATTACK_APPROACH_SPEED
+			elif dist < optimal * 0.7:
+				_character.velocity.x = -toward * ATTACK_RETREAT_SPEED
+			else:
+				_character.velocity.x = 0.0
 			_character.perform_melee_attack()
 		"approach":
 			_character.stop_block()

@@ -57,3 +57,15 @@ func test_decisions_are_throttled_by_reaction_time():
 	# reaction_time 0.15s over 0.5s -> roughly 3-4 decisions, not 30.
 	assert_between(made, 1, 8,
 		"Expected throttled decisions, got %d" % made)
+
+func test_sustained_attacking_does_not_increase_distance():
+	# Melee range against a stationary player: this pins the invariant the
+	# attack-branch rewrite exists to protect. Previously the bot planted
+	# its feet while attacking and combo-driven reach growth outran
+	# knockback separation, letting the raw gap creep outward forever.
+	enemy.position = Vector2(440, 260)
+	var start := enemy.global_position.distance_to(player.global_position)
+	await wait_seconds(2.0)
+	var now := enemy.global_position.distance_to(player.global_position)
+	assert_lte(now, start,
+		"Sustained attacking should not let the gap to the player grow")
