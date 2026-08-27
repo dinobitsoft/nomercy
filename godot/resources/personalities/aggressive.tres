@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="BotPersonality" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/bot_personality.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+personality_name = "Aggressive"
+aggression = 0.9
+caution = 0.2
+stamina_reserve = 20.0
+optimal_range = 150.0
+retreat_threshold = 20.0
+reaction_time = 0.15
