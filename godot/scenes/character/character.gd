@@ -31,6 +31,7 @@ var _is_blocking: bool = false
 var _dead: bool = false
 
 @onready var _sprite: AnimatedSprite2D = $AnimatedSprite2D
+@onready var _sm: CharacterStateMachine = $StateMachine
 
 func _ready() -> void:
 	if stats != null:
@@ -51,6 +52,7 @@ func _max_health() -> float:
 func _physics_process(delta: float) -> void:
 	_apply_gravity(delta)
 	move_and_slide()
+	_sync_animation()
 
 	if not is_authority():
 		return
@@ -64,6 +66,28 @@ func _apply_gravity(delta: float) -> void:
 			velocity.y = 0.0
 		return
 	velocity.y = minf(velocity.y + GRAVITY * delta, MAX_FALL_SPEED)
+
+func _sync_animation() -> void:
+	var want: CharacterStateMachine.State
+	if _dead:
+		want = CharacterStateMachine.State.DEAD
+	elif not is_on_floor():
+		want = CharacterStateMachine.State.JUMPING if velocity.y < 0.0 \
+			else CharacterStateMachine.State.FALLING
+	elif _is_blocking:
+		want = CharacterStateMachine.State.BLOCKING
+	elif absf(velocity.x) > 15.0:
+		# GameConfig.walkThreshold = 15.0
+		var running := absf(velocity.x) > \
+			MovementProfile.base_speed(stats.dexterity) * movement.walk_multiplier
+		want = CharacterStateMachine.State.RUNNING if running \
+			else CharacterStateMachine.State.WALKING
+	else:
+		want = CharacterStateMachine.State.IDLE
+	_sm.request(want)
+	var anim := _sm.animation_for(_sm.state)
+	if _sprite.animation != anim:
+		_sprite.play(anim)
 
 func _tick_timers(delta: float) -> void:
 	if _attack_cooldown > 0.0:
